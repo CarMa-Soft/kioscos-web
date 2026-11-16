@@ -12,7 +12,10 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
 | `app/` | La app: HTML, CSS y módulos JS, sin compilar. Se publica tal cual en GitHub Pages. |
 | `app/js/config.js` | Dirección del proyecto de Supabase y su clave pública (publishable). |
 | `app/js/base.js` | Conexión con Supabase: `sb` (cliente), `llamar(funcion, args)`, el token del usuario con PIN y la traducción de errores. Toda la app habla con la base desde acá. |
-| `app/js/app.js` | Pantallas: entrar con la cuenta, elegir usuario y PIN, inicio, usuarios. |
+| `app/js/app.js` | Arranque: entrar con la cuenta, elegir usuario y PIN, barra de secciones y rutas (`#/vender`, `#/caja`, `#/productos`, `#/usuarios`). Cada sección es `pantallaX(vista, ctx)`. |
+| `app/js/ui.js` | Utilidades de pantalla: `$`, `esc`, `plata`, `numero` (acepta coma decimal), `aviso`, `correr`, `modal`, `confirmar`. |
+| `app/js/catalogo.js` | Catálogo de productos en el navegador (ver abajo). |
+| `app/js/vender.js`, `caja.js`, `productos.js`, `usuarios.js` | Las secciones. |
 | `supabase/migrations/` | Cambios de la base, en orden. Se aplican solos al unirse a `main`. |
 | `supabase/config.toml` | Configuración de la CLI de Supabase (solo para uso local). |
 | `tests/` | Pruebas de la base en SQL (`NN_tema.sql`), con `pruebas.ok(...)` y `pruebas.falla(sql, patrón, qué)`. |
@@ -72,6 +75,23 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
      Las contraseñas las elige quien crea la cuenta y se las da al cliente; no se escriben en ningún otro lado.
   2. SQL Editor: `select public.admin_alta_negocio('Nombre', 'email.dueno', 'email.local', 'Nombre del dueño', 'PIN');`
      (el email del local puede ser `null`). Crea el negocio, sus cuentas y el primer usuario Dueño.
+
+## Productos, caja y ventas (etapa 3)
+- **Referencias compuestas:** las tablas con datos de un negocio tienen `unique (id, negocio_id)` y se referencian con
+  `foreign key (x_id, negocio_id)`: la base no deja apuntar a un registro de otro negocio.
+- **Catálogo en el navegador** (`catalogo.js`): se guarda en `localStorage` por negocio, **sin costos** (la PC la usan
+  los empleados), y se actualiza con `catalogo(p_desde)`, que trae solo lo que cambió (también los dados de baja, para
+  sacarlos). Cada cambio de un producto toca `productos.actualizado` (trigger). Así cada escaneo responde sin ir a internet.
+  Los costos los ve solo el dueño, en Productos, pedidos a la base cada vez.
+- **Venta** (`registrar_venta`): el precio sale de la base, nunca de la pantalla. Cada intento de cobro lleva una
+  `clave` (uuid) que genera la pantalla: si se corta la conexión y se reintenta, la base devuelve la venta ya
+  registrada (`repetida: true`) en lugar de registrarla otra vez. Las ventas se numeran por negocio.
+  Los pagos (varias formas) tienen que sumar el total y van a la caja del turno.
+- **Turnos:** uno abierto por negocio. Vende y carga movimientos quien lo abrió (o el dueño); lo cierra quien lo abrió
+  (o el dueño). Las funciones que mueven plata o stock bloquean la fila del negocio (`for update`) para no cruzarse.
+- **Anular** (solo dueño): devuelve el stock y saca la plata de la caja del turno abierto.
+- **Productos:** un producto con ventas no se borra, se da de baja (`activo = false`).
+- **Pendiente (etapa 4):** descuentos y recargos, fiado y clientes, balanza, cierre por billetes, devoluciones, reportes.
 
 ## Forma de trabajo
 - **Nunca commitear ni hacer push directo a `main`** (GitHub lo impide). Todo va en una rama y entra por pull request
