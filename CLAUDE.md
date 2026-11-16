@@ -51,7 +51,7 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   dos ramas agregan migraciones, el segundo en unir revisa que la suya tenga una fecha posterior a las de `main`.
 - `base.yml` las aplica al unir a `main` (primero muestra cuáles con `--dry-run`). Usa el secreto `SUPABASE_DB_URL`.
 - `estado_app()` devuelve la versión de la base (`base`): subirla cuando la app necesite saber que hay un cambio.
-- **Pruebas:** `pruebas.yml` corre en cada PR que toca `supabase/` o `tests/`: aplica las migraciones que la base todavía
+- **Pruebas:** `pruebas.yml` corre en cada PR (es obligatoria para unir): aplica las migraciones que la base todavía
   no tiene y corre `tests/*.sql`, todo en una transacción que se deshace (no deja nada). Simulan cuentas y usuarios con
   `pruebas.como(cuenta, token)`. Cada archivo arranca con `set local role authenticated;` y termina con `reset role;`
   (si no, corre como dueño de la base y los controles de permisos no prueban nada). Los archivos corren en orden en la
@@ -119,8 +119,10 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
 - Anular una venta fiada descuenta lo fiado de la cuenta; el turno hace falta solo si hubo pagos que pasaron por la caja.
 
 ## Forma de trabajo
-- **Nunca commitear ni hacer push directo a `main`** (GitHub lo impide). Todo va en una rama y entra por pull request
-  aprobado por el otro; el dueño de la organización puede unir un PR propio sin aprobación, pero siempre por PR.
+- **Nunca commitear ni hacer push directo a `main`** (GitHub lo impide). Todo va en una rama y entra por pull request.
+  Cada uno une sus propios PR sin esperar la aprobación del otro (regla "Proteger main": 0 aprobaciones), pero **solo
+  con las pruebas de la base en verde**: el control `probar` es obligatorio y nadie lo puede saltear. Como la base es
+  desarrollo y producción a la vez, lo que se une se aplica enseguida: si hay dudas, pedirle al otro que revise igual.
 - PR en español. Si resuelve un issue, la primera línea es `Closes #N` (o `Closes CarMa-Soft/Kiosco#N` si el issue es del repo privado).
 - Las ramas se borran solas al unir el PR.
 - Commits con el email privado de GitHub (`…@users.noreply.github.com`), no el personal: `git config user.email` en este repo.
