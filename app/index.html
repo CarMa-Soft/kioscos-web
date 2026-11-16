@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Solo se cargan scripts propios y de cdn.jsdelivr.net, y solo se habla con el proyecto de Supabase -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self'; img-src 'self' data:; connect-src 'self' https://jmktvtbyeifrminlrhpa.supabase.co wss://jmktvtbyeifrminlrhpa.supabase.co; base-uri 'self'; form-action 'self'; object-src 'none'">
+  <meta name="referrer" content="no-referrer">
+  <title>Kioscos y Almacenes</title>
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <main class="caja">
+    <h1>Kioscos y Almacenes</h1>
+    <p class="muted">Versión web en construcción.</p>
+    <div id="estado" class="estado">Conectando con la base…</div>
+  </main>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
