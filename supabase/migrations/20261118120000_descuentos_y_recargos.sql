@@ -220,7 +220,7 @@ begin
     if v_pct_desc > v_tope then
       if p_autorizacion is not null then v_aut := public.usar_autorizacion(p_autorizacion); end if;
       if v_aut is null then
-        raise exception '%', format('El descuento es del %s%% y tu tope es %s%%: necesita la autorización del dueño', v_pct_desc, v_tope)
+        raise exception '%', format('El descuento es del %s%% y tu tope es %s%%: necesita la autorización del dueño', trim_scale(v_pct_desc), trim_scale(v_tope))
           using errcode = 'P0001', hint = 'autorizacion';
       end if;
     end if;

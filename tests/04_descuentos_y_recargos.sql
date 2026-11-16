@@ -44,7 +44,7 @@ select pruebas.ok((public.registrar_venta(gen_random_uuid(), format('[{"producto
   '[{"forma": "Efectivo", "base": 1500}]') ->> 'descuento_renglones')::numeric = 0, 'cobrar más caro no cuenta como descuento');
 select set_config('prueba.items_desc', format('[{"producto_id": %s, "cantidad": 1, "precio": 800}]', current_setting('prueba.leche')), false);
 select pruebas.falla($$select public.registrar_venta(gen_random_uuid(), current_setting('prueba.items_desc')::jsonb, '[{"forma": "Efectivo", "base": 800}]')$$,
-  'del 20.0% y tu tope es 10%', 'pasado el tope pide autorización (rebaja en el renglón)');
+  'del 20% y tu tope es 10%:', 'pasado el tope pide autorización (rebaja en el renglón)');
 select pruebas.falla($$select public.registrar_venta(gen_random_uuid(), current_setting('prueba.items_desc')::jsonb, '[{"forma": "Efectivo", "base": 800}]', null, null, false, 0, gen_random_uuid())$$,
   'autorización del dueño', 'un permiso inventado no sirve');
 select pruebas.ok(public.autorizar_dueno(current_setting('prueba.ana')::bigint, '0000') ->> 'error' = 'PIN incorrecto', 'PIN del dueño incorrecto');
