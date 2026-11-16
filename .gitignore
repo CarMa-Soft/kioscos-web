@@ -1,0 +1,18 @@
+# Claves y configuración local: nunca al repo
+.env
+.env.*
+*.local
+CLAVES*.txt
+
+# Datos reales o exportados
+data/
+*.db
+*.db-*
+*.sqlite
+*.dump
+*.sql.gz
+
+node_modules/
+.claude/
+.DS_Store
+Thumbs.db
