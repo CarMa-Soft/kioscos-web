@@ -4,6 +4,7 @@
 -- =====================================================================
 
 \echo == Clientes (Eva, empleada de A)
+set local role authenticated;
 select pruebas.como('a0000000-0000-4000-8000-0000000000c1', current_setting('prueba.t_ana'));
 select set_config('prueba.leche', public.guardar_producto('{"nombre": "Leche", "precio": "1000", "stock": "20"}') ->> 'id', false);
 select pruebas.como('a0000000-0000-4000-8000-0000000000c1', current_setting('prueba.t_eva'));
@@ -56,5 +57,6 @@ select pruebas.falla(format($$select public.registrar_venta(gen_random_uuid(), '
   current_setting('prueba.coca_b'), current_setting('prueba.juan')), 'Cliente no encontrado', 'B no le fía a un cliente de A');
 select pruebas.falla('select * from public.clientes', 'permission denied', 'nadie lee la tabla clientes directo');
 select pruebas.falla('select * from public.cc', 'permission denied', 'nadie lee la tabla cc directo');
+reset role;
 
 \echo == Todas las pruebas de clientes y fiado dieron bien
