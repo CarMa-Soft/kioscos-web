@@ -2,7 +2,7 @@
 // La cuenta (descuentos, recargos, dos medios de pago) es la misma que hace la base; la que vale es la de la base.
 import { llamar } from './base.js';
 import * as cat from './catalogo.js';
-import { $, $$, esc, plata, cant, numero, aviso, correr, modal, confirmar } from './ui.js';
+import { $, $$, esc, plata, cant, numero, aviso, correr, modal, confirmar, pedirAutorizacion } from './ui.js';
 import { formCliente, textoSaldo } from './clientes.js';
 
 const r2 = n => Math.round((+n || 0) * 100) / 100;
@@ -271,28 +271,6 @@ export async function pantallaVender(vista, ctx) {
   }
 
   // ---------- Cobrar ----------
-  // El dueño autoriza con su PIN un descuento por encima del tope del empleado. Devuelve el permiso o null.
-  function pedirAutorizacion(mensaje) {
-    return new Promise(listo => {
-      const duenos = ctx.usuarios.filter(u => u.rol === 'admin');
-      let token = null;
-      const m = modal('Autorización del dueño', `<form class="form" id="f-aut"><p>${esc(mensaje)}</p>
-        <label ${duenos.length === 1 ? 'hidden' : ''}>Dueño<select class="input" name="dueno">${duenos.map(u => `<option value="${u.id}">${esc(u.nombre)}</option>`).join('')}</select></label>
-        <label>PIN ${duenos.length === 1 ? 'de ' + esc(duenos[0].nombre) : 'del dueño'}<input class="input pin" name="pin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" required autofocus></label>
-        <div class="fila fin"><button type="button" class="btn" data-cerrar>Cancelar</button><button class="btn primario">Autorizar</button></div></form>`,
-        { alCerrar: () => listo(token) });
-      $('#f-aut', m.el).onsubmit = e => {
-        e.preventDefault();
-        const f = new FormData(e.target);
-        correr(async () => {
-          const r = await llamar('autorizar_dueno', { p_dueno_id: +f.get('dueno'), p_pin: f.get('pin') });
-          if (r.error) { e.target.pin.value = ''; return aviso(r.error); }
-          token = r.token; m.cerrar();
-        });
-      };
-    });
-  }
-
   let cobrando = false;
   async function cobrar() {
     if (cobrando) return;
@@ -324,7 +302,7 @@ export async function pantallaVender(vista, ctx) {
               if (!await confirmar('Límite de fiado', err.message + '. ¿Fiar igual?', 'Fiar igual')) return;
               args.p_forzar_limite = true;
             } else if (err.codigo === 'autorizacion') {   // descuento por encima del tope del empleado
-              const token = await pedirAutorizacion(err.message);
+              const token = await pedirAutorizacion(ctx.usuarios, err.message);
               if (!token) return;
               args.p_autorizacion = token;
             } else throw err;

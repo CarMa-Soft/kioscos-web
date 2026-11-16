@@ -1,5 +1,5 @@
 // Utilidades de pantalla compartidas por todas las secciones
-import { traducir, guardarToken } from './base.js';
+import { traducir, guardarToken, llamar } from './base.js';
 
 export const $ = (sel, raiz = document) => raiz.querySelector(sel);
 export const $$ = (sel, raiz = document) => [...raiz.querySelectorAll(sel)];
@@ -50,6 +50,29 @@ export function modal(titulo, cuerpo, { ancho = false, alCerrar } = {}) {
   $$('[data-cerrar]', fondo).forEach(b => b.onclick = cerrar);
   setTimeout(() => $('[autofocus], input, select, button.primario', fondo)?.focus(), 30);
   return { el: fondo, cerrar };
+}
+
+// Un dueño autoriza con su PIN algo que el usuario actual no puede hacer solo (descuento por encima del tope,
+// devolución). Devuelve el permiso de un solo uso de autorizar_dueno, o null si se cancela.
+export function pedirAutorizacion(usuarios, mensaje) {
+  return new Promise(listo => {
+    const duenos = usuarios.filter(u => u.rol === 'admin');
+    let token = null;
+    const m = modal('Autorización del dueño', `<form class="form" id="f-aut"><p>${esc(mensaje)}</p>
+      <label ${duenos.length === 1 ? 'hidden' : ''}>Dueño<select class="input" name="dueno">${duenos.map(u => `<option value="${u.id}">${esc(u.nombre)}</option>`).join('')}</select></label>
+      <label>PIN ${duenos.length === 1 ? 'de ' + esc(duenos[0].nombre) : 'del dueño'}<input class="input pin" name="pin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" required autofocus></label>
+      <div class="fila fin"><button type="button" class="btn" data-cerrar>Cancelar</button><button class="btn primario">Autorizar</button></div></form>`,
+      { alCerrar: () => listo(token) });
+    $('#f-aut', m.el).onsubmit = e => {
+      e.preventDefault();
+      const f = new FormData(e.target);
+      correr(async () => {
+        const r = await llamar('autorizar_dueno', { p_dueno_id: +f.get('dueno'), p_pin: f.get('pin') });
+        if (r.error) { e.target.pin.value = ''; return aviso(r.error); }
+        token = r.token; m.cerrar();
+      });
+    };
+  });
 }
 
 export function confirmar(titulo, texto, boton = 'Aceptar') {

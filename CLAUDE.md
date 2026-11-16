@@ -93,7 +93,18 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   (o el dueño). Las funciones que mueven plata o stock bloquean la fila del negocio (`for update`) para no cruzarse.
 - **Anular** (solo dueño): devuelve el stock y saca la plata de la caja del turno abierto.
 - **Productos:** un producto con ventas no se borra, se da de baja (`activo = false`).
-- **Pendiente (etapa 4):** devoluciones, reportes.
+- **Pendiente (etapa 4):** reportes. Imprimir tickets y comprobantes (todavía no hay impresión).
+
+## Devoluciones de venta (etapa 4d)
+- Desde el detalle de la venta (Caja), `devolver_venta(venta, items [{ id del renglón, cantidad, vuelve_stock }], forma, motivo, autorización)`:
+  **DV-0001** (`devoluciones` / `devolucion_items`, numeración propia por negocio). Reintegro = importe del renglón ×
+  total / subtotal de la venta (con descuento y recargos); si vuelve todo lo que quedaba, justo lo que falta.
+  Forma: una forma de pago (sale de la caja del turno) o `Fiado` (a la cuenta del cliente; no hace falta turno).
+  Lo que no vuelve al stock (roto, vencido) queda como pérdida. El empleado necesita la autorización del dueño
+  (el mismo permiso de un solo uso de `autorizar_dueno`; la ventana es `pedirAutorizacion` en `ui.js`).
+- `venta_json` trae `devuelto` por renglón, `devoluciones` y `devuelto` total. **Anular** una venta con devoluciones
+  anula solo lo que quedó: el stock no devuelto y la plata que quedaba, repartida entre los pagos.
+- Pendiente para reportes: restar lo devuelto en la fecha de la devolución (las de ventas anuladas no).
 
 ## Balanza, cierre por billetes y turnos anteriores (etapa 4c)
 - **Etiquetas de balanza** (Ajustes → Balanza: activa, prefijo, tipo `peso` | `importe` | `importe_centavos`):
