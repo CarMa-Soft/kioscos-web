@@ -51,9 +51,11 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   dos ramas agregan migraciones, el segundo en unir revisa que la suya tenga una fecha posterior a las de `main`.
 - `base.yml` las aplica al unir a `main` (primero muestra cuáles con `--dry-run`). Usa el secreto `SUPABASE_DB_URL`.
 - `estado_app()` devuelve la versión de la base (`base`): subirla cuando la app necesite saber que hay un cambio.
-- **Pruebas:** `pruebas.yml` corre en cada PR que toca `supabase/` o `tests/`: aplica las migraciones que la base todavía
+- **Pruebas:** `pruebas.yml` corre en cada PR (es obligatoria para unir): aplica las migraciones que la base todavía
   no tiene y corre `tests/*.sql`, todo en una transacción que se deshace (no deja nada). Simulan cuentas y usuarios con
-  `pruebas.como(cuenta, token)`. Un PR no se une si las pruebas fallan. Cada función o tabla nueva suma sus pruebas,
+  `pruebas.como(cuenta, token)`. Cada archivo arranca con `set local role authenticated;` y termina con `reset role;`
+  (si no, corre como dueño de la base y los controles de permisos no prueban nada). Los archivos corren en orden en la
+  misma transacción: cada uno puede usar lo que armaron los anteriores. Un PR no se une si las pruebas fallan. Cada función o tabla nueva suma sus pruebas,
   incluida la de que otro negocio no la ve ni la toca.
 
 ## Cuentas, negocios y usuarios (etapa 2)
@@ -91,11 +93,47 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   (o el dueño). Las funciones que mueven plata o stock bloquean la fila del negocio (`for update`) para no cruzarse.
 - **Anular** (solo dueño): devuelve el stock y saca la plata de la caja del turno abierto.
 - **Productos:** un producto con ventas no se borra, se da de baja (`activo = false`).
-- **Pendiente (etapa 4):** descuentos y recargos, fiado y clientes, balanza, cierre por billetes, devoluciones, reportes.
+- **Pendiente (etapa 4):** devoluciones, reportes.
+
+## Balanza, cierre por billetes y turnos anteriores (etapa 4c)
+- **Etiquetas de balanza** (Ajustes → Balanza: activa, prefijo, tipo `peso` | `importe` | `importe_centavos`):
+  EAN-13 = prefijo + PLU (hasta el dígito 7) + 5 dígitos de valor + verificador. Las lee `vender.js` con el catálogo
+  (`porCodigoDeBalanza`; el producto tiene que ser por kilo y tener su PLU). Si trae el importe, el renglón lo manda
+  (`items[].importe`) y `registrar_venta` lo acepta solo si coincide con kilos × precio dentro del redondeo de medio
+  gramo: no sirve para cobrar menos. Cambiar los kilos o el precio del renglón descarta el importe de la etiqueta.
+- **Cierre por billetes** (`cerrar_turno` con `p_billetes` = `{ "valor": cantidad }` y `p_otros`): el contado lo calcula
+  la base; queda en `turnos.billetes`. Con `p_registrar_ajuste`, el faltante o sobrante queda como movimiento de caja
+  (`caja.ajuste = true`); el esperado guardado no cambia. Los valores de billetes se editan en Ajustes (`guardar_ajustes_caja`).
+- **Turnos anteriores** (`turnos_anteriores`, `turno(id)`): el dueño ve todos; el empleado, los suyos.
+
+## Cobro: descuentos, recargos y autorización (etapa 4b)
+- Cuenta (la misma en `vender.js` y en `registrar_venta`; la que vale es la de la base): subtotal = renglones con su
+  precio cobrado; base = subtotal − descuento general; cada pago `{ forma, base }` lleva su recargo
+  (`pct_recargo`, redondeado a pesos enteros) y su monto = base + recargo; total = base + recargos.
+  Con dos medios, lo que se escribe en el primero es lo que paga con ese medio (con recargo) y el resto va al segundo.
+- El precio de un renglón se puede cambiar para esa venta (`items[].precio`); si es menor al de lista cuenta como
+  descuento (`descuento_renglones`). Efectivo nunca lleva recargo; Fiado puede.
+- **Tope del empleado** (`tope_descuento`, por defecto 10%): descuentos manuales en % de lo que valía a precio de lista.
+  Por encima, `registrar_venta` corta con `hint = 'autorizacion'`; la pantalla pide el PIN de un dueño con
+  `autorizar_dueno` (mismo bloqueo de 5 intentos que el ingreso), que da un permiso de un solo uso (5 minutos, de esa
+  cuenta y ese usuario) y la venta lo consume (`p_autorizacion`). Queda `ventas.autorizo_id`. El PIN nunca viaja con la venta.
+- Ajustes (solo dueño, `guardar_ajustes_cobro`): formas de pago (Efectivo siempre primero; Fiado no se lista), recargos y tope.
+  `estado_caja()` los devuelve (`formas_pago`, `recargos`, `tope_descuento`).
+
+## Clientes y fiado (etapa 4a)
+- Cuenta del cliente en `cc`: monto > 0 suma deuda (`cargo` por compra fiada, `ajuste`), < 0 la baja (`pago`, `ajuste`).
+  Saldo = suma (positivo = debe). `Fiado` es una forma de pago más en `registrar_venta` (con `p_cliente_id`): va a la
+  cuenta, no a la caja. Si el cliente tiene límite y lo pasaría, la base corta con `hint = 'limite'` y no registra nada;
+  la pantalla pregunta y reintenta con `p_forzar_limite`.
+- Cualquier usuario crea clientes y cobra (`cobrar_cliente`, entra a la caja del turno); el límite, los ajustes
+  (`ajuste_cliente`, deuda anterior o corrección, sin plata) y las bajas los hace el dueño. Un cliente con saldo no se borra.
+- Anular una venta fiada descuenta lo fiado de la cuenta; el turno hace falta solo si hubo pagos que pasaron por la caja.
 
 ## Forma de trabajo
-- **Nunca commitear ni hacer push directo a `main`** (GitHub lo impide). Todo va en una rama y entra por pull request
-  aprobado por el otro; el dueño de la organización puede unir un PR propio sin aprobación, pero siempre por PR.
+- **Nunca commitear ni hacer push directo a `main`** (GitHub lo impide). Todo va en una rama y entra por pull request.
+  Cada uno une sus propios PR sin esperar la aprobación del otro (regla "Proteger main": 0 aprobaciones), pero **solo
+  con las pruebas de la base en verde**: el control `probar` es obligatorio y nadie lo puede saltear. Como la base es
+  desarrollo y producción a la vez, lo que se une se aplica enseguida: si hay dudas, pedirle al otro que revise igual.
 - PR en español. Si resuelve un issue, la primera línea es `Closes #N` (o `Closes CarMa-Soft/Kiosco#N` si el issue es del repo privado).
 - Las ramas se borran solas al unir el PR.
 - Commits con el email privado de GitHub (`…@users.noreply.github.com`), no el personal: `git config user.email` en este repo.

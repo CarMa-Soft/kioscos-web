@@ -1,10 +1,10 @@
 # Pruebas de la base en cada PR: aplica las migraciones que todavía no están en la base y corre tests/*.sql,
 # todo dentro de una transacción que se deshace al final. No deja nada en la base.
+# Corre en todos los PR (no solo los que tocan la base): la regla de main la exige para unir.
 name: Pruebas de la base
 
 on:
   pull_request:
-    paths: ['supabase/**', 'tests/**', '.github/workflows/pruebas.yml']
   workflow_dispatch:
 
 permissions:
@@ -17,8 +17,11 @@ concurrency:
 jobs:
   probar:
     runs-on: ubuntu-latest
-    # los PR desde forks no reciben el secreto
-    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    # Los PR desde forks y los de Dependabot no reciben el secreto: ahí se saltea (para la regla de main, saltear cuenta
+    # como aprobado). Dependabot solo actualiza las acciones de GitHub, no toca la base.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')
     steps:
       - uses: actions/checkout@v4
 

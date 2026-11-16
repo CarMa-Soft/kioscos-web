@@ -39,14 +39,17 @@ export async function pantallaProductos(vista, ctx) {
       <div class="fila"><label class="crece">Stock<input class="input" name="stock" inputmode="decimal" value="${v.stock ?? 0}"></label>
         <label class="crece">Stock mínimo<input class="input" name="stock_min" inputmode="decimal" value="${v.stock_min ?? 0}"></label></div>
       <label class="check"><input type="checkbox" name="por_peso" ${v.por_peso ? 'checked' : ''}> Se vende por kilo</label>
+      <label id="plu-box" ${v.por_peso ? '' : 'hidden'}>Código de balanza (PLU) <span class="muted">(el que tiene en la balanza, para leer sus etiquetas)</span>
+        <input class="input mono" name="plu" maxlength="6" inputmode="numeric" value="${esc(v.plu || '')}"></label>
       <div class="fila fin">${p ? '<button type="button" class="btn peligro izq" id="eliminar">Eliminar</button>' : ''}
         <button type="button" class="btn" data-cerrar>Cancelar</button><button class="btn primario">Guardar</button></div></form>`, { ancho: true });
+    $('[name=por_peso]', m.el).onchange = ev => { $('#plu-box', m.el).hidden = !ev.target.checked; };
     $('#f-prod', m.el).onsubmit = ev => {
       ev.preventDefault();
       const f = new FormData(ev.target);
       const datos = { id: p?.id ?? null, nombre: f.get('nombre'), codigo: f.get('codigo'), categoria_id: f.get('categoria_id') || null,
         costo: numero(f.get('costo')) || 0, precio: numero(f.get('precio')), stock: numero(f.get('stock')) || 0,
-        stock_min: numero(f.get('stock_min')) || 0, por_peso: f.get('por_peso') === 'on' };
+        stock_min: numero(f.get('stock_min')) || 0, por_peso: f.get('por_peso') === 'on', plu: f.get('por_peso') === 'on' ? f.get('plu') : '' };
       if (!(datos.precio >= 0)) return aviso('Revisá el precio');
       if (datos.costo > datos.precio && !confirm('El costo es mayor que el precio de venta. ¿Guardar igual?')) return;
       correr(async () => { await llamar('guardar_producto', { p: datos }); m.cerrar(); aviso('Producto guardado', 'ok'); await cat.actualizar(); ctx.recargar(); });

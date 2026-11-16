@@ -80,6 +80,33 @@ p.muted { margin: 0 0 1.25rem; }
 .resultados { background: #fff; border: 1px solid var(--borde); border-radius: 10px; margin-top: .4rem; max-height: 340px; overflow: auto; }
 .resultado { font: inherit; width: 100%; display: grid; grid-template-columns: 1fr auto auto; gap: 1rem; padding: .55rem .8rem; border: 0; border-bottom: 1px solid var(--borde); background: #fff; cursor: pointer; text-align: left; }
 .resultado:hover, .resultado:focus { background: #ecfdf3; outline: none; }
+.buscador { position: relative; }
+.resultados.flotan { position: absolute; left: 0; right: 0; z-index: 20; box-shadow: 0 8px 24px rgba(0, 0, 0, .12); }
+.resultado.marcado { background: #ecfdf3; }
+.resultados .sin { padding: .7rem .9rem; margin: 0; }
+.ayuda { margin: .4rem 0 0; }
+.cuenta { display: grid; gap: .2rem; }
+.renglon-cuenta { display: flex; justify-content: space-between; font-size: .95rem; }
+.bloque { display: grid; gap: .45rem; padding-top: .75rem; border-top: 1px solid var(--borde); }
+.fila.entre { justify-content: space-between; align-items: center; }
+.formas { display: grid; grid-template-columns: repeat(2, 1fr); gap: .4rem; }
+.forma { font: inherit; padding: .55rem .5rem; border: 1px solid #cbd2d9; border-radius: 8px; background: #fff; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: .3rem; }
+.forma small { color: var(--suave); }
+.forma.elegida { border-color: var(--primario); background: #ecfdf3; font-weight: 700; }
+.dos-medios { display: grid; gap: .45rem; }
+.dos-medios label { display: grid; grid-template-columns: auto 1fr 7.5rem; gap: .4rem; align-items: center; }
+.dos-medios .resto { text-align: right; font-weight: 700; padding-right: .5rem; }
+.segmentos { display: inline-flex; border: 1px solid #cbd2d9; border-radius: 8px; overflow: hidden; }
+.segmentos button { font: inherit; border: 0; background: #fff; padding: .2rem .7rem; cursor: pointer; }
+.segmentos button.elegido { background: var(--primario); color: #fff; }
+.billetes { display: flex; gap: .3rem; flex-wrap: wrap; }
+.tecla { font-size: .75rem; opacity: .8; border: 1px solid rgba(255, 255, 255, .5); border-radius: 4px; padding: 0 .3rem; margin-left: .4rem; }
+.input.corto { width: 6rem; text-align: right; }
+.recuadro-blanco + .recuadro-blanco { margin-top: 1rem; }
+.chico-total { font-size: 1.6rem; }
+.diferencia { font-weight: 600; min-height: 1.4em; margin: 0; }
+.recuadro-blanco { background: #fff; border: 1px solid var(--borde); border-radius: 12px; padding: 1.25rem; max-width: 640px; }
+.cliente-venta { display: flex; justify-content: space-between; align-items: center; gap: .5rem; padding-bottom: .75rem; border-bottom: 1px solid var(--borde); }
 .vuelto { font-size: 1.3rem; font-weight: 700; margin: 0; min-height: 1.5rem; }
 
 /* Caja */

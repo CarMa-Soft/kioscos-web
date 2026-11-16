@@ -72,11 +72,11 @@ select pruebas.falla('select public.abrir_turno(0)', 'Ya hay un turno abierto', 
 select set_config('prueba.clave', gen_random_uuid()::text, false);
 select set_config('prueba.v1', public.registrar_venta(current_setting('prueba.clave')::uuid,
   jsonb_build_array(
-    jsonb_build_object('producto_id', current_setting('prueba.coca'), 'cantidad', 2, 'precio', 1),
+    jsonb_build_object('producto_id', current_setting('prueba.coca'), 'cantidad', 2),
     jsonb_build_object('producto_id', current_setting('prueba.queso'), 'cantidad', '0,5'),
     jsonb_build_object('nombre', 'Carga SUBE', 'importe', 300)),
   '[{"forma": "Efectivo", "monto": 5000}, {"forma": "Débito", "monto": 1300}]', 10000)::text, false);
-select pruebas.ok((current_setting('prueba.v1')::jsonb ->> 'total')::numeric = 6300, 'el total sale de los precios de la base (no de la pantalla)');
+select pruebas.ok((current_setting('prueba.v1')::jsonb ->> 'total')::numeric = 6300, 'sin precio en el renglón, cobra el precio del producto');
 select pruebas.ok((current_setting('prueba.v1')::jsonb ->> 'numero')::int = 1, 'la primera venta del negocio es la 1');
 select pruebas.ok(not (current_setting('prueba.v1')::jsonb -> 'items' -> 0 ? 'costo'), 'la venta no muestra costos');
 select pruebas.ok((public.registrar_venta(current_setting('prueba.clave')::uuid, '[{"nombre": "x", "importe": 1}]', '[{"forma": "Efectivo", "monto": 1}]')

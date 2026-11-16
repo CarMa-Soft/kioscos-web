@@ -36,6 +36,8 @@ export function traducir(error) {
   const msg = error?.message || String(error);
   if (/Failed to fetch|NetworkError|Load failed/i.test(msg)) return new ErrorBase('Sin conexión a internet', 'red');
   if (error?.hint === 'sesion') return new ErrorBase(msg, 'sesion');
+  if (error?.hint === 'limite') return new ErrorBase(msg, 'limite');   // fiado por encima del límite del cliente
+  if (error?.hint === 'autorizacion') return new ErrorBase(msg, 'autorizacion');   // hace falta el PIN de un dueño
   if (error?.code === 'PGRST202') return new ErrorBase('La base no tiene esta función: falta aplicar una actualización de la base', error.code);
   if (error?.code === '23505') return new ErrorBase(/^Ya /.test(msg) ? msg : 'Ya existe un registro con ese dato', error.code);
   if (/permission denied|row-level security/i.test(msg)) return new ErrorBase('Sin permiso para hacer esto', '42501');
