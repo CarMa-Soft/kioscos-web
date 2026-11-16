@@ -112,6 +112,7 @@ select pruebas.falla($$select public.guardar_config('negocio', '{}')$$, 'solo lo
 select pruebas.falla($$select public.guardar_usuario(null, 'Zeta', 'admin', true, '4444')$$, 'solo lo puede hacer el dueño', 'el empleado no crea usuarios');
 select public.cambiar_mi_pin('3333', '4444');
 select pruebas.falla($$select public.cambiar_mi_pin('3333', '5555')$$, 'PIN actual no es correcto', 'para cambiar el PIN pide el actual');
+select pruebas.falla('select public.listar_usuarios()', 'solo lo puede hacer el dueño', 'el empleado no ve la lista para administrar');
 
 \echo == Cinco PIN incorrectos bloquean
 select pruebas.como('a0000000-0000-4000-8000-0000000000c1');
@@ -127,6 +128,9 @@ select public.guardar_usuario(current_setting('prueba.emi')::bigint, 'Emi', 'emp
 select pruebas.como('a0000000-0000-4000-8000-0000000000c1', current_setting('prueba.tok_e'));
 select pruebas.ok(public.usuario_actual_id() is null, 'su token deja de valer');
 select pruebas.ok(jsonb_array_length(public.datos_inicio() -> 'usuarios') = 1, 'ya no aparece para elegir');
+select pruebas.como('a0000000-0000-4000-8000-0000000000c1', current_setting('prueba.tok_a'));
+select pruebas.ok(jsonb_array_length(public.listar_usuarios()) = 2
+  and public.listar_usuarios() @> '[{"nombre": "Emi", "activo": false}]', 'la dueña lo sigue viendo, desactivado');
 
 -- ---------------------------------------------------------------------
 \echo == El token de una cuenta no sirve en otra

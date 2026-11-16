@@ -225,6 +225,18 @@ begin
 end;
 $$;
 
+-- Todos los usuarios del negocio, también los desactivados (solo dueño, para administrarlos)
+create or replace function public.listar_usuarios()
+returns jsonb language plpgsql stable security definer set search_path = '' as $$
+declare v_neg uuid := public.requiere_negocio();
+begin
+  perform public.requiere_admin();
+  return coalesce((select jsonb_agg(jsonb_build_object('id', u.id, 'nombre', u.nombre, 'rol', u.rol, 'activo', u.activo,
+      'bloqueado', u.bloqueado_hasta > now()) order by u.activo desc, u.rol, u.nombre)
+    from public.usuarios u where u.negocio_id = v_neg), '[]'::jsonb);
+end;
+$$;
+
 create or replace function public.cambiar_mi_pin(p_actual text, p_nuevo text)
 returns void language plpgsql volatile security definer set search_path = '' as $$
 declare v_id bigint := public.requiere_usuario(); v_hash text;
@@ -282,13 +294,13 @@ $$;
 revoke all on function public.mi_negocio(), public.token_usuario(), public.usuario_actual_id(), public.es_admin(),
   public.requiere_negocio(), public.requiere_usuario(), public.requiere_admin(), public.hash_pin(text),
   public.datos_inicio(), public.iniciar_usuario(bigint, text), public.cerrar_usuario(),
-  public.guardar_usuario(bigint, text, text, boolean, text), public.cambiar_mi_pin(text, text),
+  public.guardar_usuario(bigint, text, text, boolean, text), public.listar_usuarios(), public.cambiar_mi_pin(text, text),
   public.guardar_config(text, jsonb), public.admin_alta_negocio(text, text, text, text, text)
   from public, anon, authenticated;
 
 -- Las que llama la app (con una cuenta iniciada)
 grant execute on function public.datos_inicio(), public.iniciar_usuario(bigint, text), public.cerrar_usuario(),
-  public.guardar_usuario(bigint, text, text, boolean, text), public.cambiar_mi_pin(text, text),
+  public.guardar_usuario(bigint, text, text, boolean, text), public.listar_usuarios(), public.cambiar_mi_pin(text, text),
   public.guardar_config(text, jsonb)
   to authenticated;
 

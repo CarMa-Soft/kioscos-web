@@ -11,10 +11,12 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
 |---|---|
 | `app/` | La app: HTML, CSS y módulos JS, sin compilar. Se publica tal cual en GitHub Pages. |
 | `app/js/config.js` | Dirección del proyecto de Supabase y su clave pública (publishable). |
-| `app/js/base.js` | Conexión con Supabase: `sb` (cliente), `llamar(funcion, args)` y la traducción de errores. Toda la app habla con la base desde acá. |
+| `app/js/base.js` | Conexión con Supabase: `sb` (cliente), `llamar(funcion, args)`, el token del usuario con PIN y la traducción de errores. Toda la app habla con la base desde acá. |
+| `app/js/app.js` | Pantallas: entrar con la cuenta, elegir usuario y PIN, inicio, usuarios. |
 | `supabase/migrations/` | Cambios de la base, en orden. Se aplican solos al unirse a `main`. |
 | `supabase/config.toml` | Configuración de la CLI de Supabase (solo para uso local). |
-| `.github/workflows/` | `pages.yml` publica `app/`; `base.yml` aplica las migraciones. |
+| `tests/` | Pruebas de la base en SQL (`NN_tema.sql`), con `pruebas.ok(...)` y `pruebas.falla(sql, patrón, qué)`. |
+| `.github/workflows/` | `pages.yml` publica `app/`; `base.yml` aplica las migraciones; `pruebas.yml` corre `tests/` en cada PR. |
 | `tools/servidor.js` | Servidor local: `node tools/servidor.js` → http://localhost:5180 |
 
 ## Seguridad (no negociable)
@@ -46,6 +48,30 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   dos ramas agregan migraciones, el segundo en unir revisa que la suya tenga una fecha posterior a las de `main`.
 - `base.yml` las aplica al unir a `main` (primero muestra cuáles con `--dry-run`). Usa el secreto `SUPABASE_DB_URL`.
 - `estado_app()` devuelve la versión de la base (`base`): subirla cuando la app necesite saber que hay un cambio.
+- **Pruebas:** `pruebas.yml` corre en cada PR que toca `supabase/` o `tests/`: aplica las migraciones que la base todavía
+  no tiene y corre `tests/*.sql`, todo en una transacción que se deshace (no deja nada). Simulan cuentas y usuarios con
+  `pruebas.como(cuenta, token)`. Un PR no se une si las pruebas fallan. Cada función o tabla nueva suma sus pruebas,
+  incluida la de que otro negocio no la ve ni la toca.
+
+## Cuentas, negocios y usuarios (etapa 2)
+- **Cuentas** (Supabase Auth, email y contraseña), en `miembros`: la del dueño (`dueno`) y la de la PC del local
+  (`local`). Cada cuenta es de un solo negocio. **El registro libre está desactivado**: las cuentas las crea CarMa-Soft.
+- **Usuarios** (`usuarios`, como en la app local): personas con PIN de 4 a 8 números, rol `admin` (Dueño) o `empleado`.
+  En la PC se entra una vez con la cuenta; después cada uno elige su nombre y pone su PIN (`iniciar_usuario`).
+  5 PIN incorrectos seguidos bloquean a ese usuario 5 minutos.
+- **Sesión del usuario:** `iniciar_usuario` devuelve un token (vence a las 16 horas) que la app manda en el encabezado
+  `x-usuario-kiosco` en cada pedido (`base.js`). Solo vale con la misma cuenta y el mismo negocio.
+- **Controles para las funciones:** `requiere_negocio()`, `requiere_usuario()`, `requiere_admin()` (cortan con el error
+  para mostrar) y `mi_negocio()`, `usuario_actual_id()`, `es_admin()` (para reglas y condiciones). Un error con
+  `hint = 'sesion'` hace que la app vuelva a pedir usuario y PIN.
+- **Ninguna tabla se expone directo:** la app lee y escribe solo con funciones (`datos_inicio`, `listar_usuarios`,
+  `guardar_usuario`, `cambiar_mi_pin`, `guardar_config`, `cerrar_usuario`).
+- **Negocio suspendido:** `negocios.activo = false` corta el acceso a todas sus cuentas sin borrar nada.
+- **Alta de un negocio** (la hace CarMa-Soft, nunca la app):
+  1. Supabase → Authentication → Users → Add user, con **Auto Confirm User**: la cuenta del dueño y la de la PC del local.
+     Las contraseñas las elige quien crea la cuenta y se las da al cliente; no se escriben en ningún otro lado.
+  2. SQL Editor: `select public.admin_alta_negocio('Nombre', 'email.dueno', 'email.local', 'Nombre del dueño', 'PIN');`
+     (el email del local puede ser `null`). Crea el negocio, sus cuentas y el primer usuario Dueño.
 
 ## Forma de trabajo
 - **Nunca commitear ni hacer push directo a `main`** (GitHub lo impide). Todo va en una rama y entra por pull request
