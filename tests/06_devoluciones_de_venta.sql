@@ -2,15 +2,16 @@
 -- Pruebas: devoluciones de venta (etapa 4d). Usa lo armado en 01 a 05.
 -- Al llegar acá: negocio A sin turno abierto; Leche a $1000; recargos Crédito 10% y Fiado 5%; cliente Juan.
 -- =====================================================================
+-- ayuda: stock de un producto según el catálogo (se crea antes de pasar a usuario común)
+create function pruebas.stock(p_id text) returns numeric language sql as $$
+  select (p ->> 'stock')::numeric from jsonb_array_elements(public.catalogo() -> 'productos') p where p ->> 'id' = p_id;
+$$;
+grant execute on function pruebas.stock(text) to authenticated;
 set local role authenticated;
 
 \echo == Preparación
 select pruebas.como('a0000000-0000-4000-8000-0000000000c1', current_setting('prueba.t_ana'));
 select public.abrir_turno(10000);
-create function pruebas.stock(p_id text) returns numeric language sql as $$
-  select (p ->> 'stock')::numeric from jsonb_array_elements(public.catalogo() -> 'productos') p where p ->> 'id' = p_id;
-$$;
-grant execute on function pruebas.stock(text) to authenticated;
 -- 3 leches con $300 de descuento, con crédito (+10%): base 2700 + 270 = 2970 (factor 0,99)
 select set_config('prueba.vd', public.registrar_venta(gen_random_uuid(), format('[{"producto_id": %s, "cantidad": 3}]', current_setting('prueba.leche'))::jsonb,
   '[{"forma": "Crédito", "base": 2700}]', null, null, false, 300)::text, false);
