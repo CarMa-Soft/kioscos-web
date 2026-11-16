@@ -62,6 +62,7 @@ export const productos = () => estado ? Object.values(estado.productos) : [];
 export const categorias = () => estado?.categorias || [];
 export const producto = id => estado?.productos[id];
 export const porCodigoDeBarras = codigo => porCodigo.get(String(codigo).trim().toLowerCase());
+export const porCodigoDeBalanza = plu => porPlu.get(String(plu));
 export const categoriaNombre = id => categorias().find(c => c.id === id)?.nombre || '';
 
 // Búsqueda por nombre o código: todas las palabras tienen que estar

@@ -102,6 +102,9 @@ p.muted { margin: 0 0 1.25rem; }
 .billetes { display: flex; gap: .3rem; flex-wrap: wrap; }
 .tecla { font-size: .75rem; opacity: .8; border: 1px solid rgba(255, 255, 255, .5); border-radius: 4px; padding: 0 .3rem; margin-left: .4rem; }
 .input.corto { width: 6rem; text-align: right; }
+.recuadro-blanco + .recuadro-blanco { margin-top: 1rem; }
+.chico-total { font-size: 1.6rem; }
+.diferencia { font-weight: 600; min-height: 1.4em; margin: 0; }
 .recuadro-blanco { background: #fff; border: 1px solid var(--borde); border-radius: 12px; padding: 1.25rem; max-width: 640px; }
 .cliente-venta { display: flex; justify-content: space-between; align-items: center; gap: .5rem; padding-bottom: .75rem; border-bottom: 1px solid var(--borde); }
 .vuelto { font-size: 1.3rem; font-weight: 700; margin: 0; min-height: 1.5rem; }
