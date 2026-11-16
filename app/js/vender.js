@@ -1,12 +1,13 @@
 // Vender: escanear o buscar, armar la venta y cobrar
 import { llamar } from './base.js';
 import * as cat from './catalogo.js';
-import { $, $$, esc, plata, cant, numero, aviso, correr, modal } from './ui.js';
+import { $, $$, esc, plata, cant, numero, aviso, correr, modal, confirmar } from './ui.js';
+import { formCliente, textoSaldo } from './clientes.js';
 
 // La venta en curso sobrevive a cambiar de sección. 'clave' identifica el intento de cobro: si se corta internet
-// y se vuelve a cobrar, la base reconoce la misma venta y no la registra dos veces.
-let venta = { items: [], clave: crypto.randomUUID() };
-const nueva = () => { venta = { items: [], clave: crypto.randomUUID() }; };
+// y se vuelve a cobrar, la base reconoce la misma venta y no la registra dos veces. 'cliente' es opcional (para fiar, obligatorio).
+let venta = { items: [], clave: crypto.randomUUID(), cliente: null };
+const nueva = () => { venta = { items: [], clave: crypto.randomUUID(), cliente: null }; };
 const total = () => Math.round(venta.items.reduce((s, i) => s + importe(i), 0) * 100) / 100;
 const importe = i => i.producto_id ? Math.round(i.cantidad * (cat.producto(i.producto_id)?.precio ?? i.precio) * 100) / 100 : i.importe;
 
@@ -22,6 +23,7 @@ export async function pantallaVender(vista, ctx) {
         <div class="fila"><button class="btn" id="varios">＋ Varios</button><button class="btn" id="vaciar">Vaciar</button></div>
       </div>
       <div class="vender-der">
+        <div class="cliente-venta" id="cliente-venta"></div>
         <div class="total-etq">Total</div><div class="total" id="total"></div>
         <button class="btn primario grande" id="cobrar">Cobrar (F2)</button>
         <p class="muted chico">Turno: ${caja.turno ? esc(caja.turno.usuario) : 'cerrado'}</p>
@@ -100,6 +102,12 @@ export async function pantallaVender(vista, ctx) {
         <td class="num"><b>${plata(importe(i))}</b></td><td><button class="link" data-quitar="${k}" title="Quitar">✕</button></td></tr>`).join('')}</tbody>`
       : '<tbody><tr><td class="muted vacio">Escaneá un producto o buscalo por nombre.</td></tr></tbody>';
     $('#total').textContent = plata(total());
+    const c = venta.cliente;
+    $('#cliente-venta').innerHTML = c ? `<div><span class="muted">Cliente</span> <b>${esc(c.nombre)}</b><div class="muted chico">${textoSaldo(c.saldo)}</div></div>
+        <button class="link" id="quitar-cliente">Quitar</button>`
+      : '<button class="btn" id="elegir-cliente">👤 Elegir cliente</button>';
+    if (c) $('#quitar-cliente').onclick = () => { venta.cliente = null; pintar(); escaner.focus(); };
+    else $('#elegir-cliente').onclick = () => elegirCliente();
     $$('[data-quitar]', t).forEach(b => b.onclick = () => { venta.items.splice(+b.dataset.quitar, 1); pintar(); escaner.focus(); });
     $$('[data-cant]', t).forEach(inp => {
       inp.onfocus = () => inp.select();
@@ -113,10 +121,37 @@ export async function pantallaVender(vista, ctx) {
     });
   }
 
+  function elegirCliente() {
+    correr(async () => {
+      const lista = (await llamar('clientes')).filter(c => c.activo);
+      const m = modal('Elegir cliente', `<input class="input" id="buscar-cli" placeholder="Buscar por nombre o teléfono" autocomplete="off" autofocus>
+        <div class="resultados" id="lista-cli"></div>
+        <div class="fila fin"><button class="btn izq" id="nuevo-cli">＋ Nuevo cliente</button><button class="btn" data-cerrar>Cancelar</button></div>`,
+        { alCerrar: () => $('#escaner')?.focus() });
+      const elegir = c => { venta.cliente = c; m.cerrar(); pintar(); };
+      const pintarLista = () => {
+        const f = $('#buscar-cli', m.el).value.trim().toLowerCase();
+        const ver = lista.filter(c => !f || c.nombre.toLowerCase().includes(f) || (c.telefono || '').includes(f)).slice(0, 50);
+        $('#lista-cli', m.el).innerHTML = ver.map(c => `<button class="resultado" data-id="${c.id}"><span>${esc(c.nombre)}</span><span class="muted">${esc(c.telefono || '')}</span>
+          <b class="${+c.saldo > 0.004 ? 'mal' : ''}">${textoSaldo(c.saldo)}</b></button>`).join('') || '<p class="muted">No hay clientes con ese nombre.</p>';
+        $$('[data-id]', m.el).forEach(b => b.onclick = () => elegir(lista.find(c => c.id === +b.dataset.id)));
+      };
+      $('#buscar-cli', m.el).oninput = pintarLista;
+      $('#buscar-cli', m.el).onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); $('[data-id]', m.el)?.click(); } };
+      $('#nuevo-cli', m.el).onclick = () => {
+        const escrito = $('#buscar-cli', m.el).value.trim();
+        formCliente(null, false, c => elegir(c));
+        $('#f-cli [name=nombre]').value = escrito;   // lo que ya se había escrito en la búsqueda
+      };
+      pintarLista();
+    });
+  }
+
   function cobrar(caja) {
     if (!venta.items.length) return aviso('La venta no tiene productos');
     if (!caja.turno) return aviso('La caja está cerrada: abrí tu turno en Caja');
-    const t = total(), formas = caja.formas_pago;
+    // Fiado solo con un cliente elegido; va a su cuenta, no a la caja
+    const t = total(), formas = venta.cliente ? [...caja.formas_pago, 'Fiado'] : caja.formas_pago;
     let pagos = [{ forma: formas[0], monto: t }];
     const m = modal(`Cobrar ${plata(t)}`, `<form class="form ancho" id="f-cobro"><div id="pagos"></div>
       <button type="button" class="link" id="otra">＋ Pagar con otra forma también</button>
@@ -154,7 +189,14 @@ export async function pantallaVender(vista, ctx) {
       correr(async () => {
         const items = venta.items.map(i => i.producto_id ? { producto_id: i.producto_id, cantidad: i.cantidad } : { nombre: i.nombre, importe: i.importe });
         const con = numero($('[name=paga_con]', m.el).value);
-        const r = await llamar('registrar_venta', { p_clave: venta.clave, p_items: items, p_pagos: pagos, p_paga_con: con > 0 ? con : null });
+        const args = { p_clave: venta.clave, p_items: items, p_pagos: pagos, p_paga_con: con > 0 ? con : null, p_cliente_id: venta.cliente?.id ?? null, p_forzar_limite: false };
+        let r;
+        try { r = await llamar('registrar_venta', args); } catch (err) {
+          // Pasaría el límite de fiado: no se registró nada; se puede confirmar y fiar igual
+          if (err.codigo !== 'limite') throw err;
+          if (!await confirmar('Límite de fiado', err.message + '. ¿Fiar igual?', 'Fiar igual')) return;
+          r = await llamar('registrar_venta', { ...args, p_forzar_limite: true });
+        }
         m.cerrar();
         nueva(); pintar();
         // repetida: el intento anterior sí se había guardado (se cortó la respuesta); no se registró de nuevo

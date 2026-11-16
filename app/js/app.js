@@ -6,6 +6,7 @@ import { pantallaVender } from './vender.js';
 import { pantallaCaja } from './caja.js';
 import { pantallaProductos } from './productos.js';
 import { pantallaUsuarios } from './usuarios.js';
+import { pantallaClientes } from './clientes.js';
 
 const raiz = $('#app');
 let datos = null;            // lo que devuelve datos_inicio()
@@ -15,6 +16,7 @@ let refresco = null;         // actualización periódica del catálogo
 const SECCIONES = [
   { ruta: '#/vender', nombre: 'Vender', fn: pantallaVender },
   { ruta: '#/caja', nombre: 'Caja', fn: pantallaCaja },
+  { ruta: '#/clientes', nombre: 'Clientes', fn: pantallaClientes },
   { ruta: '#/productos', nombre: 'Productos', fn: pantallaProductos, admin: true },
   { ruta: '#/usuarios', nombre: 'Usuarios', fn: pantallaUsuarios },
 ];

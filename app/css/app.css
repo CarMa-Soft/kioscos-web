@@ -80,6 +80,7 @@ p.muted { margin: 0 0 1.25rem; }
 .resultados { background: #fff; border: 1px solid var(--borde); border-radius: 10px; margin-top: .4rem; max-height: 340px; overflow: auto; }
 .resultado { font: inherit; width: 100%; display: grid; grid-template-columns: 1fr auto auto; gap: 1rem; padding: .55rem .8rem; border: 0; border-bottom: 1px solid var(--borde); background: #fff; cursor: pointer; text-align: left; }
 .resultado:hover, .resultado:focus { background: #ecfdf3; outline: none; }
+.cliente-venta { display: flex; justify-content: space-between; align-items: center; gap: .5rem; padding-bottom: .75rem; border-bottom: 1px solid var(--borde); }
 .vuelto { font-size: 1.3rem; font-weight: 700; margin: 0; min-height: 1.5rem; }
 
 /* Caja */

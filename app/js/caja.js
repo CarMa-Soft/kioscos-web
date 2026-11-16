@@ -25,10 +25,11 @@ export async function pantallaCaja(vista, ctx) {
       ${propio || admin ? '<button class="btn primario" id="cerrar">Cerrar turno</button>' : ''}</div></div>
     <div class="tarjetas"><div class="tarjeta"><div class="etq">Efectivo que tiene que haber</div><div class="valor">${plata(t.esperado)}</div></div>
       ${formas.map(([f, v]) => `<div class="tarjeta"><div class="etq">${esc(f)}</div><div class="valor">${plata(v)}</div></div>`).join('')}
+      ${+e.fiado ? `<div class="tarjeta"><div class="etq">Fiado <span class="muted">(no entra a la caja)</span></div><div class="valor">${plata(e.fiado)}</div></div>` : ''}
       <div class="tarjeta"><div class="etq">Ventas</div><div class="valor">${e.ventas.filter(v => !v.anulada).length}</div></div></div>
     <h3>Ventas del turno</h3>
     <div class="tabla-caja"><table class="tabla">${e.ventas.length ? `<thead><tr><th>#</th><th>Hora</th><th>Productos</th><th>Vendió</th><th class="num">Total</th><th></th></tr></thead><tbody>
-      ${e.ventas.map(v => `<tr class="${v.anulada ? 'anulada' : ''}"><td>${v.numero}</td><td>${hora(v.fecha)}</td><td class="corto">${esc(v.resumen || '')}</td><td>${esc(v.usuario)}</td>
+      ${e.ventas.map(v => `<tr class="${v.anulada ? 'anulada' : ''}"><td>${v.numero}</td><td>${hora(v.fecha)}</td><td class="corto">${esc(v.resumen || '')}${v.cliente ? `<div class="muted chico">${esc(v.cliente)}${v.fiado ? ' · fiado' : ''}</div>` : ''}</td><td>${esc(v.usuario)}</td>
         <td class="num">${plata(v.total)}${v.anulada ? ' <span class="etiqueta">anulada</span>' : ''}</td><td><button class="link" data-venta="${v.id}">Ver</button></td></tr>`).join('')}</tbody>`
       : '<tbody><tr><td class="muted vacio">Todavía no hay ventas en este turno.</td></tr></tbody>'}</table></div>
     <h3>Movimientos</h3>
@@ -78,13 +79,14 @@ export async function pantallaCaja(vista, ctx) {
   function verVenta(id) {
     correr(async () => {
       const v = await llamar('venta', { p_id: id });
-      const m = modal(`Venta #${v.numero}`, `<p class="muted">${fecha(v.fecha)} · ${esc(v.usuario)}${v.anulada ? ` · <b class="mal">Anulada</b> por ${esc(v.anulada_por)}${v.motivo_anulacion ? ': ' + esc(v.motivo_anulacion) : ''}` : ''}</p>
+      const m = modal(`Venta #${v.numero}`, `<p class="muted">${fecha(v.fecha)} · ${esc(v.usuario)}${v.cliente ? ' · cliente ' + esc(v.cliente.nombre) : ''}${v.anulada ? ` · <b class="mal">Anulada</b> por ${esc(v.anulada_por)}${v.motivo_anulacion ? ': ' + esc(v.motivo_anulacion) : ''}` : ''}</p>
         <table class="tabla"><tbody>${v.items.map(i => `<tr><td>${esc(i.nombre)}</td><td class="num">${cant(i.cantidad)}${i.por_peso ? ' kg' : ''}</td><td class="num">${plata(i.importe)}</td></tr>`).join('')}</tbody>
         <tfoot><tr><th colspan="2">Total</th><th class="num">${plata(v.total)}</th></tr></tfoot></table>
         <p>${v.pagos.map(p => `${esc(p.forma)} ${plata(p.monto)}`).join(' · ')}${v.paga_con ? ` · pagó con ${plata(v.paga_con)}` : ''}</p>
         <div class="fila fin">${admin && !v.anulada ? '<button class="btn peligro" id="anular">Anular venta</button>' : ''}<button class="btn primario" data-cerrar>Cerrar</button></div>`, { ancho: true });
       if ($('#anular', m.el)) $('#anular', m.el).onclick = async () => {
-        if (!await confirmar('Anular venta', `Se devuelve el stock y salen ${plata(v.total)} de la caja del turno abierto.`, 'Anular')) return;
+        const fiado = v.pagos.filter(p => p.forma === 'Fiado').reduce((s, p) => s + +p.monto, 0), deCaja = +v.total - fiado;
+        if (!await confirmar('Anular venta', `Se devuelve el stock${deCaja > 0 ? `, salen ${plata(deCaja)} de la caja del turno abierto` : ''}${fiado > 0 ? ` y se le descuentan ${plata(fiado)} de la cuenta a ${v.cliente.nombre}` : ''}.`, 'Anular')) return;
         correr(async () => { await llamar('anular_venta', { p_id: v.id, p_motivo: null }); m.cerrar(); aviso(`Venta #${v.numero} anulada`, 'ok'); await cat.actualizar(); ctx.recargar(); });
       };
     });
