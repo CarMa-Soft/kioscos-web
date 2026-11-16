@@ -93,7 +93,21 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   (o el dueño). Las funciones que mueven plata o stock bloquean la fila del negocio (`for update`) para no cruzarse.
 - **Anular** (solo dueño): devuelve el stock y saca la plata de la caja del turno abierto.
 - **Productos:** un producto con ventas no se borra, se da de baja (`activo = false`).
-- **Pendiente (etapa 4):** descuentos y recargos, balanza, cierre por billetes, devoluciones, reportes.
+- **Pendiente (etapa 4):** balanza, cierre por billetes, devoluciones, reportes.
+
+## Cobro: descuentos, recargos y autorización (etapa 4b)
+- Cuenta (la misma en `vender.js` y en `registrar_venta`; la que vale es la de la base): subtotal = renglones con su
+  precio cobrado; base = subtotal − descuento general; cada pago `{ forma, base }` lleva su recargo
+  (`pct_recargo`, redondeado a pesos enteros) y su monto = base + recargo; total = base + recargos.
+  Con dos medios, lo que se escribe en el primero es lo que paga con ese medio (con recargo) y el resto va al segundo.
+- El precio de un renglón se puede cambiar para esa venta (`items[].precio`); si es menor al de lista cuenta como
+  descuento (`descuento_renglones`). Efectivo nunca lleva recargo; Fiado puede.
+- **Tope del empleado** (`tope_descuento`, por defecto 10%): descuentos manuales en % de lo que valía a precio de lista.
+  Por encima, `registrar_venta` corta con `hint = 'autorizacion'`; la pantalla pide el PIN de un dueño con
+  `autorizar_dueno` (mismo bloqueo de 5 intentos que el ingreso), que da un permiso de un solo uso (5 minutos, de esa
+  cuenta y ese usuario) y la venta lo consume (`p_autorizacion`). Queda `ventas.autorizo_id`. El PIN nunca viaja con la venta.
+- Ajustes (solo dueño, `guardar_ajustes_cobro`): formas de pago (Efectivo siempre primero; Fiado no se lista), recargos y tope.
+  `estado_caja()` los devuelve (`formas_pago`, `recargos`, `tope_descuento`).
 
 ## Clientes y fiado (etapa 4a)
 - Cuenta del cliente en `cc`: monto > 0 suma deuda (`cargo` por compra fiada, `ajuste`), < 0 la baja (`pago`, `ajuste`).
