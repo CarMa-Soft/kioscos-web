@@ -7,6 +7,7 @@ import { pantallaCaja } from './caja.js';
 import { pantallaProductos } from './productos.js';
 import { pantallaUsuarios } from './usuarios.js';
 import { pantallaClientes } from './clientes.js';
+import { pantallaAjustes } from './ajustes.js';
 
 const raiz = $('#app');
 let datos = null;            // lo que devuelve datos_inicio()
@@ -19,6 +20,7 @@ const SECCIONES = [
   { ruta: '#/clientes', nombre: 'Clientes', fn: pantallaClientes },
   { ruta: '#/productos', nombre: 'Productos', fn: pantallaProductos, admin: true },
   { ruta: '#/usuarios', nombre: 'Usuarios', fn: pantallaUsuarios },
+  { ruta: '#/ajustes', nombre: 'Ajustes', fn: pantallaAjustes, admin: true },
 ];
 
 siVenceLaSesion(() => iniciar());
@@ -123,7 +125,7 @@ async function mostrarSeccion() {
   const vista = $('#vista');
   vista.innerHTML = '<p class="muted">Cargando…</p>';
   const ctx = {
-    yo, negocio: datos.negocio,
+    yo, negocio: datos.negocio, usuarios: datos.usuarios,
     ir: ruta => { location.hash = ruta; },
     recargar: () => mostrarSeccion(),
     alTeclear: fn => { teclas = fn; },

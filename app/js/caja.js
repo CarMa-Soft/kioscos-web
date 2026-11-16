@@ -81,7 +81,12 @@ export async function pantallaCaja(vista, ctx) {
       const v = await llamar('venta', { p_id: id });
       const m = modal(`Venta #${v.numero}`, `<p class="muted">${fecha(v.fecha)} · ${esc(v.usuario)}${v.cliente ? ' · cliente ' + esc(v.cliente.nombre) : ''}${v.anulada ? ` · <b class="mal">Anulada</b> por ${esc(v.anulada_por)}${v.motivo_anulacion ? ': ' + esc(v.motivo_anulacion) : ''}` : ''}</p>
         <table class="tabla"><tbody>${v.items.map(i => `<tr><td>${esc(i.nombre)}</td><td class="num">${cant(i.cantidad)}${i.por_peso ? ' kg' : ''}</td><td class="num">${plata(i.importe)}</td></tr>`).join('')}</tbody>
-        <tfoot><tr><th colspan="2">Total</th><th class="num">${plata(v.total)}</th></tr></tfoot></table>
+        <tfoot>${+v.descuento || +v.recargo ? `<tr><td colspan="2">Subtotal</td><td class="num">${plata(v.subtotal)}</td></tr>` : ''}
+          ${+v.descuento ? `<tr><td colspan="2">Descuento</td><td class="num">−${plata(v.descuento)}</td></tr>` : ''}
+          ${+v.recargo ? `<tr><td colspan="2">Recargo</td><td class="num">+${plata(v.recargo)}</td></tr>` : ''}
+          <tr><th colspan="2">Total</th><th class="num">${plata(v.total)}</th></tr></tfoot></table>
+        ${+v.descuento_renglones ? `<p class="muted chico">Precios rebajados en los renglones: ${plata(v.descuento_renglones)} menos que la lista.</p>` : ''}
+        ${v.autorizo ? `<p class="muted chico">Descuento autorizado por ${esc(v.autorizo)}.</p>` : ''}
         <p>${v.pagos.map(p => `${esc(p.forma)} ${plata(p.monto)}`).join(' · ')}${v.paga_con ? ` · pagó con ${plata(v.paga_con)}` : ''}</p>
         <div class="fila fin">${admin && !v.anulada ? '<button class="btn peligro" id="anular">Anular venta</button>' : ''}<button class="btn primario" data-cerrar>Cerrar</button></div>`, { ancho: true });
       if ($('#anular', m.el)) $('#anular', m.el).onclick = async () => {
