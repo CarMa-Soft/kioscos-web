@@ -53,7 +53,9 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
 - `estado_app()` devuelve la versión de la base (`base`): subirla cuando la app necesite saber que hay un cambio.
 - **Pruebas:** `pruebas.yml` corre en cada PR que toca `supabase/` o `tests/`: aplica las migraciones que la base todavía
   no tiene y corre `tests/*.sql`, todo en una transacción que se deshace (no deja nada). Simulan cuentas y usuarios con
-  `pruebas.como(cuenta, token)`. Un PR no se une si las pruebas fallan. Cada función o tabla nueva suma sus pruebas,
+  `pruebas.como(cuenta, token)`. Cada archivo arranca con `set local role authenticated;` y termina con `reset role;`
+  (si no, corre como dueño de la base y los controles de permisos no prueban nada). Los archivos corren en orden en la
+  misma transacción: cada uno puede usar lo que armaron los anteriores. Un PR no se une si las pruebas fallan. Cada función o tabla nueva suma sus pruebas,
   incluida la de que otro negocio no la ve ni la toca.
 
 ## Cuentas, negocios y usuarios (etapa 2)
@@ -91,7 +93,16 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   (o el dueño). Las funciones que mueven plata o stock bloquean la fila del negocio (`for update`) para no cruzarse.
 - **Anular** (solo dueño): devuelve el stock y saca la plata de la caja del turno abierto.
 - **Productos:** un producto con ventas no se borra, se da de baja (`activo = false`).
-- **Pendiente (etapa 4):** descuentos y recargos, fiado y clientes, balanza, cierre por billetes, devoluciones, reportes.
+- **Pendiente (etapa 4):** descuentos y recargos, balanza, cierre por billetes, devoluciones, reportes.
+
+## Clientes y fiado (etapa 4a)
+- Cuenta del cliente en `cc`: monto > 0 suma deuda (`cargo` por compra fiada, `ajuste`), < 0 la baja (`pago`, `ajuste`).
+  Saldo = suma (positivo = debe). `Fiado` es una forma de pago más en `registrar_venta` (con `p_cliente_id`): va a la
+  cuenta, no a la caja. Si el cliente tiene límite y lo pasaría, la base corta con `hint = 'limite'` y no registra nada;
+  la pantalla pregunta y reintenta con `p_forzar_limite`.
+- Cualquier usuario crea clientes y cobra (`cobrar_cliente`, entra a la caja del turno); el límite, los ajustes
+  (`ajuste_cliente`, deuda anterior o corrección, sin plata) y las bajas los hace el dueño. Un cliente con saldo no se borra.
+- Anular una venta fiada descuenta lo fiado de la cuenta; el turno hace falta solo si hubo pagos que pasaron por la caja.
 
 ## Forma de trabajo
 - **Nunca commitear ni hacer push directo a `main`** (GitHub lo impide). Todo va en una rama y entra por pull request
