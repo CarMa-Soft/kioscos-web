@@ -93,7 +93,18 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   (o el dueño). Las funciones que mueven plata o stock bloquean la fila del negocio (`for update`) para no cruzarse.
 - **Anular** (solo dueño): devuelve el stock y saca la plata de la caja del turno abierto.
 - **Productos:** un producto con ventas no se borra, se da de baja (`activo = false`).
-- **Pendiente (etapa 4):** balanza, cierre por billetes, devoluciones, reportes.
+- **Pendiente (etapa 4):** devoluciones, reportes.
+
+## Balanza, cierre por billetes y turnos anteriores (etapa 4c)
+- **Etiquetas de balanza** (Ajustes → Balanza: activa, prefijo, tipo `peso` | `importe` | `importe_centavos`):
+  EAN-13 = prefijo + PLU (hasta el dígito 7) + 5 dígitos de valor + verificador. Las lee `vender.js` con el catálogo
+  (`porCodigoDeBalanza`; el producto tiene que ser por kilo y tener su PLU). Si trae el importe, el renglón lo manda
+  (`items[].importe`) y `registrar_venta` lo acepta solo si coincide con kilos × precio dentro del redondeo de medio
+  gramo: no sirve para cobrar menos. Cambiar los kilos o el precio del renglón descarta el importe de la etiqueta.
+- **Cierre por billetes** (`cerrar_turno` con `p_billetes` = `{ "valor": cantidad }` y `p_otros`): el contado lo calcula
+  la base; queda en `turnos.billetes`. Con `p_registrar_ajuste`, el faltante o sobrante queda como movimiento de caja
+  (`caja.ajuste = true`); el esperado guardado no cambia. Los valores de billetes se editan en Ajustes (`guardar_ajustes_caja`).
+- **Turnos anteriores** (`turnos_anteriores`, `turno(id)`): el dueño ve todos; el empleado, los suyos.
 
 ## Cobro: descuentos, recargos y autorización (etapa 4b)
 - Cuenta (la misma en `vender.js` y en `registrar_venta`; la que vale es la de la base): subtotal = renglones con su

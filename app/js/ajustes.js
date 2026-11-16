@@ -17,7 +17,29 @@ export async function pantallaAjustes(vista) {
       <label>Tope de descuento sin autorización (%)<input class="input" name="tope" inputmode="decimal" value="${c.tope_descuento}"></label>
       <p class="muted chico">Si un empleado rebaja más que esto (sumando los precios cambiados y el descuento general), la venta necesita el PIN de un dueño. El dueño no tiene tope.</p>
       <div class="fila"><button class="btn primario">Guardar</button></div>
+    </form>
+    <form class="form ancho recuadro-blanco" id="f-caja">
+      <h3>Balanza</h3>
+      <p class="muted">Las etiquetas de la balanza (EAN-13) traen el código de balanza (PLU) del producto y el peso o el importe.
+        Cada producto por kilo tiene que tener su código de balanza en Productos.</p>
+      <label class="check"><input type="checkbox" name="activa" ${c.balanza?.activa ? 'checked' : ''}> Leer etiquetas de balanza al escanear</label>
+      <div class="fila"><label class="crece">Prefijo de las etiquetas<input class="input" name="prefijo" maxlength="2" inputmode="numeric" value="${esc(c.balanza?.prefijo || '20')}"></label>
+        <label class="crece">La etiqueta trae<select class="input" name="tipo">
+          ${[['peso', 'El peso (gramos)'], ['importe', 'El importe (pesos)'], ['importe_centavos', 'El importe (con centavos)']].map(([v, t]) => `<option value="${v}" ${c.balanza?.tipo === v ? 'selected' : ''}>${t}</option>`).join('')}</select></label></div>
+      <h3>Billetes para el cierre de caja</h3>
+      <p class="muted">Los valores que aparecen al contar la caja. Separalos con comas (pueden salir billetes nuevos).</p>
+      <input class="input" name="billetes" value="${esc((c.billetes || []).join(', '))}">
+      <div class="fila"><button class="btn primario">Guardar</button></div>
     </form>`;
+  $('#f-caja').onsubmit = e => {
+    e.preventDefault();
+    const f = new FormData(e.target);
+    const billetes = String(f.get('billetes')).split(/[,;\s]+/).map(x => x.trim()).filter(Boolean);
+    correr(async () => {
+      await llamar('guardar_ajustes_caja', { p_balanza: { activa: f.get('activa') === 'on', prefijo: f.get('prefijo'), tipo: f.get('tipo') }, p_billetes: billetes });
+      aviso('Ajustes guardados', 'ok');
+    });
+  };
   const pintar = () => {
     $('#formas').innerHTML = `<table class="tabla"><thead><tr><th>Forma</th><th class="num">Recargo %</th><th></th></tr></thead><tbody>
       <tr><td>Efectivo</td><td class="num muted">—</td><td></td></tr>

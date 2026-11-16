@@ -37,6 +37,18 @@ export async function pantallaVender(vista, ctx) {
   let sugeridos = [], marcado = 0;
 
   // ---------- Buscar y agregar ----------
+  // Etiqueta de balanza (EAN-13): prefijo + PLU (hasta el dígito 7) + 5 dígitos de peso (gramos) o importe + verificador
+  function leerBalanza(t) {
+    const b = caja.balanza;
+    if (!b?.activa || !/^\d{13}$/.test(t) || !t.startsWith(b.prefijo)) return null;
+    const plu = String(parseInt(t.slice(b.prefijo.length, 7), 10)), valor = +t.slice(7, 12);
+    const p = cat.porCodigoDeBalanza(plu);
+    if (!p || !p.por_peso) return { error: `La etiqueta es de la balanza pero no hay ningún producto por kilo con código de balanza ${plu}` };
+    if (b.tipo === 'peso') return { p, cantidad: r3(valor / 1000) };
+    const imp = b.tipo === 'importe_centavos' ? valor / 100 : valor;
+    if (!(p.precio > 0)) return { error: `${p.nombre} no tiene precio cargado` };
+    return { p, cantidad: r3(imp / p.precio), importe: r2(imp) };
+  }
   const separarCantidad = texto => { const m = texto.match(/^(\d+(?:[.,]\d+)?)\s*\*\s*(.+)$/); return m ? [numero(m[1]), m[2].trim()] : [1, texto]; };
   escaner.oninput = () => {
     const [, texto] = separarCantidad(escaner.value.trim());
@@ -56,6 +68,13 @@ export async function pantallaVender(vista, ctx) {
     e.preventDefault();
     const [n, texto] = separarCantidad(escaner.value.trim());
     if (!texto) return;
+    const bal = leerBalanza(texto);
+    if (bal?.error) { escaner.select(); return aviso(bal.error); }
+    if (bal) {
+      escaner.value = ''; res.hidden = true;
+      venta.items.push({ producto_id: bal.p.id, nombre: bal.p.nombre, cantidad: bal.cantidad, precio: null, por_peso: true, etiqueta: bal.importe ?? null });
+      pintar(); return escaner.focus();
+    }
     const p = cat.porCodigoDeBarras(texto) || (!res.hidden && sugeridos[marcado]) || (cat.buscar(texto, 2).length === 1 ? cat.buscar(texto, 1)[0] : null);
     if (p) return agregar(p, n > 0 ? n : 1);
     aviso(/^\d{6,}$/.test(texto) ? `No hay ningún producto con el código ${texto}` : `No hay productos con "${texto}"`);
@@ -122,13 +141,15 @@ export async function pantallaVender(vista, ctx) {
       } else v = numero(txt);
       if (!(v >= 0)) return aviso('Precio inválido');
       i.precio = r2(v) === r2(lista) ? null : r2(v);
+      i.etiqueta = null;   // con otro precio ya no vale el importe de la etiqueta
       m.cerrar(); pintar();
     };
   }
 
   // ---------- La cuenta ----------
   const precioDe = i => i.precio ?? cat.producto(i.producto_id)?.precio ?? 0;
-  const importe = i => i.producto_id ? r2(i.cantidad * precioDe(i)) : i.importe;
+  // con etiqueta de balanza que trae el importe, vale ese importe (la base controla que coincida con kilos × precio)
+  const importe = i => i.producto_id ? (i.etiqueta != null ? i.etiqueta : r2(i.cantidad * precioDe(i))) : i.importe;
   const lineaPago = (forma, base) => { const p = pct(forma), rec = p ? Math.round(base * p / 100) : 0; return { forma, base: r2(base), recargo: rec, monto: r2(base + rec) }; };
   function totales() {
     const subtotal = r2(venta.items.reduce((s, i) => s + importe(i), 0));
@@ -164,6 +185,7 @@ export async function pantallaVender(vista, ctx) {
         const i = venta.items[+inp.dataset.cant], n = numero(inp.value);
         if (!(n > 0)) { venta.items.splice(+inp.dataset.cant, 1); return pintar(); }
         i.cantidad = i.por_peso ? r3(n) : Math.round(n);
+        i.etiqueta = null;   // cambiaron los kilos: el importe sale de kilos × precio
         pintar();
       };
       inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); inp.blur(); escaner.focus(); } };
@@ -286,7 +308,8 @@ export async function pantallaVender(vista, ctx) {
     if (pc > 0 && pc < efectivo) { $('#paga-con')?.focus(); return aviso(`Con ${plata(pc)} no alcanza: faltan ${plata(efectivo - pc)}`); }
     const args = {
       p_clave: venta.clave,
-      p_items: venta.items.map(i => i.producto_id ? { producto_id: i.producto_id, cantidad: i.cantidad, ...(i.precio != null ? { precio: i.precio } : {}) } : { nombre: i.nombre, importe: i.importe }),
+      p_items: venta.items.map(i => i.producto_id ? { producto_id: i.producto_id, cantidad: i.cantidad, ...(i.precio != null ? { precio: i.precio } : {}),
+        ...(i.etiqueta != null ? { importe: i.etiqueta } : {}) } : { nombre: i.nombre, importe: i.importe }),
       p_pagos: tt.pagos.filter(p => p.base > 0).map(p => ({ forma: p.forma, base: p.base })),
       p_paga_con: pc > 0 ? pc : null, p_cliente_id: venta.cliente?.id ?? null, p_forzar_limite: false,
       p_descuento: tt.descuento, p_autorizacion: null,
