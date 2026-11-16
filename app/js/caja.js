@@ -1,7 +1,7 @@
 // Caja: abrir y cerrar el turno, ingresos y egresos, ventas del turno (ver y anular)
 import { llamar } from './base.js';
 import * as cat from './catalogo.js';
-import { $, $$, esc, plata, cant, hora, fecha, numero, aviso, correr, modal, confirmar } from './ui.js';
+import { $, $$, esc, plata, cant, hora, fecha, numero, aviso, correr, modal, confirmar, pedirAutorizacion } from './ui.js';
 
 export async function pantallaCaja(vista, ctx) {
   const e = await llamar('estado_caja');
@@ -32,7 +32,7 @@ export async function pantallaCaja(vista, ctx) {
     <h3>Ventas del turno</h3>
     <div class="tabla-caja"><table class="tabla">${e.ventas.length ? `<thead><tr><th>#</th><th>Hora</th><th>Productos</th><th>Vendió</th><th class="num">Total</th><th></th></tr></thead><tbody>
       ${e.ventas.map(v => `<tr class="${v.anulada ? 'anulada' : ''}"><td>${v.numero}</td><td>${hora(v.fecha)}</td><td class="corto">${esc(v.resumen || '')}${v.cliente ? `<div class="muted chico">${esc(v.cliente)}${v.fiado ? ' · fiado' : ''}</div>` : ''}</td><td>${esc(v.usuario)}</td>
-        <td class="num">${plata(v.total)}${v.anulada ? ' <span class="etiqueta">anulada</span>' : ''}</td><td><button class="link" data-venta="${v.id}">Ver</button></td></tr>`).join('')}</tbody>`
+        <td class="num">${+v.devuelto && !v.anulada ? `${plata(v.total - v.devuelto)}<div class="aviso-chico"><s>${plata(v.total)}</s> · devuelto ${plata(v.devuelto)}</div>` : plata(v.total)}${v.anulada ? ' <span class="etiqueta">anulada</span>' : ''}</td><td><button class="link" data-venta="${v.id}">Ver</button></td></tr>`).join('')}</tbody>`
       : '<tbody><tr><td class="muted vacio">Todavía no hay ventas en este turno.</td></tr></tbody>'}</table></div>
     <h3>Movimientos</h3>
     <div class="tabla-caja"><table class="tabla"><tbody>${e.movimientos.map(m => `<tr><td>${hora(m.fecha)}</td><td>${esc(m.concepto)}<div class="muted chico">${esc(m.usuario)}</div></td>
@@ -149,21 +149,89 @@ export async function pantallaCaja(vista, ctx) {
   function verVenta(id) {
     correr(async () => {
       const v = await llamar('venta', { p_id: id });
+      const queda = i => Math.round((+i.cantidad - +i.devuelto) * 1000) / 1000;
+      const puedeDevolver = !v.anulada && v.items.some(i => queda(i) > 0.0005);
       const m = modal(`Venta #${v.numero}`, `<p class="muted">${fecha(v.fecha)} · ${esc(v.usuario)}${v.cliente ? ' · cliente ' + esc(v.cliente.nombre) : ''}${v.anulada ? ` · <b class="mal">Anulada</b> por ${esc(v.anulada_por)}${v.motivo_anulacion ? ': ' + esc(v.motivo_anulacion) : ''}` : ''}</p>
-        <table class="tabla"><tbody>${v.items.map(i => `<tr><td>${esc(i.nombre)}</td><td class="num">${cant(i.cantidad)}${i.por_peso ? ' kg' : ''}</td><td class="num">${plata(i.importe)}</td></tr>`).join('')}</tbody>
+        <table class="tabla"><tbody>${v.items.map(i => `<tr><td>${esc(i.nombre)}</td><td class="num">${cant(i.cantidad)}${i.por_peso ? ' kg' : ''}${+i.devuelto ? `<div class="aviso-chico">devuelto ${cant(i.devuelto)}</div>` : ''}</td><td class="num">${plata(i.importe)}</td></tr>`).join('')}</tbody>
         <tfoot>${+v.descuento || +v.recargo ? `<tr><td colspan="2">Subtotal</td><td class="num">${plata(v.subtotal)}</td></tr>` : ''}
           ${+v.descuento ? `<tr><td colspan="2">Descuento</td><td class="num">−${plata(v.descuento)}</td></tr>` : ''}
           ${+v.recargo ? `<tr><td colspan="2">Recargo</td><td class="num">+${plata(v.recargo)}</td></tr>` : ''}
-          <tr><th colspan="2">Total</th><th class="num">${plata(v.total)}</th></tr></tfoot></table>
+          <tr><th colspan="2">Total</th><th class="num">${plata(v.total)}</th></tr>
+          ${+v.devuelto ? `<tr><td colspan="2" class="aviso-chico">Devuelto</td><td class="num aviso-chico">−${plata(v.devuelto)}</td></tr>` : ''}</tfoot></table>
         ${+v.descuento_renglones ? `<p class="muted chico">Precios rebajados en los renglones: ${plata(v.descuento_renglones)} menos que la lista.</p>` : ''}
         ${v.autorizo ? `<p class="muted chico">Descuento autorizado por ${esc(v.autorizo)}.</p>` : ''}
         <p>${v.pagos.map(p => `${esc(p.forma)} ${plata(p.monto)}`).join(' · ')}${v.paga_con ? ` · pagó con ${plata(v.paga_con)}` : ''}</p>
-        <div class="fila fin">${admin && !v.anulada ? '<button class="btn peligro" id="anular">Anular venta</button>' : ''}<button class="btn primario" data-cerrar>Cerrar</button></div>`, { ancho: true });
+        ${v.devoluciones.length ? `<h3>Devoluciones</h3><table class="tabla"><tbody>${v.devoluciones.map(d => `<tr><td><b>${esc(d.etiqueta)}</b> · ${fecha(d.fecha)} · ${esc(d.usuario)}${d.autorizo ? ` (autorizó ${esc(d.autorizo)})` : ''}
+            <div class="muted chico">${d.items.map(x => `${cant(x.cantidad)} ${esc(x.nombre)}${x.vuelve_stock ? '' : ' (no volvió al stock)'}`).join(', ')}${d.motivo ? ' · ' + esc(d.motivo) : ''}</div></td>
+          <td>${d.forma === 'Fiado' ? 'a su cuenta' : esc(d.forma)}</td><td class="num">${plata(d.total)}</td></tr>`).join('')}</tbody></table>` : ''}
+        <div class="fila fin">${puedeDevolver ? '<button class="btn izq" id="devolver">Devolver productos</button>' : ''}
+          ${admin && !v.anulada ? '<button class="btn peligro" id="anular">Anular venta</button>' : ''}<button class="btn primario" data-cerrar>Cerrar</button></div>`, { ancho: true });
+      if ($('#devolver', m.el)) $('#devolver', m.el).onclick = () => { m.cerrar(); devolver(v); };
       if ($('#anular', m.el)) $('#anular', m.el).onclick = async () => {
-        const fiado = v.pagos.filter(p => p.forma === 'Fiado').reduce((s, p) => s + +p.monto, 0), deCaja = +v.total - fiado;
-        if (!await confirmar('Anular venta', `Se devuelve el stock${deCaja > 0 ? `, salen ${plata(deCaja)} de la caja del turno abierto` : ''}${fiado > 0 ? ` y se le descuentan ${plata(fiado)} de la cuenta a ${v.cliente.nombre}` : ''}.`, 'Anular')) return;
+        const resto = +v.total - +v.devuelto;
+        const fiado = v.pagos.filter(p => p.forma === 'Fiado').reduce((s, p) => s + +p.monto, 0) * (+v.total ? resto / +v.total : 0), deCaja = resto - fiado;
+        if (!await confirmar('Anular venta', `${+v.devuelto ? `Ya tuvo devoluciones por ${plata(v.devuelto)}: se anula solo lo que quedó. ` : ''}Se devuelve el stock${deCaja > 0.004 ? `, salen ${plata(deCaja)} de la caja del turno abierto` : ''}${fiado > 0.004 ? ` y se le descuentan ${plata(fiado)} de la cuenta a ${v.cliente.nombre}` : ''}.`, 'Anular')) return;
         correr(async () => { await llamar('anular_venta', { p_id: v.id, p_motivo: null }); m.cerrar(); aviso(`Venta #${v.numero} anulada`, 'ok'); await cat.actualizar(); ctx.recargar(); });
       };
     });
+  }
+
+  // Devolver parte o toda una venta. Se reintegra lo que pagó por eso (con el descuento y los recargos de la venta);
+  // la cuenta final la hace la base. El empleado necesita el PIN del dueño.
+  function devolver(v) {
+    const factor = +v.subtotal > 0 ? +v.total / +v.subtotal : 1;
+    const filas = v.items.map(i => ({ i, queda: Math.round((+i.cantidad - +i.devuelto) * 1000) / 1000, cantidad: '', vuelve: true })).filter(f => f.queda > 0.0005);
+    const formaPago = v.pagos.find(p => p.forma !== 'Fiado')?.forma || (v.cliente ? 'Fiado' : e.formas_pago[0]);
+    const formas = [...e.formas_pago, ...(v.cliente ? ['Fiado'] : [])];
+    const m = modal(`Devolver productos de la venta #${v.numero}`, `<form class="form ancho" id="f-dev">
+      <p class="muted">Elegí qué devuelve y cuántos. Se le reintegra lo que pagó por eso, con los descuentos y recargos que tuvo la venta.</p>
+      <div class="tabla-caja"><table class="tabla" id="dv-tabla"></table></div>
+      <div class="fila"><label class="crece">Cómo se le devuelve la plata<select class="input" name="forma">${formas.map(f => `<option value="${esc(f)}" ${f === formaPago ? 'selected' : ''}>${f === 'Fiado' ? 'A su cuenta (fiado)' : esc(f)}</option>`).join('')}</select></label>
+        <label class="crece">Motivo<input class="input" name="motivo" maxlength="200" placeholder="opcional"></label></div>
+      <p class="muted chico" id="dv-nota"></p>
+      <div class="fila entre"><span>Se le devuelve</span><span class="total chico-total" id="dv-total">${plata(0)}</span></div>
+      <div class="fila fin"><button type="button" class="btn" data-cerrar>Cancelar</button><button class="btn primario">Devolver</button></div></form>`, { ancho: true });
+    const reintegro = () => {
+      const todo = filas.every(f => Math.round((f.queda - (numero(f.cantidad) || 0)) * 1000) / 1000 <= 0.0005);
+      if (todo) return +v.total - +v.devuelto;
+      return filas.reduce((s, f) => s + Math.round(+f.i.importe / +f.i.cantidad * (numero(f.cantidad) || 0) * factor * 100) / 100, 0);
+    };
+    const pintar = () => {
+      $('#dv-tabla', m.el).innerHTML = `<thead><tr><th>Producto</th><th class="num">Puede devolver</th><th class="num">Devuelve</th><th>Vuelve al stock</th></tr></thead><tbody>
+        ${filas.map((f, k) => `<tr><td>${esc(f.i.nombre)}</td><td class="num">${cant(f.queda)}${f.i.por_peso ? ' kg' : ''} <button type="button" class="link" data-todo="${k}">Todo</button></td>
+          <td class="num"><input class="input cant" data-cant="${k}" value="${esc(f.cantidad)}" inputmode="decimal" placeholder="0"></td>
+          <td>${f.i.producto_id ? `<label class="check"><input type="checkbox" data-vuelve="${k}" ${f.vuelve ? 'checked' : ''}> sí</label>` : '—'}</td></tr>`).join('')}</tbody>`;
+      $$('[data-cant]', m.el).forEach(inp => inp.oninput = () => { filas[+inp.dataset.cant].cantidad = inp.value; totales(); });
+      $$('[data-todo]', m.el).forEach(b => b.onclick = () => { filas[+b.dataset.todo].cantidad = String(filas[+b.dataset.todo].queda); pintar(); });
+      $$('[data-vuelve]', m.el).forEach(c => c.onchange = () => { filas[+c.dataset.vuelve].vuelve = c.checked; });
+      totales();
+    };
+    const totales = () => {
+      $('#dv-total', m.el).textContent = plata(reintegro());
+      const f = $('[name=forma]', m.el).value;
+      $('#dv-nota', m.el).textContent = f === 'Fiado' ? 'Se descuenta de su cuenta (o le queda a favor).' : ['Efectivo'].includes(f) ? 'Sale de la caja del turno.' : `Sale de la caja del turno como ${f}: el reintegro real se hace por el posnet o el banco.`;
+    };
+    $('[name=forma]', m.el).onchange = totales;
+    pintar();
+    $('#f-dev', m.el).onsubmit = ev => {
+      ev.preventDefault();
+      const f = new FormData(ev.target);
+      const items = filas.filter(x => numero(x.cantidad) > 0).map(x => ({ id: x.i.id, cantidad: numero(x.cantidad), vuelve_stock: x.vuelve }));
+      if (!items.length) return aviso('Elegí qué productos devuelve');
+      if (filas.some(x => numero(x.cantidad) > x.queda + 0.0005)) return aviso('Hay más cantidad de la que se puede devolver');
+      correr(async () => {
+        const args = { p_venta_id: v.id, p_items: items, p_forma: f.get('forma'), p_motivo: f.get('motivo'), p_autorizacion: null };
+        let r;
+        try { r = await llamar('devolver_venta', args); } catch (err) {
+          if (err.codigo !== 'autorizacion') throw err;
+          const token = await pedirAutorizacion(ctx.usuarios, err.message);
+          if (!token) return;
+          r = await llamar('devolver_venta', { ...args, p_autorizacion: token });
+        }
+        m.cerrar();
+        aviso(`${r.devolucion.etiqueta}: se le devuelven ${plata(r.devolucion.total)}`, 'ok');
+        await cat.actualizar(); ctx.recargar();
+      });
+    };
   }
 }
