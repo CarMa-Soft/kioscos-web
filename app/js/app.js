@@ -10,6 +10,8 @@ import { pantallaClientes } from './clientes.js';
 import { pantallaAjustes } from './ajustes.js';
 import { pantallaInicio } from './inicio.js';
 import { pantallaReportes } from './reportes.js';
+import { pantallaCompras } from './compras.js';
+import { pantallaProveedores } from './proveedores.js';
 import { VERSION } from './version.js';
 
 const raiz = $('#app');
@@ -24,6 +26,8 @@ const SECCIONES = [
   { ruta: '#/caja', nombre: 'Caja', fn: pantallaCaja },
   { ruta: '#/clientes', nombre: 'Clientes', fn: pantallaClientes },
   { ruta: '#/productos', nombre: 'Productos', fn: pantallaProductos, admin: true },
+  { ruta: '#/compras', nombre: 'Compras', fn: pantallaCompras, admin: true },
+  { ruta: '#/proveedores', nombre: 'Proveedores', fn: pantallaProveedores, admin: true },
   { ruta: '#/reportes', nombre: 'Reportes', fn: pantallaReportes, admin: true },
   { ruta: '#/usuarios', nombre: 'Usuarios', fn: pantallaUsuarios },
   { ruta: '#/ajustes', nombre: 'Ajustes', fn: pantallaAjustes, admin: true },
