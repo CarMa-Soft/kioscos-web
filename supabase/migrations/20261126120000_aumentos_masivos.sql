@@ -52,8 +52,15 @@ returns numeric language sql immutable set search_path = '' as $$
   select case when coalesce(p_multiplo, 0) > 0 then ceil(round(p_valor, 2) / p_multiplo) * p_multiplo else round(p_valor, 2) end;
 $$;
 
+-- Un precio o costo con el aumento (y el redondeo hacia arriba); nunca menos de cero
+create or replace function public.valor_aumentado(p_x numeric, p_modo text, p_valor numeric, p_multiplo numeric)
+returns numeric language sql immutable set search_path = '' as $$
+  select greatest(0, public.redondear_precio(case when p_modo = 'pct' then p_x * (1 + p_valor / 100) else p_x + p_valor end, p_multiplo));
+$$;
+
 -- p: { alcance: 'ids' | 'categoria' | 'proveedor' | 'todos', ids: [id], categoria_id, proveedor_id,
 --      modo: 'pct' | 'monto', valor, costo: bool (también el costo), redondear: bool, descripcion }
+--      simular: true → solo { cantidad, ejemplos } sin cambiar nada
 -- Solo productos activos. Ningún precio ni costo baja de cero. Devuelve { id, cantidad }.
 create or replace function public.aumento_masivo(p jsonb)
 returns jsonb language plpgsql volatile security definer set search_path = '' as $$
@@ -63,7 +70,7 @@ declare
   v_valor numeric := public.num(p, 'valor', 'Aumento'); v_costo boolean := coalesce((p ->> 'costo')::boolean, false);
   v_mult numeric := case when coalesce((p ->> 'redondear')::boolean, false) then public.redondeo_precios(v_neg) else 0 end;
   v_cat bigint := nullif(p ->> 'categoria_id', '')::bigint; v_prov bigint := nullif(p ->> 'proveedor_id', '')::bigint;
-  v_ids bigint[]; v_id bigint; v_n integer;
+  v_ids bigint[]; v_sel bigint[]; v_id bigint; v_n integer;
 begin
   if v_modo not in ('pct', 'monto') then raise exception 'Elegí si es un porcentaje o un monto' using errcode = '22023'; end if;
   if v_valor is null or v_valor = 0 then raise exception 'Poné el aumento' using errcode = '22023'; end if;
@@ -79,32 +86,36 @@ begin
     raise exception 'Elegí a qué productos' using errcode = '22023';
   end if;
 
+  -- los productos elegidos (activos), siempre en el mismo orden
+  select coalesce(array_agg(pr.id order by pr.id), '{}') into v_sel from public.productos pr
+  where pr.negocio_id = v_neg and pr.activo
+    and case v_alcance
+          when 'ids' then pr.id = any (v_ids)
+          when 'categoria' then pr.categoria_id = v_cat
+          when 'proveedor' then pr.proveedor_id = v_prov
+                                or exists (select 1 from public.producto_proveedores pp where pp.producto_id = pr.id and pp.proveedor_id = v_prov)
+          else true end;
+  -- simular: cuántos y unos ejemplos, sin cambiar nada (para la vista previa de la pantalla)
+  if coalesce((p ->> 'simular')::boolean, false) then
+    return jsonb_build_object('cantidad', cardinality(v_sel), 'ejemplos', coalesce((select jsonb_agg(jsonb_build_object('nombre', x.nombre, 'precio', x.precio,
+        'precio_nuevo', public.valor_aumentado(x.precio, v_modo, v_valor, v_mult)) order by x.nombre)
+      from (select * from public.productos where id = any (v_sel) order by nombre limit 4) x), '[]'::jsonb));
+  end if;
+  if cardinality(v_sel) = 0 then raise exception 'No hay productos que coincidan' using errcode = '22023'; end if;
+  perform 1 from public.productos where id = any (v_sel) order by id for update;
+
   insert into public.aumentos (negocio_id, usuario_id, descripcion)
     values (v_neg, v_u, coalesce(nullif(left(btrim(coalesce(p ->> 'descripcion', '')), 200), ''), 'Aumento de precios')) returning id into v_id;
-  with elegidos as (
-    select pr.* from public.productos pr
-    where pr.negocio_id = v_neg and pr.activo
-      and case v_alcance
-            when 'ids' then pr.id = any (v_ids)
-            when 'categoria' then pr.categoria_id = v_cat
-            when 'proveedor' then pr.proveedor_id = v_prov
-                                  or exists (select 1 from public.producto_proveedores pp where pp.producto_id = pr.id and pp.proveedor_id = v_prov)
-            else true end
-    order by pr.id for update
-  ), nuevos as (
-    select e.id, e.precio, e.costo,
-      greatest(0, public.redondear_precio(case when v_modo = 'pct' then e.precio * (1 + v_valor / 100) else e.precio + v_valor end, v_mult)) as precio_n,
-      case when v_costo then greatest(0, round(case when v_modo = 'pct' then e.costo * (1 + v_valor / 100) else e.costo + v_valor end, 2)) else e.costo end as costo_n
-    from elegidos e
-  ), cambios as (
+  with cambios as (
     insert into public.aumento_cambios (negocio_id, aumento_id, producto_id, precio_antes, costo_antes, precio_despues, costo_despues)
-      select v_neg, v_id, n.id, n.precio, n.costo, n.precio_n, n.costo_n from nuevos n
+      select v_neg, v_id, pr.id, pr.precio, pr.costo, public.valor_aumentado(pr.precio, v_modo, v_valor, v_mult),
+             case when v_costo then public.valor_aumentado(pr.costo, v_modo, v_valor, 0) else pr.costo end
+      from public.productos pr where pr.id = any (v_sel)
     returning producto_id, precio_despues, costo_despues
   )
   update public.productos pr set precio = c.precio_despues, costo = c.costo_despues
     from cambios c where pr.id = c.producto_id;
   get diagnostics v_n = row_count;
-  if v_n = 0 then raise exception 'No hay productos que coincidan' using errcode = '22023'; end if;
   return jsonb_build_object('id', v_id, 'cantidad', v_n);
 end;
 $$;
@@ -154,7 +165,7 @@ begin
 end;
 $$;
 
-revoke all on function public.redondeo_precios(uuid), public.redondear_precio(numeric, numeric), public.aumento_masivo(jsonb),
+revoke all on function public.redondeo_precios(uuid), public.redondear_precio(numeric, numeric), public.valor_aumentado(numeric, text, numeric, numeric), public.aumento_masivo(jsonb),
   public.deshacer_aumento(bigint), public.aumentos(), public.guardar_redondeo(numeric) from public, anon, authenticated;
 grant execute on function public.aumento_masivo(jsonb), public.deshacer_aumento(bigint), public.aumentos(), public.guardar_redondeo(numeric) to authenticated;
 

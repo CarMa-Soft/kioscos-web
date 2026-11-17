@@ -13,6 +13,13 @@ select set_config('prueba.pa', public.guardar_proveedor('{"nombre": "Aceitera de
 select public.registrar_compra(jsonb_build_object('proveedor_id', current_setting('prueba.pa'), 'comprobante', 'A 0001-00000999',
   'items', jsonb_build_array(jsonb_build_object('producto_id', current_setting('prueba.ace'), 'cantidad', 1, 'costo', 500))));
 
+\echo == Vista previa
+select set_config('prueba.sim', public.aumento_masivo(jsonb_build_object('alcance', 'categoria', 'categoria_id', current_setting('prueba.cat_aum'),
+  'modo', 'pct', 'valor', 10, 'redondear', true, 'simular', true))::text, false);
+select pruebas.ok((current_setting('prueba.sim')::jsonb ->> 'cantidad')::int = 2
+  and current_setting('prueba.sim')::jsonb -> 'ejemplos' -> 0 = '{"nombre": "Arroz", "precio": 300.00, "precio_nuevo": 330}'::jsonb, 'simular dice cuántos y da ejemplos');
+select pruebas.ok((pruebas.prod(current_setting('prueba.arr')) ->> 'precio')::numeric = 300 and jsonb_array_length(public.aumentos()) = 0, 'simular no cambia nada');
+
 \echo == Por categoría, con el costo y redondeo
 select set_config('prueba.a1', public.aumento_masivo(jsonb_build_object('alcance', 'categoria', 'categoria_id', current_setting('prueba.cat_aum'),
   'modo', 'pct', 'valor', 10, 'costo', true, 'redondear', true, 'descripcion', '+10% a Secos')) ->> 'id', false);
