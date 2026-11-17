@@ -224,3 +224,24 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
 - Redondeo hacia arriba a múltiplos de config `redondeo` (10 de fábrica, 0 = sin redondeo): `guardar_redondeo` en Ajustes.
 - `aumentos` / `aumento_cambios` guardan antes y después. `deshacer_aumento(id)` vuelve al antes solo los productos que no
   cambiaron después (`{revertidos, saltados}`). `aumentos()`: los últimos 15.
+
+## Cargar compra desde la factura, con IA (etapa 8a)
+- Compras → "Cargar desde factura" (`facturas.js`): PDF o hasta 5 fotos (se achican en el navegador), o un .json ya leído.
+- La lee la **función de Supabase** `supabase/functions/leer-factura` (Deno, SDK `npm:@anthropic-ai/sdk`, modelo
+  `claude-opus-5-5`, salida con esquema JSON, igual que la app local). La clave está en Supabase → Edge Functions → Secrets
+  (`ANTHROPIC_API_KEY`): nunca en el navegador, el repo ni el chat. `verify_jwt = false` en config.toml: el permiso lo da
+  la base con `permiso_lectura_ia()` (llamada con los encabezados del usuario: su sesión y `x-usuario-kiosco`; solo dueño,
+  hasta 60 lecturas por día por negocio). El consumo se anota en `lecturas_ia` con `anotar_lectura_ia` (solo `service_role`).
+  `uso_ia()` lo muestra en Ajustes. En el navegador: `funcion(nombre, cuerpo)` de base.js.
+- Se publica con `.github/workflows/funciones.yml` al cambiar `supabase/functions/**` en main (secreto `SUPABASE_ACCESS_TOKEN`).
+  En cada PR, `pruebas.yml` corre `deno check` de las funciones.
+- `preparar_factura(p)`: reconoce el proveedor (elegido, por CUIT o por la primera palabra del nombre) y cada renglón (por código
+  de barras, por el código del proveedor o por cómo lo describe, en `producto_proveedores`); si no, hasta 5 parecidos (`palabras`).
+  Trae `margen` (config, 40 de fábrica; Ajustes → Precios) y `redondeo` para proponer el precio de los nuevos.
+- `registrar_compra_factura(p)`: crea el proveedor y los productos nuevos, pone el código de barras al que no tenía, recuerda
+  código, descripción y unidades por unidad facturada de cada producto de ese proveedor, y llama a `registrar_compra`.
+- **Factura leída** (lo que devuelve la IA y acepta un .json): `{ proveedor: {nombre, cuit}, comprobante, fecha (AAAA-MM-DD),
+  vencimiento ("" si no trae), items: [{ codigo, codigo_barras, descripcion, cantidad, unidad: unidad|bulto|kg,
+  unidades_por_bulto, precio_unitario, bonificacion, importe (sin IVA), alicuota_iva, precio_sugerido }], descuento_global,
+  otros_cargos, subtotal, iva, percepciones, total, observaciones }`.
+- Pendiente (8b): mandar la foto desde el celular con un QR.

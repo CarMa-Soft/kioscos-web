@@ -4,6 +4,7 @@ import { llamar } from './base.js';
 import * as cat from './catalogo.js';
 import { $, $$, esc, plata, cant, fecha, dia, hoyDia, sumarDias, numero, aviso, correr, modal, confirmar } from './ui.js';
 import { formProveedor } from './proveedores.js';
+import { pantallaFactura, hayCargaFactura } from './facturas.js';
 
 const r2 = n => Math.round((+n || 0) * 100) / 100;
 // La compra que se está cargando sobrevive a cambiar de sección
@@ -11,12 +12,15 @@ let borrador = null;
 const vacio = () => ({ proveedor_id: '', comprobante: '', notas: '', total: '', pagar_caja: false, forma: 'Efectivo', items: [],
   sin_factura: false, fecha_factura: hoyDia(), vencimiento: '', vence_a_mano: false });
 let soloPendientes = false;
+let enFactura = false;   // cargando una compra desde la factura
 
 export async function pantallaCompras(vista, ctx) {
+  if (enFactura) return pantallaFactura(vista, ctx, () => { enFactura = false; ctx.recargar(); });
   const todas = await llamar('compras');
   const pendientes = todas.filter(c => c.factura_pendiente && !c.anulada);
   const lista = soloPendientes ? pendientes : todas;
   vista.innerHTML = `<div class="cabecera"><h2>Compras</h2><div class="acciones"><a class="btn" href="#/proveedores">Proveedores</a>
+      <button class="btn" id="factura-ia">📄 ${hayCargaFactura() ? 'Seguir con la factura' : 'Cargar desde factura'}</button>
       <button class="btn primario" id="nueva">${borrador ? `Seguir cargando la compra (${borrador.items.length})` : '＋ Cargar compra'}</button></div></div>
     <div class="chips"><button class="chip ${soloPendientes ? '' : 'elegido'}" data-f="">Todas</button>
       <button class="chip ${soloPendientes ? 'elegido' : ''}" data-f="p">Factura pendiente${pendientes.length ? ` (${pendientes.length})` : ''}</button></div>
@@ -29,6 +33,7 @@ export async function pantallaCompras(vista, ctx) {
       : `<tbody><tr><td class="muted vacio">${soloPendientes ? 'No hay compras esperando la factura.' : 'Todavía no hay compras cargadas.'}</td></tr></tbody>`}</table></div>`;
   $$('[data-f]').forEach(b => b.onclick = () => { soloPendientes = b.dataset.f === 'p'; ctx.recargar(); });
   $('#nueva').onclick = () => { borrador ??= vacio(); correr(() => nuevaCompra(vista, ctx)); };
+  $('#factura-ia').onclick = () => { enFactura = true; ctx.recargar(); };
   $$('tr[data-id]').forEach(tr => tr.onclick = () => verCompra(+tr.dataset.id, ctx));
 }
 
