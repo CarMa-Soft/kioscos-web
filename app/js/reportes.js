@@ -31,7 +31,7 @@ export async function pantallaReportes(vista) {
       <div class="tarjeta"><div class="etq">Ticket promedio</div><div class="valor">${plata(r.tickets ? +r.vendido / r.tickets : 0)}</div></div>
       <div class="tarjeta"><div class="etq">Ganancia bruta</div><div class="valor">${plata(ganancia)}</div><div class="muted chico">margen ${margen.toFixed(1)}% · costo ${plata(costo)}</div></div>
       <div class="tarjeta"><div class="etq">Devoluciones</div><div class="valor">${plata(r.devoluciones.total)}</div>
-        <div class="muted chico">${r.devoluciones.cantidad} devolucion${r.devoluciones.cantidad === 1 ? '' : 'es'}${+r.devoluciones.perdidas ? ` · pérdida ${plata(r.devoluciones.perdidas)} (no volvió al stock)` : ''}</div></div>
+        <div class="muted chico">${r.devoluciones.cantidad === 1 ? "1 devolución" : r.devoluciones.cantidad + " devoluciones"}${+r.devoluciones.perdidas ? ` · pérdida ${plata(r.devoluciones.perdidas)} (no volvió al stock)` : ''}</div></div>
     </div>
     ${r.por_dia.length > 1 ? `<h3>Por día</h3>${barras(r.por_dia.map(x => [fechaCorta(x.dia), +x.total]))}` : ''}
     ${r.por_hora.length ? `<h3>Por hora</h3>${barras(r.por_hora.map(x => [`${x.hora} hs`, +x.total]))}` : ''}
@@ -69,8 +69,8 @@ export async function pantallaReportes(vista) {
 const fechaCorta = d => new Date(d + 'T12:00').toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' });
 function barras(filas) {
   const max = Math.max(...filas.map(f => f[1]), 1);
-  return `<div class="barras">${filas.map(([etq, v]) => `<div class="barra-fila"><span class="barra-etq">${esc(etq)}</span>
-    <span class="barra"><span class="barra-llena" data-ancho="${Math.max(0, Math.round(v / max * 100))}"></span></span><span class="barra-valor">${plata(v)}</span></div>`).join('')}</div>`;
+  return `<div class="grafico">${filas.map(([etq, v]) => `<div class="grafico-fila"><span class="grafico-etq">${esc(etq)}</span>
+    <span class="grafico-barra"><span class="grafico-llena" data-ancho="${Math.max(0, Math.round(v / max * 100))}"></span></span><span class="grafico-valor">${plata(v)}</span></div>`).join('')}</div>`;
 }
 function tabla(titulos, filas) {
   if (!filas.length) return '<p class="muted">Sin datos en este período.</p>';
