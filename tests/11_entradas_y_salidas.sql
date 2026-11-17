@@ -17,7 +17,7 @@ select pruebas.falla($$select public.guardar_motivos_remito('{"ingreso": [], "eg
 select set_config('prueba.re', public.registrar_remito(jsonb_build_object('tipo', 'egreso', 'motivo', 'Vencido', 'notas', 'lote viejo',
   'items', jsonb_build_array(jsonb_build_object('producto_id', current_setting('prueba.p1'), 'cantidad', 2),
                              jsonb_build_object('producto_id', current_setting('prueba.p1'), 'cantidad', 1),
-                             jsonb_build_object('producto_id', current_setting('prueba.p2'), 'cantidad', '0,5')))))::text, false);
+                             jsonb_build_object('producto_id', current_setting('prueba.p2'), 'cantidad', '0,5'))))::text, false);
 select pruebas.ok(current_setting('prueba.re')::jsonb ->> 'etiqueta' = 'RE-0001', 'la primera salida es RE-0001');
 select pruebas.ok(jsonb_array_length(current_setting('prueba.re')::jsonb -> 'items') = 2
   and (current_setting('prueba.re')::jsonb -> 'items' @> jsonb_build_array(jsonb_build_object('nombre', 'Yerba', 'cantidad', 3))), 'el mismo producto dos veces se suma');
