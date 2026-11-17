@@ -145,3 +145,24 @@ p.muted { margin: 0 0 1.25rem; }
 .grafico-valor { text-align: right; }
 .dos-columnas { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 @media (max-width: 800px) { .dos-columnas { grid-template-columns: 1fr; } .grafico-fila { grid-template-columns: 4rem 1fr 6rem; } }
+
+/* Aviso de versión nueva */
+.version-nueva { position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%); z-index: 60; background: var(--barra); color: #fff;
+  padding: .6rem 1rem; border-radius: 10px; box-shadow: 0 6px 24px rgba(0, 0, 0, .2); display: flex; gap: .8rem; align-items: center; }
+
+/* Impresión: solo el ticket (58 mm) */
+#print-area { display: none; }
+@media print {
+  @page { size: 58mm auto; margin: 0; }
+  body { background: #fff; }
+  body > *:not(#print-area) { display: none !important; }
+  #print-area { display: block; }
+}
+.ticket { width: 48mm; margin: 0 auto; font-family: Consolas, monospace; font-size: 7.5pt; line-height: 1.25; color: #000; padding: 1mm 0 4mm; }
+.ticket .c { text-align: center; }
+.ticket .grande, .ticket tr.grande td { font-size: 9.5pt; font-weight: 700; }
+.ticket .chico { font-size: 6.5pt; }
+.ticket hr { border: 0; border-top: 1px dashed #000; margin: 1.5mm 0; }
+.ticket table { width: 100%; border-collapse: collapse; font-size: 7.5pt; }
+.ticket td { padding: .3mm 0; vertical-align: top; word-break: break-word; }
+.ticket td.n { white-space: nowrap; text-align: right; padding-left: 1.5mm; }
