@@ -3,39 +3,100 @@ import { llamar } from './base.js';
 import * as cat from './catalogo.js';
 import { $, $$, esc, plata, cant, fecha, numero, aviso, correr, modal, confirmar } from './ui.js';
 
-let filtro = '', verBajas = false;
+// Lo que se eligió en la lista se mantiene al ir y volver de la sección
+let filtro = '', grupo = 'todos', categoria = '', orden = { col: 'nombre', asc: true };
+
+// Botones de filtro: cada uno con su condición. "Desactivados" muestra los dados de baja (los demás, solo activos).
+const GRUPOS = [
+  ['todos', 'Todos', () => true],
+  ['reponer', 'Para reponer', p => +p.stock_min > 0 && +p.stock <= +p.stock_min],
+  ['sin-stock', 'Sin stock', p => +p.stock <= 0],
+  ['peso', 'Por peso', p => p.por_peso],
+  ['favoritos', 'Favoritos', p => p.favorito],
+  ['sin-codigo', 'Sin código de barras', p => !p.codigo && !p.por_peso],   // los por kilo no llevan: se leen con la etiqueta de la balanza
+  ['desactivados', 'Desactivados', () => true],
+];
+// Margen sobre el costo: (precio − costo) / costo. Sin costo no hay margen.
+const margen = p => +p.costo > 0 ? (p.precio - p.costo) / p.costo * 100 : null;
+const sinAcentos = s => String(s ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 
 export async function pantallaProductos(vista, ctx) {
-  const r = await llamar('catalogo');   // con costos (solo el dueño los recibe); trae solo los activos
-  // "Ver dados de baja" muestra los inactivos, para poder abrirlos y volver a activarlos
-  const lista = (verBajas ? await llamar('productos_de_baja') : r.productos).sort((a, b) => a.nombre.localeCompare(b.nombre));
+  // el catálogo trae solo los activos (con costos: solo el dueño los recibe); los dados de baja vienen aparte
+  const [r, bajas] = await Promise.all([llamar('catalogo'), llamar('productos_de_baja')]);
+  const activos = r.productos;
   const cats = r.categorias, catNombre = id => cats.find(c => c.id === id)?.nombre || '';
-  vista.innerHTML = `<div class="cabecera"><h2>${verBajas ? 'Productos dados de baja' : 'Productos'} <span class="muted">(${lista.length})</span></h2>
-      <div class="acciones"><button class="btn" id="bajas">${verBajas ? '← Volver a los activos' : 'Ver dados de baja'}</button>
-        ${verBajas ? '' : '<button class="btn" id="aumento">Aumento de precios</button><button class="btn" id="categorias">Categorías</button><button class="btn primario" id="nuevo">＋ Nuevo producto</button>'}</div></div>
-    ${verBajas ? '<p class="muted">No aparecen para vender. Abrí uno y tildá "Activo" para que vuelva a aparecer.</p>' : ''}
-    <input class="input" id="filtro" placeholder="Buscar por nombre o código" value="${esc(filtro)}" autocomplete="off">
-    <div class="tabla-caja"><table class="tabla" id="tabla"></table></div>`;
-  const visibles = () => {
-    const palabras = filtro.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').split(/\s+/).filter(Boolean);
-    return lista.filter(p => { const t = (p.nombre + ' ' + (p.codigo || '')).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); return palabras.every(w => t.includes(w)); });
+  if (categoria && !cats.some(c => String(c.id) === categoria)) categoria = '';
+  vista.innerHTML = `<div class="cabecera"><h2>Productos <span class="muted">(${activos.length})</span></h2>
+      <div class="acciones"><button class="btn" id="aumento">Aumento de precios</button><button class="btn" id="categorias">Categorías</button><button class="btn primario" id="nuevo">＋ Nuevo producto</button></div></div>
+    <div class="p-filtros">
+      <div class="p-busqueda">
+        <label class="p-buscar"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg>
+          <input id="filtro" placeholder="Buscar por nombre o código…" value="${esc(filtro)}" autocomplete="off"></label>
+        <select class="input p-select" id="categoria"><option value="">Todas las categorías</option><option value="sin" ${categoria === 'sin' ? 'selected' : ''}>Sin categoría</option>
+          ${cats.map(c => `<option value="${c.id}" ${String(c.id) === categoria ? 'selected' : ''}>${esc(c.nombre)}</option>`).join('')}</select>
+      </div>
+      <div class="chips" id="grupos"></div>
+    </div>
+    <div class="p-aviso" id="aviso-bajas" hidden>Los desactivados no aparecen para vender. Abrí uno y tildá "Activo" para que vuelva a aparecer.</div>
+    <div class="tabla-caja p-tabla"><table class="tabla" id="tabla"></table></div>`;
+
+  // Los productos de un botón que coinciden con la búsqueda y la categoría (de acá salen también las cantidades de los botones)
+  const delGrupo = g => {
+    const palabras = sinAcentos(filtro).split(/\s+/).filter(Boolean), cond = GRUPOS.find(x => x[0] === g)[2];
+    return (g === 'desactivados' ? bajas : activos).filter(p => cond(p)
+      && (categoria === 'sin' ? p.categoria_id == null : !categoria || String(p.categoria_id) === categoria)
+      && palabras.every(w => sinAcentos(p.nombre + ' ' + (p.codigo || '')).includes(w)));
   };
+  const contar = g => delGrupo(g).length;
+  const visibles = () => {
+    const dir = orden.asc ? 1 : -1;
+    const valor = {
+      nombre: p => sinAcentos(p.nombre), categoria: p => sinAcentos(catNombre(p.categoria_id)) || '￿',
+      stock: p => +p.stock, costo: p => +p.costo, precio: p => +p.precio, margen: margen,
+    }[orden.col];
+    return delGrupo(grupo).sort((a, b) => {
+      const x = valor(a), y = valor(b);
+      if (x == null || y == null) return x == null && y == null ? 0 : x == null ? 1 : -1;   // sin margen, siempre al final
+      return (typeof x === 'string' ? x.localeCompare(y, 'es') : x - y) * dir || a.nombre.localeCompare(b.nombre, 'es');
+    });
+  };
+  const hayFiltros = () => filtro.trim() || categoria || grupo !== 'todos';
+
+  const COLS = [['nombre', 'Producto', ''], ['categoria', 'Categoría', ''], ['stock', 'Stock', 'num'], ['costo', 'Costo', 'num'], ['precio', 'Precio', 'num'], ['margen', 'Margen', 'num']];
   const pintar = () => {
+    $('#grupos').innerHTML = GRUPOS.map(([g, nombre]) => `<button class="chip ${g === grupo ? 'elegido' : ''}" data-grupo="${g}">${esc(nombre)} <span class="p-cuenta">${contar(g)}</span></button>`).join('');
+    $$('[data-grupo]').forEach(b => b.onclick = () => { grupo = b.dataset.grupo; pintar(); });
+    $('#aviso-bajas').hidden = grupo !== 'desactivados';
     const ver = visibles();
-    $('#tabla').innerHTML = ver.length ? `<thead><tr><th>Producto</th><th>Código</th><th>Categoría</th><th class="num">Costo</th><th class="num">Precio</th><th class="num">Stock</th></tr></thead><tbody>
-      ${ver.slice(0, 300).map(p => `<tr class="clic" data-id="${p.id}"><td>${esc(p.nombre)}${p.por_peso ? ' <span class="etiqueta">por kg</span>' : ''}${p.favorito ? ' <span class="etiqueta info">botón rápido</span>' : ''}</td><td class="mono">${esc(p.codigo || '')}</td>
-        <td>${esc(catNombre(p.categoria_id))}</td><td class="num">${plata(p.costo)}</td><td class="num"><b>${plata(p.precio)}</b></td>
-        <td class="num ${+p.stock <= +p.stock_min ? 'mal' : ''}">${cant(p.stock)}</td></tr>`).join('')}</tbody>`
-      : `<tbody><tr><td class="muted vacio">${lista.length ? 'Ningún producto coincide.' : verBajas ? 'No hay productos dados de baja.' : 'Todavía no hay productos: cargá el primero con "Nuevo producto".'}</td></tr></tbody>`;
-    $$('tr[data-id]').forEach(tr => tr.onclick = () => ficha(lista.find(p => p.id === +tr.dataset.id)));
+    $('#tabla').innerHTML = `<thead><tr>${COLS.map(([c, nombre, cl]) => `<th class="${cl}"><button class="p-orden ${orden.col === c ? 'activo' : ''}" data-orden="${c}">${nombre}
+        <span aria-hidden="true">${orden.col === c ? (orden.asc ? '▲' : '▼') : '↕'}</span></button></th>`).join('')}</tr></thead>
+      <tbody>${ver.length ? ver.slice(0, 300).map(p => {
+        const s = +p.stock, min = +p.stock_min, m = margen(p);
+        const claseStock = s < 0 ? 'mal' : (s === 0 || (min > 0 && s <= min)) ? 'p-alerta' : '';
+        return `<tr class="clic" data-id="${p.id}">
+          <td><div class="p-nombre">${esc(p.nombre)}${p.favorito ? ' <span class="p-estrella" title="Botón rápido en Vender">★</span>' : ''}</div>
+            <div class="p-sub mono">${p.codigo ? esc(p.codigo) : ''}${p.por_peso ? `${p.codigo ? ' ' : ''}· por kilo` : ''}</div></td>
+          <td>${esc(catNombre(p.categoria_id))}</td>
+          <td class="num"><span class="${claseStock}">${cant(s)}${p.por_peso ? ' kg' : ''}</span>${min > 0 ? `<div class="p-sub">mín. ${cant(min)}</div>` : ''}</td>
+          <td class="num">${plata(p.costo)}</td>
+          <td class="num"><b>${plata(p.precio)}</b>${p.por_peso ? '<span class="muted">/kg</span>' : ''}</td>
+          <td class="num">${m == null ? '<span class="muted">—</span>' : `${Math.round(m)}%`}</td></tr>`; }).join('')
+        : `<tr><td class="muted vacio" colspan="6">${!(grupo === 'desactivados' ? bajas : activos).length
+            ? (grupo === 'desactivados' ? 'No hay productos desactivados.' : 'Todavía no hay productos: cargá el primero con "Nuevo producto".')
+            : 'Ningún producto coincide con los filtros.'}</td></tr>`}</tbody>
+      ${ver.length > 300 ? `<tfoot><tr><td class="muted" colspan="6">Se muestran 300 de ${ver.length}: usá la búsqueda o los filtros para ver los demás.</td></tr></tfoot>` : ''}`;
+    $$('[data-orden]').forEach(b => b.onclick = () => {
+      const c = b.dataset.orden;
+      orden = orden.col === c ? { col: c, asc: !orden.asc } : { col: c, asc: c === 'nombre' || c === 'categoria' };
+      pintar();
+    });
+    $$('tr[data-id]').forEach(tr => tr.onclick = () => ficha([...activos, ...bajas].find(p => p.id === +tr.dataset.id)));
   };
   $('#filtro').oninput = e => { filtro = e.target.value; pintar(); };
-  $('#bajas').onclick = () => { verBajas = !verBajas; ctx.recargar(); };
-  if (!verBajas) {
-    $('#nuevo').onclick = () => ficha(null);
-    $('#categorias').onclick = () => categorias(cats);
-    $('#aumento').onclick = () => correr(() => aumento(filtro.trim() ? visibles() : null, cats, ctx));
-  }
+  $('#categoria').onchange = e => { categoria = e.target.value; pintar(); };
+  $('#nuevo').onclick = () => ficha(null);
+  $('#categorias').onclick = () => categorias(cats);
+  $('#aumento').onclick = () => correr(() => aumento(hayFiltros() ? visibles() : null, cats, ctx));
   pintar();
 
   function ficha(p) {
@@ -103,7 +164,7 @@ async function aumento(visibles, cats, ctx) {
   const redondeo = +(ctx.config.redondeo ?? 10);
   const m = modal('Aumento de precios', `<form class="form ancho" id="f-aum">
     <label>¿A qué productos?<select class="input" name="alcance">
-      ${visibles ? `<option value="ids">Los ${visibles.length} que estás viendo (según la búsqueda)</option>` : ''}
+      ${visibles ? `<option value="ids">Los ${visibles.length} que estás viendo (según la búsqueda y los filtros)</option>` : ''}
       <option value="categoria">Una categoría</option><option value="proveedor">Un proveedor</option><option value="todos" ${visibles ? '' : 'selected'}>Todos los productos</option></select></label>
     <label id="a-cat" hidden>Categoría<select class="input" name="categoria_id">${cats.map(c => `<option value="${c.id}">${esc(c.nombre)}</option>`).join('')}</select></label>
     <label id="a-prov" hidden>Proveedor<select class="input" name="proveedor_id">${provs.map(p => `<option value="${p.id}">${esc(p.nombre)}</option>`).join('')}</select></label>
