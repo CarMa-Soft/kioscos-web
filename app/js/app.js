@@ -10,6 +10,7 @@ import { pantallaClientes } from './clientes.js';
 import { pantallaAjustes } from './ajustes.js';
 import { pantallaInicio } from './inicio.js';
 import { pantallaReportes } from './reportes.js';
+import { VERSION } from './version.js';
 
 const raiz = $('#app');
 let datos = null;            // lo que devuelve datos_inicio()
@@ -131,12 +132,26 @@ async function mostrarSeccion() {
   vista.innerHTML = '<p class="muted">Cargando…</p>';
   const ctx = {
     yo, negocio: datos.negocio, usuarios: datos.usuarios,
+    config: datos.config,          // configuración del negocio (datos para el ticket, cuándo imprimir); Ajustes la actualiza
     ir: ruta => { location.hash = ruta; },
     recargar: () => mostrarSeccion(),
     alTeclear: fn => { teclas = fn; },
   };
   await correr(() => s.fn(vista, ctx));
 }
+
+// ---------- Versión nueva ----------
+// Cada 2 minutos se compara la versión cargada con la publicada; si cambió, se avisa (no se recarga sola: puede haber
+// una venta a medio cargar). En la computadora de desarrollo no hay version.json y no se avisa nada.
+async function revisarVersion() {
+  if (VERSION === 'desarrollo') return;
+  try {
+    const r = await fetch('version.json', { cache: 'no-store' });
+    if (r.ok && (await r.json()).version !== VERSION) $('#version-nueva').hidden = false;
+  } catch { /* sin conexión: se vuelve a intentar */ }
+}
+$('#actualizar').onclick = () => location.reload();
+setInterval(revisarVersion, 2 * 60 * 1000);
 
 // ---------- Arranque ----------
 async function iniciar() {

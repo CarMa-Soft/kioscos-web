@@ -4,6 +4,7 @@ import { llamar } from './base.js';
 import * as cat from './catalogo.js';
 import { $, $$, esc, plata, cant, numero, aviso, correr, modal, confirmar, pedirAutorizacion } from './ui.js';
 import { formCliente, textoSaldo } from './clientes.js';
+import { imprimir, ticketVenta } from './impresion.js';
 
 const r2 = n => Math.round((+n || 0) * 100) / 100;
 const r3 = n => Math.round((+n || 0) * 1000) / 1000;
@@ -271,6 +272,18 @@ export async function pantallaVender(vista, ctx) {
   }
 
   // ---------- Cobrar ----------
+  function preguntarTicket(v) {
+    const m = modal(`Venta #${v.numero} · ${plata(v.total)}`, `<p>¿Imprimir el ticket?</p>
+      <div class="fila fin"><button class="btn" data-cerrar>No (Enter)</button><button class="btn primario" id="imp">Imprimir (P)</button></div>`,
+      { alCerrar: () => { document.removeEventListener('keydown', tecla, true); $('#escaner')?.focus(); } });
+    const tecla = e => {
+      if (e.key.toLowerCase() === 'p') { e.preventDefault(); $('#imp', m.el).click(); }
+      else if (e.key === 'Enter') { e.preventDefault(); m.cerrar(); }
+    };
+    document.addEventListener('keydown', tecla, true);
+    $('#imp', m.el).onclick = () => { m.cerrar(); imprimir(ticketVenta(v, ctx.config)); };
+  }
+
   let cobrando = false;
   async function cobrar() {
     if (cobrando) return;
@@ -311,6 +324,10 @@ export async function pantallaVender(vista, ctx) {
         venta = vacia(); pintar(); escaner.focus();
         if (r.repetida) aviso(`Esta venta ya se había registrado como #${r.numero} (${plata(r.total)}): no se cobró de nuevo`, 'info');
         else aviso(`Venta #${r.numero} registrada${pc > 0 && efectivo ? ' · Vuelto ' + plata(pc - efectivo) : ''}`, 'ok');
+        // Ticket (Ajustes → Ticket): siempre, nunca o preguntar (P imprime; Enter o Esc siguen sin imprimir)
+        const modoTicket = ctx.config.ticket || 'preguntar';
+        if (modoTicket === 'siempre') imprimir(ticketVenta(r, ctx.config));
+        else if (modoTicket === 'preguntar' && !r.repetida) preguntarTicket(r);
         cat.actualizar().then(pintar).catch(() => {});
       });
     } finally { cobrando = false; }

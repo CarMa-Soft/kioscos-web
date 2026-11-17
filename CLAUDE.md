@@ -93,7 +93,13 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   (o el dueño). Las funciones que mueven plata o stock bloquean la fila del negocio (`for update`) para no cruzarse.
 - **Anular** (solo dueño): devuelve el stock y saca la plata de la caja del turno abierto.
 - **Productos:** un producto con ventas no se borra, se da de baja (`activo = false`).
-- **Pendiente:** imprimir tickets y comprobantes (todavía no hay impresión).
+- **Impresión** (`impresion.js`): tickets de 58 mm de venta, devolución (con firma del cliente) y cierre de caja, con
+  los datos de Ajustes (`config.negocio`: nombre, CUIT, dirección, teléfono, pie) y `config.ticket`
+  (`preguntar` | `siempre` | `nunca`). Se arma en `#print-area` y `@media print` esconde el resto. Para imprimir sin
+  ventana: Chrome con `--kiosk-printing` y la impresora de tickets como predeterminada.
+- **Versión** (`version.js`): al publicar, `pages.yml` pone el commit en `VERSION`, agrega `?v=<commit>` al CSS y a
+  todos los imports de JS (por eso los imports locales tienen que ser `from './archivo.js'`, con comillas simples) y
+  escribe `version.json`. Cada 2 minutos la app lo compara y, si cambió, ofrece "Actualizar" (no recarga sola).
 
 ## Devoluciones de venta (etapa 4d)
 - Desde el detalle de la venta (Caja), `devolver_venta(venta, items [{ id del renglón, cantidad, vuelve_stock }], forma, motivo, autorización)`:

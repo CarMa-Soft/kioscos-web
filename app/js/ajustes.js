@@ -1,12 +1,28 @@
-// Ajustes (solo dueño): formas de pago, recargo de cada una y tope de descuento de los empleados
+// Ajustes (solo dueño): datos del negocio y ticket, formas de pago, recargos, tope de descuento, balanza y billetes
 import { llamar } from './base.js';
 import { $, $$, esc, numero, aviso, correr } from './ui.js';
+import { imprimir, ticketVenta } from './impresion.js';
 
-export async function pantallaAjustes(vista) {
+export async function pantallaAjustes(vista, ctx) {
   const c = await llamar('estado_caja');
   let formas = c.formas_pago.filter(f => f !== 'Efectivo');
   const recargos = { ...c.recargos };
+  const n = { nombre: ctx.negocio.nombre, ...(ctx.config.negocio || {}) };
+  const modo = ctx.config.ticket || 'preguntar';
   vista.innerHTML = `<h2>Ajustes</h2>
+    <form class="form ancho recuadro-blanco" id="f-negocio">
+      <h3>Datos del negocio (para el ticket)</h3>
+      <div class="fila"><label class="crece">Nombre<input class="input" name="nombre" maxlength="80" value="${esc(n.nombre || '')}"></label>
+        <label class="crece">CUIT<input class="input" name="cuit" maxlength="20" value="${esc(n.cuit || '')}"></label></div>
+      <div class="fila"><label class="crece">Dirección<input class="input" name="direccion" maxlength="120" value="${esc(n.direccion || '')}"></label>
+        <label class="crece">Teléfono<input class="input" name="telefono" maxlength="40" value="${esc(n.telefono || '')}"></label></div>
+      <label>Pie del ticket<input class="input" name="pie_ticket" maxlength="120" value="${esc(n.pie_ticket ?? '¡Gracias por su compra!')}"></label>
+      <label>Ticket después de cada venta<select class="input" name="ticket">
+        ${[['preguntar', 'Preguntar (P imprime)'], ['siempre', 'Imprimir siempre'], ['nunca', 'No imprimir']].map(([v, t]) => `<option value="${v}" ${modo === v ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
+      <p class="muted chico">Para que imprima directo, sin la ventana de impresión, abrí Chrome con la opción <span class="mono">--kiosk-printing</span>
+        y dejá la impresora de tickets como predeterminada.</p>
+      <div class="fila"><button class="btn primario">Guardar</button><button type="button" class="btn" id="prueba">Imprimir un ticket de prueba</button></div>
+    </form>
     <form class="form ancho recuadro-blanco" id="f-cobro">
       <h3>Formas de pago y recargos</h3>
       <p class="muted">Los precios de los productos son para efectivo. Cada forma puede llevar un recargo en %, que se suma al cobrar
@@ -31,6 +47,22 @@ export async function pantallaAjustes(vista) {
       <input class="input" name="billetes" value="${esc((c.billetes || []).join(', '))}">
       <div class="fila"><button class="btn primario">Guardar</button></div>
     </form>`;
+  $('#f-negocio').onsubmit = e => {
+    e.preventDefault();
+    const f = new FormData(e.target);
+    const datos = Object.fromEntries(['nombre', 'cuit', 'direccion', 'telefono', 'pie_ticket'].map(k => [k, String(f.get(k)).trim()]));
+    correr(async () => {
+      await llamar('guardar_config', { p_clave: 'negocio', p_valor: datos });
+      await llamar('guardar_config', { p_clave: 'ticket', p_valor: f.get('ticket') });
+      ctx.config.negocio = datos; ctx.config.ticket = f.get('ticket');   // las demás secciones lo ven sin recargar
+      aviso('Datos guardados', 'ok');
+    });
+  };
+  $('#prueba').onclick = () => imprimir(ticketVenta({
+    numero: 0, fecha: new Date().toISOString(), cliente: null, subtotal: 1500, descuento: 0, recargo: 0, total: 1500, paga_con: 2000, anulada: false,
+    items: [{ nombre: 'Producto de prueba', cantidad: 1, precio: 1000, importe: 1000 }, { nombre: 'Otro producto', cantidad: 2, precio: 250, importe: 500 }],
+    pagos: [{ forma: 'Efectivo', monto: 1500, recargo: 0 }],
+  }, { ...ctx.config, negocio: Object.fromEntries(['nombre', 'cuit', 'direccion', 'telefono', 'pie_ticket'].map(k => [k, $(`#f-negocio [name=${k}]`).value])) }));
   $('#f-caja').onsubmit = e => {
     e.preventDefault();
     const f = new FormData(e.target);

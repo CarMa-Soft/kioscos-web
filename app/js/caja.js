@@ -2,6 +2,7 @@
 import { llamar } from './base.js';
 import * as cat from './catalogo.js';
 import { $, $$, esc, plata, cant, hora, fecha, numero, aviso, correr, modal, confirmar, pedirAutorizacion } from './ui.js';
+import { imprimir, ticketVenta, ticketDevolucion, ticketCierre } from './impresion.js';
 
 export async function pantallaCaja(vista, ctx) {
   const e = await llamar('estado_caja');
@@ -122,7 +123,7 @@ export async function pantallaCaja(vista, ctx) {
   // Detalle de un turno cerrado: totales, conteo de billetes y movimientos
   function resumenTurno(r, alCerrar) {
     const d = +r.diferencia, b = r.billetes;
-    modal(`Turno de ${r.usuario}`, `<p class="muted">${fecha(r.apertura)} a ${fecha(r.cierre)}${r.cerrado_por && r.cerrado_por !== r.usuario ? ' · cerró ' + esc(r.cerrado_por) : ''}</p>
+    const m = modal(`Turno de ${r.usuario}`, `<p class="muted">${fecha(r.apertura)} a ${fecha(r.cierre)}${r.cerrado_por && r.cerrado_por !== r.usuario ? ' · cerró ' + esc(r.cerrado_por) : ''}</p>
       <dl class="kv"><dt>Inicial</dt><dd>${plata(r.inicial)}</dd><dt>Tenía que haber</dt><dd>${plata(r.esperado)}</dd><dt>Contado</dt><dd>${plata(r.contado)}</dd>
         <dt>Diferencia</dt><dd class="${Math.abs(d) >= 0.01 ? (d > 0 ? 'ok' : 'mal') : 'ok'}">${Math.abs(d) < 0.01 ? 'Justo' : (d > 0 ? 'Sobraron ' : 'Faltaron ') + plata(Math.abs(d))}</dd>
         <dt>Retiro</dt><dd>${plata(r.retiro)}</dd><dt>Ventas</dt><dd>${r.ventas} · ${plata(r.total_ventas)}</dd></dl>
@@ -131,7 +132,8 @@ export async function pantallaCaja(vista, ctx) {
       ${r.notas ? `<p><b>Notas:</b> ${esc(r.notas)}</p>` : ''}
       <h3>Movimientos</h3><div class="tabla-caja"><table class="tabla"><tbody>${(r.movimientos || []).map(x => `<tr><td>${hora(x.fecha)}</td><td>${esc(x.concepto)}${x.ajuste ? ' <span class="etiqueta">ajuste</span>' : ''}</td>
         <td>${esc(x.forma)}</td><td class="num ${x.tipo === 'egreso' ? 'mal' : ''}">${x.tipo === 'egreso' ? '−' : ''}${plata(x.monto)}</td></tr>`).join('') || '<tr><td class="muted vacio">Sin movimientos.</td></tr>'}</tbody></table></div>
-      <div class="fila fin"><button class="btn primario" data-cerrar>Listo</button></div>`, { ancho: true, alCerrar });
+      <div class="fila fin"><button class="btn" id="imp-cierre">Imprimir cierre</button><button class="btn primario" data-cerrar>Listo</button></div>`, { ancho: true, alCerrar });
+    $('#imp-cierre', m.el).onclick = () => imprimir(ticketCierre(r, ctx.config));
   }
 
   function turnosAnteriores() {
@@ -163,10 +165,14 @@ export async function pantallaCaja(vista, ctx) {
         <p>${v.pagos.map(p => `${esc(p.forma)} ${plata(p.monto)}`).join(' · ')}${v.paga_con ? ` · pagó con ${plata(v.paga_con)}` : ''}</p>
         ${v.devoluciones.length ? `<h3>Devoluciones</h3><table class="tabla"><tbody>${v.devoluciones.map(d => `<tr><td><b>${esc(d.etiqueta)}</b> · ${fecha(d.fecha)} · ${esc(d.usuario)}${d.autorizo ? ` (autorizó ${esc(d.autorizo)})` : ''}
             <div class="muted chico">${d.items.map(x => `${cant(x.cantidad)} ${esc(x.nombre)}${x.vuelve_stock ? '' : ' (no volvió al stock)'}`).join(', ')}${d.motivo ? ' · ' + esc(d.motivo) : ''}</div></td>
-          <td>${d.forma === 'Fiado' ? 'a su cuenta' : esc(d.forma)}</td><td class="num">${plata(d.total)}</td></tr>`).join('')}</tbody></table>` : ''}
+          <td>${d.forma === 'Fiado' ? 'a su cuenta' : esc(d.forma)}</td><td class="num">${plata(d.total)}</td>
+          <td class="num"><button class="link" data-imp-dev="${d.id}">Imprimir</button></td></tr>`).join('')}</tbody></table>` : ''}
         <div class="fila fin">${puedeDevolver ? '<button class="btn izq" id="devolver">Devolver productos</button>' : ''}
+          <button class="btn" id="reimprimir">Imprimir ticket</button>
           ${admin && !v.anulada ? '<button class="btn peligro" id="anular">Anular venta</button>' : ''}<button class="btn primario" data-cerrar>Cerrar</button></div>`, { ancho: true });
       if ($('#devolver', m.el)) $('#devolver', m.el).onclick = () => { m.cerrar(); devolver(v); };
+      $('#reimprimir', m.el).onclick = () => imprimir(ticketVenta(v, ctx.config));
+      $$('[data-imp-dev]', m.el).forEach(b => b.onclick = () => imprimir(ticketDevolucion(v.devoluciones.find(d => d.id === +b.dataset.impDev), v, ctx.config)));
       if ($('#anular', m.el)) $('#anular', m.el).onclick = async () => {
         const resto = +v.total - +v.devuelto;
         const fiado = v.pagos.filter(p => p.forma === 'Fiado').reduce((s, p) => s + +p.monto, 0) * (+v.total ? resto / +v.total : 0), deCaja = resto - fiado;
@@ -229,8 +235,14 @@ export async function pantallaCaja(vista, ctx) {
           r = await llamar('devolver_venta', { ...args, p_autorizacion: token });
         }
         m.cerrar();
-        aviso(`${r.devolucion.etiqueta}: se le devuelven ${plata(r.devolucion.total)}`, 'ok');
-        await cat.actualizar(); ctx.recargar();
+        await cat.actualizar();
+        // comprobante con lugar para la firma del cliente
+        const d = r.devoluciones[r.devoluciones.length - 1];
+        const m2 = modal(`${r.devolucion.etiqueta} registrada`, `<p>Se le devuelven <b>${plata(r.devolucion.total)}</b>.</p>
+          <p class="muted">El comprobante tiene lugar para la firma del cliente.</p>
+          <div class="fila fin"><button class="btn" data-cerrar>Listo</button><button class="btn primario" id="imp-dev">Imprimir comprobante</button></div>`,
+          { alCerrar: () => ctx.recargar() });
+        $('#imp-dev', m2.el).onclick = () => imprimir(ticketDevolucion(d, r, ctx.config));
       });
     };
   }
