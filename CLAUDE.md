@@ -92,7 +92,11 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
 - **Turnos:** uno abierto por negocio. Vende y carga movimientos quien lo abrió (o el dueño); lo cierra quien lo abrió
   (o el dueño). Las funciones que mueven plata o stock bloquean la fila del negocio (`for update`) para no cruzarse.
 - **Anular** (solo dueño): devuelve el stock y saca la plata de la caja del turno abierto.
-- **Productos:** un producto con ventas no se borra, se da de baja (`activo = false`).
+- **Productos:** un producto con movimientos (`producto_con_movimientos`: ventas, devoluciones, compras, devoluciones a
+  proveedor, entradas y salidas, ajustes de stock; no cuentan "Stock inicial" ni "Corrección desde la ficha") no se borra:
+  `eliminar_producto` lo da de baja (`activo = false`). La ficha también tiene "Activo"; los dados de baja no están en el
+  catálogo de Vender y se ven en Productos → "Ver dados de baja" (`productos_de_baja`), para volver a activarlos.
+- **Botón rápido** (`favorito`): aparece en Vender como acceso rápido, en orden alfabético; los primeros 9 con Alt + número.
 - **Impresión** (`impresion.js`): tickets de 58 mm de venta, devolución (con firma del cliente) y cierre de caja, con
   los datos de Ajustes (`config.negocio`: nombre, CUIT, dirección, teléfono, pie) y `config.ticket`
   (`preguntar` | `siempre` | `nunca`). Se arma en `#print-area` y `@media print` esconde el resto. Para imprimir sin
