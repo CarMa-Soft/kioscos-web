@@ -8,6 +8,13 @@ const fmtPlata = new Intl.NumberFormat('es-AR', { style: 'currency', currency: '
 export const plata = n => fmtPlata.format(+n || 0);
 export const cant = n => (+n || 0).toLocaleString('es-AR', { maximumFractionDigits: 3 });
 export const fecha = iso => iso ? new Date(iso).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }) : '—';
+// Fechas de calendario (AAAA-MM-DD: fecha de factura, vencimiento)
+export const dia = d => d ? new Date(d + 'T12:00').toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
+export const hoyDia = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+export const sumarDias = (d, n) => { const x = new Date(d + 'T12:00'); x.setDate(x.getDate() + (+n || 0)); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`; };
+export const diasHasta = d => Math.round((new Date(d + 'T12:00') - new Date(hoyDia() + 'T12:00')) / 864e5);
+// "venció hace 5 días" / "vence hoy" / "vence en 3 días"
+export const textoVence = d => { const n = diasHasta(d); return n < 0 ? `<span class="mal">venció hace ${-n} día${n === -1 ? '' : 's'}</span>` : n === 0 ? '<span class="mal">vence hoy</span>' : `vence en ${n} día${n === 1 ? '' : 's'}`; };
 export const hora = iso => iso ? new Date(iso).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }) : '—';
 // Número escrito por la persona: acepta coma decimal; vacío = NaN
 export const numero = v => {

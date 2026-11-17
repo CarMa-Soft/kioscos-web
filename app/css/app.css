@@ -166,3 +166,4 @@ p.muted { margin: 0 0 1.25rem; }
 .ticket table { width: 100%; border-collapse: collapse; font-size: 7.5pt; }
 .ticket td { padding: .3mm 0; vertical-align: top; word-break: break-word; }
 .ticket td.n { white-space: nowrap; text-align: right; padding-left: 1.5mm; }
+.etiqueta.pendiente { background: #fef0c7; color: #93370d; }

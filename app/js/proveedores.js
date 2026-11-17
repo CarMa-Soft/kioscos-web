@@ -1,6 +1,6 @@
 // Proveedores (solo dueño): lista con lo que se les debe, ficha con la cuenta, pagos, ajustes y datos
 import { llamar } from './base.js';
-import { $, $$, esc, plata, fecha, numero, aviso, correr, modal, confirmar } from './ui.js';
+import { $, $$, esc, plata, fecha, dia, hoyDia, sumarDias, textoVence, numero, aviso, correr, modal, confirmar } from './ui.js';
 
 let filtro = '';
 const textoSaldo = s => +s > 0.004 ? 'Le debés ' + plata(s) : +s < -0.004 ? 'A favor ' + plata(-s) : 'Al día';
@@ -8,7 +8,7 @@ const textoSaldo = s => +s > 0.004 ? 'Le debés ' + plata(s) : +s < -0.004 ? 'A 
 export async function pantallaProveedores(vista, ctx) {
   const lista = await llamar('proveedores');
   const deben = lista.filter(p => +p.saldo > 0.004);
-  vista.innerHTML = `<div class="cabecera"><h2>Proveedores</h2><div class="acciones"><a class="btn" href="#/compras">Compras</a><button class="btn primario" id="nuevo">＋ Nuevo proveedor</button></div></div>
+  vista.innerHTML = `<div class="cabecera"><h2>Proveedores</h2><div class="acciones"><a class="btn" href="#/compras">Compras</a><button class="btn" id="vencimientos">📅 Vencimientos</button><button class="btn primario" id="nuevo">＋ Nuevo proveedor</button></div></div>
     <div class="tarjetas"><div class="tarjeta"><div class="etq">Le debés a proveedores</div><div class="valor">${plata(deben.reduce((s, p) => s + +p.saldo, 0))}</div></div>
       <div class="tarjeta"><div class="etq">Proveedores a los que les debés</div><div class="valor">${deben.length}</div></div>
       <div class="tarjeta"><div class="etq">Proveedores</div><div class="valor">${lista.length}</div></div></div>
@@ -26,6 +26,7 @@ export async function pantallaProveedores(vista, ctx) {
   };
   $('#filtro').oninput = e => { filtro = e.target.value; pintar(); };
   $('#nuevo').onclick = () => formProveedor(null, () => ctx.recargar());
+  $('#vencimientos').onclick = () => vencimientosModal(id => ficha(id, ctx));
   pintar();
 }
 
@@ -37,8 +38,15 @@ function ficha(id, ctx) {
     const m = modal(p.nombre, `<p class="muted">${[p.cuit && 'CUIT ' + p.cuit, p.contacto, p.telefono && 'Tel. ' + p.telefono, p.dias && 'Visita: ' + p.dias,
         p.plazo != null && `Plazo: ${p.plazo} días`].filter(Boolean).map(esc).join(' · ') || 'Sin datos de contacto'}</p>
       <div class="tarjeta"><div class="etq">Cuenta</div><div class="valor ${+p.saldo > 0.004 ? 'mal' : ''}">${textoSaldo(p.saldo)}</div></div>
-      <div class="fila"><button class="btn primario" id="pagar">Registrar pago</button><button class="btn" id="ajuste">Saldo inicial / ajuste</button>
+      <div class="fila"><button class="btn primario" id="pagar">Registrar pago</button>
+        ${+p.sin_aplicar > 0.004 && p.deudas.length ? `<button class="btn" id="aplicar">Aplicar lo que está a cuenta (${plata(p.sin_aplicar)})</button>` : ''}
+        <button class="btn" id="ajuste">Saldo inicial / ajuste</button>
         <button class="btn" id="editar">Editar datos</button><button class="btn peligro" id="eliminar">Eliminar</button></div>
+      ${p.deudas.length ? `<h3>Facturas pendientes</h3><div class="tabla-caja"><table class="tabla"><thead><tr><th>Factura</th><th>Fecha</th><th>Vence</th><th class="num">Importe</th><th class="num">Pagado</th><th class="num">Pendiente</th></tr></thead><tbody>
+        ${p.deudas.map(d => `<tr><td>${esc(nombreDeuda(d))}</td><td>${dia(d.fecha_factura)}</td><td>${dia(d.vencimiento)}<div class="chico">${textoVence(d.vencimiento)}</div></td>
+          <td class="num">${plata(d.importe)}</td><td class="num ok">${+d.aplicado ? plata(d.aplicado) : ''}</td><td class="num"><b>${plata(d.pendiente)}</b></td></tr>`).join('')}</tbody></table></div>` : ''}
+      ${+p.sin_aplicar > 0.004 ? `<p class="chico">A cuenta, sin aplicar a ninguna factura: <b class="ok">${plata(p.sin_aplicar)}</b></p>` : ''}
+      <h3>Movimientos</h3>
       <div class="tabla-caja"><table class="tabla">${movs.length ? `<thead><tr><th>Fecha</th><th>Concepto</th><th class="num">Compra / suma</th><th class="num">Pagado / resta</th><th class="num">Saldo</th><th></th></tr></thead><tbody>
         ${movs.map(x => `<tr class="${x.anulado ? 'anulada' : ''}"><td>${fecha(x.fecha)}</td><td>${esc(x.concepto)}${x.forma ? ` <span class="muted">(${esc(x.forma)}${x.de_caja ? ', de la caja' : ''})</span>` : ''}<div class="muted chico">${esc(x.usuario)}</div></td>
           <td class="num">${+x.monto > 0 ? plata(x.monto) : ''}</td><td class="num ok">${+x.monto < 0 ? plata(-x.monto) : ''}</td><td class="num">${plata(x.saldo)}</td>
@@ -47,6 +55,7 @@ function ficha(id, ctx) {
       <div class="fila fin"><button class="btn" data-cerrar>Cerrar</button></div>`, { ancho: true });
     const otraVez = () => { m.cerrar(); ctx.recargar(); ficha(id, ctx); };
     $('#pagar', m.el).onclick = () => pagar(p, otraVez);
+    if ($('#aplicar', m.el)) $('#aplicar', m.el).onclick = () => aplicar(p, otraVez);
     $('#ajuste', m.el).onclick = () => ajuste(p, movs.length, otraVez);
     $('#editar', m.el).onclick = () => formProveedor(p, otraVez);
     $('#eliminar', m.el).onclick = async () => {
@@ -71,14 +80,21 @@ function pagar(p, despues) {
       <label id="como-l" ${caja.turno ? 'hidden' : ''}>Cómo se pagó<input class="input" name="como" placeholder="ej: transferencia del banco, cheque"></label>
       <label>Nota <span class="muted">(opcional)</span><input class="input" name="concepto" maxlength="120" placeholder="Pago"></label>
       ${caja.turno ? '' : '<p class="muted chico">La caja está cerrada: solo se puede registrar un pago hecho aparte.</p>'}
-      <div class="fila fin"><button type="button" class="btn" data-cerrar>Cancelar</button><button class="btn primario">Registrar pago</button></div></form>`);
+      <h3>Qué facturas pagás</h3><div id="aplicacion"></div>
+      <div class="fila fin"><button type="button" class="btn" data-cerrar>Cancelar</button><button class="btn primario">Registrar pago</button></div></form>`, { ancho: true });
     $('[name=origen]', m.el).onchange = e => { $('#como-l', m.el).hidden = e.target.value !== 'aparte'; };
+    const ap = tablaAplicacion($('#aplicacion', m.el), p.deudas || []);
+    const montoIn = $('[name=monto]', m.el);
+    ap.rellenar(numero(montoIn.value) || 0);
+    montoIn.oninput = () => ap.rellenar(numero(montoIn.value) || 0);
     $('#f-pago', m.el).onsubmit = e => {
       e.preventDefault();
       const f = new FormData(e.target), monto = numero(f.get('monto')), aparte = f.get('origen') === 'aparte';
       if (!(monto > 0)) return aviso('Poné el monto');
+      if (ap.aplicado() > monto + 0.004) return aviso('Aplicás a las facturas más de lo que pagás');
       correr(async () => {
-        const r = await llamar('pagar_proveedor', { p_proveedor_id: p.id, p_monto: monto, p_de_caja: !aparte, p_forma: aparte ? f.get('como') : f.get('origen').slice(5), p_concepto: f.get('concepto') });
+        const r = await llamar('pagar_proveedor', { p_proveedor_id: p.id, p_monto: monto, p_de_caja: !aparte, p_forma: aparte ? f.get('como') : f.get('origen').slice(5),
+          p_concepto: f.get('concepto'), p_aplicaciones: ap.datos() });
         m.cerrar(); aviso(`Pago registrado. ${textoSaldo(r.saldo)}`, 'ok'); despues();
       });
     };
@@ -89,13 +105,19 @@ function ajuste(p, hayMovimientos, despues) {
   const m = modal('Saldo inicial / ajuste', `<form class="form" id="f-aj"><p class="muted">Para cargar lo que ya le debías antes de usar la cuenta, o corregir un error. No mueve plata de la caja.</p>
     <label>Tipo<select class="input" name="tipo"><option value="1">Suma deuda (le debés más)</option><option value="-1">Resta deuda (nota de crédito, corrección)</option></select></label>
     <label>Monto<input class="input" name="monto" inputmode="decimal" required autofocus></label>
+    <label id="vence-l">Vence<input class="input" type="date" name="vencimiento" value="${hoyDia()}"></label>
     <label>Concepto<input class="input" name="concepto" maxlength="120" placeholder="${hayMovimientos ? 'ej: nota de crédito, corrección' : 'Saldo inicial'}"></label>
     <div class="fila fin"><button type="button" class="btn" data-cerrar>Cancelar</button><button class="btn primario">Guardar</button></div></form>`);
+  $('[name=tipo]', m.el).onchange = e => { $('#vence-l', m.el).hidden = e.target.value !== '1'; };
   $('#f-aj', m.el).onsubmit = e => {
     e.preventDefault();
     const f = new FormData(e.target), monto = numero(f.get('monto'));
     if (!(monto > 0)) return aviso('Poné el monto');
-    correr(async () => { await llamar('ajuste_proveedor', { p_proveedor_id: p.id, p_monto: monto * +f.get('tipo'), p_concepto: f.get('concepto') }); m.cerrar(); despues(); });
+    correr(async () => {
+      await llamar('ajuste_proveedor', { p_proveedor_id: p.id, p_monto: monto * +f.get('tipo'), p_concepto: f.get('concepto'),
+        p_vencimiento: f.get('tipo') === '1' ? f.get('vencimiento') || null : null });
+      m.cerrar(); despues();
+    });
   };
 }
 
@@ -117,4 +139,80 @@ export function formProveedor(p, alGuardar) {
     const datos = { id: p?.id ?? null, ...Object.fromEntries(['nombre', 'cuit', 'contacto', 'telefono', 'dias', 'plazo', 'notas'].map(k => [k, f.get(k)])) };
     correr(async () => { const r = await llamar('guardar_proveedor', { p: datos }); m.cerrar(); aviso('Proveedor guardado', 'ok'); alGuardar(r); });
   };
+}
+
+// ---------- Aplicación de pagos a facturas (5b) ----------
+// Nombre de una deuda: la factura (o el remito, si todavía no llegó) o el concepto del saldo inicial
+const nombreDeuda = x => x.compra_id
+  ? (x.comprobante || (x.remito ? 'Remito ' + x.remito : 'Compra sin número')) + (x.factura_pendiente ? ' · factura pendiente' : '')
+  : (x.comprobante || 'Saldo inicial');
+
+// Tabla para elegir qué facturas se pagan y cuánto de cada una. Se completa sola con las que vencen primero hasta cubrir
+// el total, y se puede cambiar (destildar, tildar otras, aplicación parcial).
+function tablaAplicacion(caja, deudas) {
+  const filas = deudas.map(d => ({ d, tilde: false, monto: '' }));
+  let total = 0;
+  const aplicado = () => Math.round(filas.reduce((s, f) => s + (f.tilde ? (numero(f.monto) || 0) : 0), 0) * 100) / 100;
+  function pintar() {
+    if (!filas.length) { caja.innerHTML = '<p class="muted chico">No hay facturas pendientes: todo queda a cuenta, sin aplicar.</p>'; return; }
+    const libre = Math.round((total - aplicado()) * 100) / 100;
+    caja.innerHTML = `<div class="tabla-caja"><table class="tabla"><thead><tr><th></th><th>Factura</th><th>Vence</th><th class="num">Pendiente</th><th class="num">Aplica</th></tr></thead><tbody>
+      ${filas.map((f, k) => `<tr><td><input type="checkbox" data-t="${k}" ${f.tilde ? 'checked' : ''}></td><td>${esc(nombreDeuda(f.d))}</td>
+        <td>${dia(f.d.vencimiento)}<div class="chico">${textoVence(f.d.vencimiento)}</div></td><td class="num">${plata(f.d.pendiente)}</td>
+        <td class="num"><input class="input corto" data-m="${k}" value="${esc(f.monto)}" inputmode="decimal" ${f.tilde ? '' : 'disabled'}></td></tr>`).join('')}</tbody></table></div>
+      <p class="chico">Aplicado <b>${plata(aplicado())}</b> · sin aplicar <b class="${libre < -0.004 ? 'mal' : ''}">${plata(libre)}</b>${libre > 0.004 ? ' <span class="muted">(queda a cuenta)</span>' : libre < -0.004 ? ' <span class="mal">(aplicás más de lo que hay)</span>' : ''}</p>`;
+    $$('[data-t]', caja).forEach(x => x.onchange = () => {
+      const f = filas[+x.dataset.t];
+      f.tilde = x.checked;
+      f.monto = f.tilde ? String(Math.max(0, Math.min(+f.d.pendiente, Math.round((total - aplicado()) * 100) / 100)) || +f.d.pendiente) : '';
+      pintar();
+    });
+    $$('[data-m]', caja).forEach(i => i.onchange = () => { const f = filas[+i.dataset.m]; f.monto = String(Math.min(+f.d.pendiente, Math.max(0, numero(i.value) || 0))); pintar(); });
+  }
+  return {
+    rellenar(t) {
+      total = Math.max(0, +t || 0);
+      let resta = total;
+      for (const f of filas) { const m = Math.round(Math.min(+f.d.pendiente, resta) * 100) / 100; f.tilde = m > 0.004; f.monto = f.tilde ? String(m) : ''; resta -= m; }
+      pintar();
+    },
+    aplicado,
+    datos: () => filas.filter(f => f.tilde && numero(f.monto) > 0.004).map(f => ({ compra_id: f.d.compra_id, deuda_id: f.d.deuda_id, monto: numero(f.monto) })),
+  };
+}
+
+function aplicar(p, despues) {
+  const m = modal(`Aplicar a facturas — ${p.nombre}`, `<p>Tenés <b>${plata(p.sin_aplicar)}</b> a cuenta sin aplicar. Elegí a qué facturas va. <b>No mueve plata.</b></p>
+    <div id="aplicacion"></div><div class="fila fin"><button class="btn" data-cerrar>Cancelar</button><button class="btn primario" id="ok">Aplicar</button></div>`, { ancho: true });
+  const ap = tablaAplicacion($('#aplicacion', m.el), p.deudas);
+  ap.rellenar(p.sin_aplicar);
+  $('#ok', m.el).onclick = () => {
+    if (!ap.datos().length) return aviso('Tildá al menos una factura');
+    if (ap.aplicado() > +p.sin_aplicar + 0.004) return aviso('Aplicás más de lo que hay a cuenta');
+    correr(async () => { await llamar('aplicar_proveedor', { p_proveedor_id: p.id, p_aplicaciones: ap.datos() }); m.cerrar(); aviso('Aplicado', 'ok'); despues(); });
+  };
+}
+
+// Qué hay que pagar hasta una fecha, por proveedor
+let vencHasta = null;
+export function vencimientosModal(alPagar) {
+  vencHasta ??= sumarDias(hoyDia(), 7);
+  const m = modal('Vencimientos: qué tenés que pagar', `<div class="fila"><label>Hasta el día <input class="input" type="date" id="v-hasta" value="${vencHasta}"></label>
+      <span class="chips">${[['Hoy', 0], ['7 días', 7], ['15 días', 15], ['30 días', 30]].map(([l, n]) => `<button class="chip" data-d="${n}">${l}</button>`).join('')}</span></div>
+    <div id="v-lista"><p class="muted">Cargando…</p></div><div class="fila fin"><button class="btn primario" data-cerrar>Cerrar</button></div>`, { ancho: true });
+  const cargar = () => correr(async () => {
+    const r = await llamar('vencimientos', { p_hasta: vencHasta });
+    const total = r.proveedores.reduce((s, x) => s + +x.total, 0);
+    const vencido = r.proveedores.reduce((s, x) => s + x.deudas.filter(d => d.vencimiento < r.hoy).reduce((a, d) => a + +d.pendiente, 0), 0);
+    $('#v-lista', m.el).innerHTML = !r.proveedores.length ? `<p class="muted">No hay nada que pagar hasta el ${dia(r.hasta)}.</p>` : `
+      <div class="tarjetas"><div class="tarjeta"><div class="etq">A pagar hasta el ${dia(r.hasta)}</div><div class="valor mal">${plata(total)}</div></div>
+        <div class="tarjeta"><div class="etq">Ya vencido</div><div class="valor ${vencido > 0.004 ? 'mal' : ''}">${plata(vencido)}</div></div></div>
+      ${r.proveedores.map(x => `<div class="recuadro-blanco"><div class="fila entre"><h3>${esc(x.nombre)} · ${plata(x.total)}</h3><button class="btn chico" data-pagar="${x.id}">Registrar pago</button></div>
+        ${+x.sin_aplicar > 0.004 ? `<p class="ok chico">Tiene ${plata(x.sin_aplicar)} a cuenta sin aplicar</p>` : ''}
+        <table class="tabla"><tbody>${x.deudas.map(d => `<tr><td>${esc(nombreDeuda(d))}</td><td>${dia(d.vencimiento)}</td><td>${textoVence(d.vencimiento)}</td><td class="num">${plata(d.pendiente)}</td></tr>`).join('')}</tbody></table></div>`).join('')}`;
+    $$('[data-pagar]', m.el).forEach(b => b.onclick = () => { m.cerrar(); alPagar(+b.dataset.pagar); });
+  });
+  $('#v-hasta', m.el).onchange = e => { vencHasta = e.target.value || hoyDia(); cargar(); };
+  $$('[data-d]', m.el).forEach(b => b.onclick = () => { vencHasta = sumarDias(hoyDia(), +b.dataset.d); $('#v-hasta', m.el).value = vencHasta; cargar(); });
+  cargar();
 }

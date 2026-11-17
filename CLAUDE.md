@@ -131,7 +131,24 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   `ajuste_proveedor` (saldo inicial o corrección, sin plata), `anular_mov_proveedor` (pagos y ajustes; al revés).
 - `anular_compra`: saca el stock, devuelve a la caja lo pagado con ella y saca de la cuenta lo que dejó la compra
   (lo pagado aparte queda a favor). No cambia costos ni precios. Un proveedor con compras no se borra.
-- Pendiente (5b): factura pendiente, fecha de factura y vencimiento, aplicación de pagos; (5c) devolución a proveedor.
+- Pendiente (5c): devolución a proveedor.
+
+## Factura pendiente, vencimientos y aplicación de pagos (etapa 5b)
+- **Factura pendiente** (`registrar_compra` con `factura_pendiente`): suma el stock; el número va a `compras.remito`.
+  `cargar_factura_compra` pone número, fechas, costos y precios **sin mover el stock**; el renglón guarda
+  `costo_remito`; el costo del producto (y el último costo del proveedor) cambia solo si es su compra más reciente.
+  Si el total cambió, la diferencia va a la cuenta del proveedor como `ajuste` con `compra_id` (la caja no se toca).
+- **Fechas:** `fecha_factura` (por defecto hoy; sin factura, null) y `vencimiento` (por defecto fecha + `plazo` del
+  proveedor; sin factura, se estima desde hoy). `compras.fecha` es cuándo se registró. `cc_prov.vencimiento` para
+  un ajuste que suma (saldo inicial).
+- **Aplicación** (`aplicaciones_prov`): qué parte de cada crédito (pago, nota de crédito) cubre cada deuda (compra
+  o ajuste que suma). `deudas_proveedor` / `creditos_proveedor` calculan pendiente y libre. **Siempre: pendiente − libre
+  = saldo** (las pruebas lo controlan con `pruebas.cuadra`). `pagar_proveedor(..., p_aplicaciones)`,
+  `aplicar_proveedor` (lo que está a cuenta, sin plata). Pagada con la caja: su pago queda aplicado a esa compra.
+  Anular un pago o ajuste borra sus aplicaciones; anular una compra borra las suyas y las de sus créditos; si la factura
+  vino por menos, `recortar_aplicaciones` libera lo pagado de más. Al instalar la etapa, los pagos que ya había se
+  aplicaron una sola vez (`aplicar_automatico`).
+- **Vencimientos** (`vencimientos(hasta)`): qué hay que pagar hasta una fecha, por proveedor, con lo vencido.
 
 ## Balanza, cierre por billetes y turnos anteriores (etapa 4c)
 - **Etiquetas de balanza** (Ajustes → Balanza: activa, prefijo, tipo `peso` | `importe` | `importe_centavos`):
