@@ -244,4 +244,13 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   vencimiento ("" si no trae), items: [{ codigo, codigo_barras, descripcion, cantidad, unidad: unidad|bulto|kg,
   unidades_por_bulto, precio_unitario, bonificacion, importe (sin IVA), alicuota_iva, precio_sugerido }], descuento_global,
   otros_cargos, subtotal, iva, percepciones, total, observaciones }`.
-- Pendiente (8b): mandar la foto desde el celular con un QR.
+- La lectura con IA está en  (la usan leer-factura y subir-factura).
+
+## Factura desde el celular (etapa 8b)
+- En Cargar desde factura → "Desde el celular":  da un código (48 hex, vence a los 15 minutos, una
+  factura; la base guarda solo su sha256 en ). La PC lo muestra como QR de  (QR dibujado en
+  canvas con qrcode-generator de jsDelivr) y consulta  cada 2 s; cuando está  entrega
+   una sola vez. Cerrar la ventana llama a .
+-  + : sin sesión ni supabase-js; achica las fotos (hasta 5) y las manda a la función   (), que con la clave de servicio usa ,  (pasa a leyendo,
+  controla el límite de 60 por día) y  (lista, o error para volver a mandar). No hace falta el mismo WiFi.
+-  publica todas las funciones;  marca la versión en todas las páginas ().

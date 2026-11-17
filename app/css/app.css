@@ -176,3 +176,11 @@ p.muted { margin: 0 0 1.25rem; }
 .etiqueta.pendiente { background: #fef0c7; color: #93370d; }
 .etiqueta.entra, .etiqueta.bien { background: #dcfae6; color: #067647; } .etiqueta.alerta { background: #fee4e2; color: #b42318; }
 .etiqueta.info { background: #d1e9ff; color: #175cd3; } .etiqueta.sale { background: #fef0c7; color: #93370d; }
+
+/* Factura desde el celular: el QR en la PC y la página del celular (celu.html) */
+.celu-qr { align-items: center; gap: 1.2rem; }
+.qr { width: 240px; max-width: 100%; height: auto; image-rendering: pixelated; border: 1px solid var(--borde); border-radius: 8px; }
+.celu-fotos { display: grid; grid-template-columns: repeat(2, 1fr); gap: .6rem; margin: 1rem 0; }
+.celu-foto { display: flex; flex-direction: column; gap: .3rem; }
+.celu-foto img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border: 1px solid var(--borde); border-radius: 8px; }
+.celu-ancho { display: block; width: 100%; text-align: center; margin-top: .8rem; }

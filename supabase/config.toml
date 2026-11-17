@@ -418,3 +418,7 @@ enabled = true
 # por eso la puerta de entrada de Supabase no exige su propio JWT.
 [functions.leer-factura]
 verify_jwt = false
+
+# Factura desde el celular: la página del celular no inicia sesión; la autoriza el código del QR (lo controla la base).
+[functions.subir-factura]
+verify_jwt = false
