@@ -6,6 +6,35 @@ import { $, $$, esc, plata, cant, numero, aviso, correr, modal, confirmar, pedir
 import { formCliente, textoSaldo } from './clientes.js';
 import { imprimir, ticketVenta } from './impresion.js';
 
+// Íconos (trazos SVG, toman el color del texto)
+const svg = d => `<svg viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
+const ICO = {
+  lupa: svg('<circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/>'),
+  mas: svg('<path d="M12 5v14M5 12h14"/>'),
+  tacho: svg('<path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13M10 11v5M14 11v5"/>'),
+  persona: svg('<circle cx="12" cy="8" r="3.6"/><path d="M5 20c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5"/>'),
+  etiqueta: svg('<path d="M3.5 12.5V4.5h8l9 9-8 8z"/><circle cx="8" cy="9" r="1.3"/>'),
+  abajo: svg('<path d="m6 9 6 6 6-6"/>'),
+  billete: svg('<rect x="2.5" y="6" width="19" height="12" rx="2"/><circle cx="12" cy="12" r="2.6"/><path d="M6 9.5v5M18 9.5v5"/>'),
+  tarjeta: svg('<rect x="2.5" y="5.5" width="19" height="13" rx="2"/><path d="M2.5 10h19M6.5 15h4"/>'),
+  transfer: svg('<path d="M4 8h14l-3.5-3.5M20 16H6l3.5 3.5"/>'),
+  celu: svg('<rect x="6.5" y="2.5" width="11" height="19" rx="2.2"/><path d="M11 18.5h2"/>'),
+  libreta: svg('<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/>'),
+  billetera: svg('<path d="M4 7.5V18a2 2 0 0 0 2 2h14V9H6a2 2 0 0 1-2-1.5zM4 7.5A2 2 0 0 1 6 5.5h11V9"/><circle cx="16" cy="14.5" r="1"/>'),
+};
+const icoForma = f => {
+  const n = f.toLowerCase();
+  if (n.startsWith('efectivo')) return ICO.billete;
+  if (/d[eé]bito|cr[eé]dito|tarjeta/.test(n)) return ICO.tarjeta;
+  if (/transf/.test(n)) return ICO.transfer;
+  if (/mercado|qr|billetera|modo|ual[aá]|celu/.test(n)) return ICO.celu;
+  if (n === 'fiado') return ICO.libreta;
+  return ICO.billetera;
+};
+// Dibujo del código de barras de la venta vacía
+const DIBUJO_VACIO = `<svg viewBox="0 0 120 70" aria-hidden="true">${[4, 10, 14, 22, 26, 34, 40, 44, 52, 58, 62, 70, 76, 80, 88, 94, 98, 106, 112]
+  .map((x, k) => `<rect x="${x}" y="4" width="${k % 3 ? 2 : 4}" height="56" rx="1" fill="#d0d5dd"/>`).join('')}<rect class="v-laser" x="0" y="58" width="120" height="3" rx="1.5" fill="#0f7b45"/></svg>`;
+
 const r2 = n => Math.round((+n || 0) * 100) / 100;
 const r3 = n => Math.round((+n || 0) * 1000) / 1000;
 
@@ -22,19 +51,29 @@ export async function pantallaVender(vista, ctx) {
 
   vista.innerHTML = `
     ${caja.turno ? '' : '<p class="aviso mal">La caja está cerrada: <a href="#/caja">abrí tu turno en Caja</a> para poder cobrar.</p>'}
-    <div class="vender">
-      <div class="vender-izq">
+    <div class="v">
+      <section class="v-izq">
         <div class="buscador">
-          <input class="input grande" id="escaner" placeholder="Escaneá o escribí para buscar" autocomplete="off" autofocus>
+          <label class="v-busca">${ICO.lupa}<input class="v-busca-input" id="escaner" placeholder="Escaneá el código o buscá por nombre…" autocomplete="off" autofocus>
+            <span class="v-lector" id="lector"><i></i><span></span></span></label>
           <div id="resultados" class="resultados flotan" hidden></div>
         </div>
-        <p class="muted chico ayuda">Enter agrega · ↑↓ para elegir · <span class="mono">3*</span> antes del código carga 3 · clic en el precio para cambiarlo</p>
-        <div class="tabla-caja"><table class="tabla" id="renglones"></table></div>
-        <div class="fila"><button class="btn" id="varios">＋ Varios</button><button class="btn" id="vaciar">Vaciar</button></div>
-      </div>
-      <div class="vender-der" id="panel"></div>
+        <p class="v-tip">Tip: escribí <kbd>3*</kbd> antes del código para cargar 3 unidades · <kbd>↑</kbd><kbd>↓</kbd> para elegir · clic en el precio para cambiarlo</p>
+        <div class="v-barra">
+          <button class="v-btn" id="varios">${ICO.mas} Varios / precio libre</button>
+          <button class="v-btn peligro" id="vaciar">${ICO.tacho} Vaciar</button>
+          <span class="v-atajos"><kbd>F2</kbd> cobrar <kbd>F1</kbd> efectivo <kbd>Esc</kbd> limpiar</span>
+        </div>
+        <div class="v-renglones" id="renglones"></div>
+      </section>
+      <aside class="v-der" id="panel"></aside>
     </div>`;
   const escaner = $('#escaner'), res = $('#resultados');
+  // "Lector listo" cuando el cursor está en el buscador (ahí entra lo que manda el lector de códigos)
+  const lector = listo => { $('#lector').classList.toggle('listo', listo); $('#lector span').textContent = listo ? 'Lector listo' : 'Clic acá para escanear'; };
+  escaner.addEventListener('focus', () => lector(true));
+  escaner.addEventListener('blur', () => lector(false));
+  lector(document.activeElement === escaner);
   let sugeridos = [], marcado = 0;
 
   // ---------- Buscar y agregar ----------
@@ -172,14 +211,26 @@ export async function pantallaVender(vista, ctx) {
   // ---------- Pintar ----------
   function pintar() {
     const t = $('#renglones');
-    t.innerHTML = venta.items.length ? `<thead><tr><th>Producto</th><th class="num">Cant.</th><th class="num">Precio</th><th class="num">Importe</th><th></th></tr></thead><tbody>
-      ${venta.items.map((i, k) => { const p = i.producto_id && cat.producto(i.producto_id); return `<tr><td>${esc(i.nombre)}${i.producto_id && !p ? ' <span class="mal">(ya no está en el catálogo)</span>' : ''}</td>
-        <td class="num">${i.producto_id ? `<input class="input cant" data-cant="${k}" value="${cant(i.cantidad)}" inputmode="decimal">` : '1'}</td>
-        <td class="num">${i.producto_id ? `<button class="link" data-precio="${k}" title="Cambiar el precio para esta venta">${plata(precioDe(i))}${i.por_peso ? '/kg' : ''}</button>${i.precio != null && p ? `<div class="muted chico"><s>${plata(p.precio)}</s></div>` : ''}` : ''}</td>
-        <td class="num"><b>${plata(importe(i))}</b></td><td><button class="link" data-quitar="${k}" title="Quitar">✕</button></td></tr>`; }).join('')}</tbody>`
-      : '<tbody><tr><td class="muted vacio">Escaneá un producto o buscalo por nombre.</td></tr></tbody>';
+    t.innerHTML = venta.items.length ? `<div class="v-fila v-enc"><span>Producto</span><span class="v-der-txt">Cantidad</span><span class="v-der-txt v-precio">Precio</span><span class="v-der-txt">Importe</span><span></span></div>
+      ${venta.items.map((i, k) => { const p = i.producto_id && cat.producto(i.producto_id); return `<div class="v-fila v-item">
+        <div class="v-nom"><b title="${esc(i.nombre)}">${esc(i.nombre)}</b><small>${i.producto_id && !p ? '<span class="mal">ya no está en el catálogo</span>'
+          : !i.producto_id ? 'Varios · precio libre' : i.por_peso ? (i.etiqueta != null ? 'Etiqueta de balanza' : 'Por kilo') : esc(p?.codigo || '')}</small></div>
+        ${!i.producto_id ? '<span class="v-der-txt">1</span>' : i.por_peso
+          ? `<input class="v-kg" data-cant="${k}" value="${cant(i.cantidad)}" inputmode="decimal" title="Kilos">`
+          : `<span class="v-paso"><button data-menos="${k}" title="Uno menos" tabindex="-1">−</button><input data-cant="${k}" value="${cant(i.cantidad)}" inputmode="decimal" title="Cantidad"><button data-mas="${k}" title="Uno más" tabindex="-1">+</button></span>`}
+        <div class="v-der-txt v-precio">${i.producto_id ? `<button class="link" data-precio="${k}" title="Cambiar el precio para esta venta">${plata(precioDe(i))}${i.por_peso ? '/kg' : ''}</button>${i.precio != null && p ? `<s>${plata(p.precio)}</s>` : ''}` : ''}</div>
+        <div class="v-der-txt v-imp">${plata(importe(i))}</div>
+        <button class="v-quitar" data-quitar="${k}" title="Quitar">×</button></div>`; }).join('')}`
+      : `<div class="v-vacio">${DIBUJO_VACIO}<b>Escaneá un producto para empezar</b><span>o buscalo por nombre en la barra de arriba</span></div>`;
     $$('[data-quitar]', t).forEach(b => b.onclick = () => { venta.items.splice(+b.dataset.quitar, 1); pintar(); escaner.focus(); });
     $$('[data-precio]', t).forEach(b => b.onclick = () => cambiarPrecio(venta.items[+b.dataset.precio]));
+    // − y +: de a una unidad; en 0 se saca el renglón
+    $$('[data-mas],[data-menos]', t).forEach(b => b.onclick = () => {
+      const k = +(b.dataset.mas ?? b.dataset.menos), i = venta.items[k];
+      i.cantidad += b.dataset.mas != null ? 1 : -1;
+      if (i.cantidad <= 0) venta.items.splice(k, 1);
+      pintar(); escaner.focus();
+    });
     $$('[data-cant]', t).forEach(inp => {
       inp.onfocus = () => inp.select();
       inp.onchange = () => {
@@ -199,34 +250,47 @@ export async function pantallaVender(vista, ctx) {
     const efectivo = tt.pagos.filter(p => p.forma === 'Efectivo').reduce((s, p) => s + p.monto, 0);
     const opciones = sel => fs.map(f => `<option value="${esc(f)}" ${f === sel ? 'selected' : ''}>${esc(f)}${pct(f) ? ` (+${pct(f)}%)` : ''}</option>`).join('');
     const enfocado = document.activeElement?.id;
+    const unidades = venta.items.reduce((s, i) => s + (i.producto_id && !i.por_peso ? i.cantidad : 1), 0);
+    // Fiado se muestra siempre: sin cliente elegido, al tocarlo se pide el cliente
+    const botones = [...caja.formas_pago, 'Fiado'];
     $('#panel').innerHTML = `
-      <div class="cliente-venta">${c ? `<div><span class="muted">Cliente</span> <b>${esc(c.nombre)}</b><div class="muted chico">${textoSaldo(c.saldo)}</div></div>
-        <button class="link" id="quitar-cliente">Quitar</button>` : '<button class="btn" id="elegir-cliente">👤 Elegir cliente</button>'}</div>
-      <div class="cuenta">
-        ${tt.descuento || tt.recargo ? `<div class="renglon-cuenta"><span>Subtotal</span><span>${plata(tt.subtotal)}</span></div>` : ''}
-        ${tt.descuento ? `<div class="renglon-cuenta ok"><span>Descuento</span><span>−${plata(tt.descuento)}</span></div>` : ''}
-        ${tt.pagos.filter(p => p.recargo).map(p => `<div class="renglon-cuenta"><span>Recargo ${esc(p.forma)} ${pct(p.forma)}%</span><span>+${plata(p.recargo)}</span></div>`).join('')}
-        <div class="total-etq">Total</div><div class="total">${plata(tt.total)}</div>
+      <div class="v-total">
+        <div class="v-total-top"><span>Total a cobrar</span><span>${unidades ? `${cant(unidades)} artículo${unidades === 1 ? '' : 's'}` : 'Sin artículos'}</span></div>
+        <div class="v-total-num">${plata(tt.total)}</div>
+        ${tt.descuento || tt.recargo ? `<div class="v-cuenta"><div><span>Subtotal</span><span>${plata(tt.subtotal)}</span></div>
+          ${tt.descuento ? `<div class="ok"><span>Descuento</span><span>−${plata(tt.descuento)}</span></div>` : ''}
+          ${tt.pagos.filter(p => p.recargo).map(p => `<div><span>Recargo ${esc(p.forma)} ${pct(p.forma)}%</span><span>+${plata(p.recargo)}</span></div>`).join('')}</div>` : ''}
       </div>
-      <div class="bloque"><div class="fila entre"><b>Forma de pago</b>${d ? '<button class="link" id="uno">Un solo medio</button>' : '<button class="link" id="dos">Dos medios</button>'}</div>
+      <div class="v-cuerpo">
+        <div class="v-sec"><b>Forma de pago</b>${d ? '<button class="v-link" id="uno">Un solo medio</button>' : '<button class="v-link" id="dos">+ Dos medios</button>'}</div>
         ${d ? `<div class="dos-medios">
             <label>1. <select class="input" id="f1">${opciones(d.forma1)}</select><input class="input" id="m1" inputmode="decimal" placeholder="¿Cuánto paga?" value="${esc(d.monto1)}"></label>
             <label>2. <select class="input" id="f2">${opciones(d.forma2)}</select><span class="resto">${plata(tt.pagos[1].monto)}</span></label>
             <p class="muted chico">En el primero poné cuánto paga con ese medio; el resto va solo al segundo.</p></div>`
-          : `<div class="formas">${fs.map(f => `<button class="forma ${f === venta.forma ? 'elegida' : ''}" data-forma="${esc(f)}">${esc(f)}${pct(f) ? `<small>+${pct(f)}%</small>` : ''}</button>`).join('')}</div>`}
-      </div>
-      <div class="bloque"><label class="fila entre"><b>Descuento</b><span class="segmentos"><button class="${venta.descPct ? '' : 'elegido'}" data-modo="$">$</button><button class="${venta.descPct ? 'elegido' : ''}" data-modo="%">%</button></span></label>
-        <input class="input" id="desc" inputmode="decimal" placeholder="0" value="${esc(venta.desc)}"></div>
-      ${efectivo > 0 ? `<div class="bloque"><b>Paga con</b> <span class="muted chico">(efectivo: ${plata(efectivo)})</span>
-        <input class="input grande" id="paga-con" inputmode="decimal" placeholder="Monto que entrega" value="${esc(venta.pagaCon)}">
-        <div class="billetes">${[1000, 2000, 10000, 20000].filter(b => b >= efectivo / 20).slice(0, 4).map(b => `<button class="btn chico" data-billete="${b}">${plata(b).replace(/,00$/, '')}</button>`).join('')}</div>
-        <p class="vuelto">${(() => { const pc = numero(venta.pagaCon); return pc > 0 ? (pc >= efectivo ? `Vuelto: ${plata(pc - efectivo)}` : `<span class="mal">Faltan ${plata(efectivo - pc)}</span>`) : ''; })()}</p></div>` : ''}
-      <button class="btn primario grande" id="cobrar" ${caja.turno ? '' : 'disabled'}>Cobrar ${plata(tt.total)} <span class="tecla">F2</span></button>
-      <p class="muted chico">Turno: ${caja.turno ? esc(caja.turno.usuario) : 'cerrado'}</p>`;
+          : `<div class="v-formas">${botones.map(f => `<button class="v-forma ${f === venta.forma ? 'elegida' : ''}" data-forma="${esc(f)}">${icoForma(f)}<span>${esc(f)}</span>${pct(f) ? `<small>+${pct(f)}%</small>` : ''}${f === 'Efectivo' ? '<kbd>F1</kbd>' : ''}</button>`).join('')}</div>`}
+        <div class="v-opciones">
+          <div class="v-opc"><span class="v-opc-etq">${ICO.persona} Cliente</span>
+            <button class="v-campo" id="elegir-cliente" title="Elegir cliente"><span>${c ? esc(c.nombre) : 'Consumidor final'}</span>${c ? `<small class="${+c.saldo > 0.004 ? 'mal' : ''}">${textoSaldo(c.saldo)}</small>` : ''}${ICO.abajo}</button>
+            ${c ? '<button class="v-icono" id="quitar-cliente" title="Volver a consumidor final">×</button>' : '<button class="v-icono" id="nuevo-cliente" title="Nuevo cliente">+</button>'}</div>
+          <div class="v-opc"><span class="v-opc-etq">${ICO.etiqueta} Descuento</span>
+            <input class="v-campo" id="desc" inputmode="decimal" placeholder="0" value="${esc(venta.desc)}">
+            <span class="v-seg"><button class="${venta.descPct ? '' : 'elegido'}" data-modo="$">$</button><button class="${venta.descPct ? 'elegido' : ''}" data-modo="%">%</button></span></div>
+        </div>
+        ${efectivo > 0 ? `<div class="v-paga"><div><b>Paga con</b> <span class="muted chico">(efectivo: ${plata(efectivo)})</span></div>
+          <input class="v-campo" id="paga-con" inputmode="decimal" placeholder="Monto que entrega" value="${esc(venta.pagaCon)}">
+          <div class="billetes">${[1000, 2000, 10000, 20000].filter(b => b >= efectivo / 20).slice(0, 4).map(b => `<button class="btn chico" data-billete="${b}">${plata(b).replace(/,00$/, '')}</button>`).join('')}</div>
+          <p class="v-vuelto">${(() => { const pc = numero(venta.pagaCon); return pc > 0 ? (pc >= efectivo ? `Vuelto: ${plata(pc - efectivo)}` : `<span class="mal">Faltan ${plata(efectivo - pc)}</span>`) : ''; })()}</p></div>` : ''}
+        <button class="v-cobrar" id="cobrar" ${caja.turno && venta.items.length ? '' : 'disabled'}><span>Cobrar${venta.items.length ? ' ' + plata(tt.total) : ''}</span><kbd>F2</kbd></button>
+        <p class="v-turno">Turno: ${caja.turno ? esc(caja.turno.usuario) : 'cerrado'}</p>
+      </div>`;
     // eventos del panel
+    $('#elegir-cliente').onclick = () => elegirCliente();
     if (c) $('#quitar-cliente').onclick = () => { venta.cliente = null; if (!formas().includes(venta.forma)) venta.forma = 'Efectivo'; if (d && (d.forma1 === 'Fiado' || d.forma2 === 'Fiado')) venta.dos = null; pintar(); escaner.focus(); };
-    else $('#elegir-cliente').onclick = () => elegirCliente();
-    $$('[data-forma]').forEach(b => b.onclick = () => { venta.forma = b.dataset.forma; pintarPanel(); escaner.focus(); });
+    else $('#nuevo-cliente').onclick = () => formCliente(null, false, nuevo => { venta.cliente = nuevo; pintar(); });
+    $$('[data-forma]').forEach(b => b.onclick = () => {
+      if (b.dataset.forma === 'Fiado' && !venta.cliente) return elegirCliente(() => { venta.forma = 'Fiado'; });
+      venta.forma = b.dataset.forma; pintarPanel(); escaner.focus();
+    });
     if ($('#dos')) $('#dos').onclick = () => { venta.dos = { forma1: 'Efectivo', monto1: '', forma2: fs.find(f => f !== 'Efectivo') || 'Efectivo' }; pintarPanel(); $('#m1').focus(); };
     if ($('#uno')) $('#uno').onclick = () => { venta.dos = null; pintarPanel(); };
     if (d) {
@@ -245,14 +309,14 @@ export async function pantallaVender(vista, ctx) {
   const refrescar = id => { pintarPanel(); const el = $('#' + id); if (el) { el.focus(); el.setSelectionRange?.(el.value.length, el.value.length); } };
 
   // ---------- Cliente ----------
-  function elegirCliente() {
+  function elegirCliente(despues) {
     correr(async () => {
       const lista = (await llamar('clientes')).filter(c => c.activo);
       const m = modal('Elegir cliente', `<input class="input" id="buscar-cli" placeholder="Buscar por nombre o teléfono" autocomplete="off" autofocus>
         <div class="resultados" id="lista-cli"></div>
         <div class="fila fin"><button class="btn izq" id="nuevo-cli">＋ Nuevo cliente</button><button class="btn" data-cerrar>Cancelar</button></div>`,
         { alCerrar: () => $('#escaner')?.focus() });
-      const elegir = c => { venta.cliente = c; m.cerrar(); pintar(); };
+      const elegir = c => { venta.cliente = c; despues?.(); m.cerrar(); pintar(); };
       const pintarLista = () => {
         const f = $('#buscar-cli', m.el).value.trim().toLowerCase();
         const ver = lista.filter(c => !f || c.nombre.toLowerCase().includes(f) || (c.telefono || '').includes(f)).slice(0, 50);
@@ -272,16 +336,33 @@ export async function pantallaVender(vista, ctx) {
   }
 
   // ---------- Cobrar ----------
-  function preguntarTicket(v) {
-    const m = modal(`Venta #${v.numero} · ${plata(v.total)}`, `<p>¿Imprimir el ticket?</p>
-      <div class="fila fin"><button class="btn" data-cerrar>No (Enter)</button><button class="btn primario" id="imp">Imprimir (P)</button></div>`,
-      { alCerrar: () => { document.removeEventListener('keydown', tecla, true); $('#escaner')?.focus(); } });
-    const tecla = e => {
-      if (e.key.toLowerCase() === 'p') { e.preventDefault(); $('#imp', m.el).click(); }
-      else if (e.key === 'Enter') { e.preventDefault(); m.cerrar(); }
-    };
-    document.addEventListener('keydown', tecla, true);
-    $('#imp', m.el).onclick = () => { m.cerrar(); imprimir(ticketVenta(v, ctx.config)); };
+  // Antes de grabar: Imprimir (P) o No imprimir (N) graban la venta; Seguir cargando (Esc) vuelve sin grabar nada.
+  // Enter elige el botón principal: Imprimir si en Ajustes el ticket es "siempre", si no No imprimir.
+  // Devuelve 'imprimir', 'no' o null (seguir cargando).
+  function confirmarCobro(tt, efectivo, pc) {
+    return new Promise(listo => {
+      let eleccion = null;
+      const conTicket = ctx.config.ticket === 'siempre';
+      const m = modal(`Cobrar ${plata(tt.total)}`, `
+        <dl class="kv">${tt.pagos.filter(p => p.monto > 0 || tt.pagos.length === 1).map(p => `<dt>${esc(p.forma)}</dt><dd>${plata(p.monto)}</dd>`).join('')}
+          ${pc > 0 && efectivo > 0 ? `<dt>Paga con</dt><dd>${plata(pc)}</dd><dt>Vuelto</dt><dd class="ok">${plata(pc - efectivo)}</dd>` : ''}</dl>
+        <div class="fila fin"><button class="btn izq" data-cerrar>Seguir cargando <kbd>Esc</kbd></button>
+          <button class="btn ${conTicket ? '' : 'primario'}" id="no-imp">No imprimir <kbd>${conTicket ? 'N' : 'Enter'}</kbd></button>
+          <button class="btn ${conTicket ? 'primario' : ''}" id="imp">Imprimir <kbd>${conTicket ? 'Enter' : 'P'}</kbd></button></div>`,
+        { alCerrar: () => { document.removeEventListener('keydown', tecla, true); listo(eleccion); } });
+      m.el.classList.add('v-confirmar');
+      const elegir = e => { eleccion = e; m.cerrar(); };
+      // teclas antes que nadie (captura): que un Enter no active otra cosa de la pantalla
+      const tecla = e => {
+        const k = e.key.toLowerCase();
+        if (k === 'p' || (k === 'enter' && conTicket)) { e.preventDefault(); e.stopPropagation(); elegir('imprimir'); }
+        else if (k === 'n' || k === 'enter') { e.preventDefault(); e.stopPropagation(); elegir('no'); }
+        else if (e.key === 'F2') { e.preventDefault(); e.stopPropagation(); }   // F2 de nuevo no hace nada
+      };
+      document.addEventListener('keydown', tecla, true);
+      $('#imp', m.el).onclick = () => elegir('imprimir');
+      $('#no-imp', m.el).onclick = () => elegir('no');
+    });
   }
 
   let cobrando = false;
@@ -307,6 +388,8 @@ export async function pantallaVender(vista, ctx) {
     };
     cobrando = true;
     try {
+      const eleccion = await confirmarCobro(tt, efectivo, pc);
+      if (!eleccion) return escaner.focus();   // Esc: sigue cargando, no se grabó nada
       await correr(async () => {
         let r;
         for (;;) {
@@ -324,10 +407,7 @@ export async function pantallaVender(vista, ctx) {
         venta = vacia(); pintar(); escaner.focus();
         if (r.repetida) aviso(`Esta venta ya se había registrado como #${r.numero} (${plata(r.total)}): no se cobró de nuevo`, 'info');
         else aviso(`Venta #${r.numero} registrada${pc > 0 && efectivo ? ' · Vuelto ' + plata(pc - efectivo) : ''}`, 'ok');
-        // Ticket (Ajustes → Ticket): siempre, nunca o preguntar (P imprime; Enter o Esc siguen sin imprimir)
-        const modoTicket = ctx.config.ticket || 'preguntar';
-        if (modoTicket === 'siempre') imprimir(ticketVenta(r, ctx.config));
-        else if (modoTicket === 'preguntar' && !r.repetida) preguntarTicket(r);
+        if (eleccion === 'imprimir') imprimir(ticketVenta(r, ctx.config));
         cat.actualizar().then(pintar).catch(() => {});
       });
     } finally { cobrando = false; }
