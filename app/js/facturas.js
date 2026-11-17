@@ -107,6 +107,61 @@ const vencePropuesto = () => {
   return sumarDias(carga.fecha_factura || hoyDia(), plazo || 0);
 };
 
+// QR dibujado en un canvas (sin estilos en línea, por la política de seguridad de la página)
+async function dibujarQR(canvas, texto) {
+  const { default: qrcode } = await import('https://cdn.jsdelivr.net/npm/qrcode-generator@2.0.4/+esm');
+  const q = qrcode(0, 'M'); q.addData(texto); q.make();
+  const n = q.getModuleCount(), borde = 4, celda = Math.floor(240 / (n + borde * 2));
+  canvas.width = canvas.height = celda * (n + borde * 2);
+  const g = canvas.getContext('2d');
+  g.fillStyle = '#fff'; g.fillRect(0, 0, canvas.width, canvas.height); g.fillStyle = '#000';
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) if (q.isDark(y, x)) g.fillRect((x + borde) * celda, (y + borde) * celda, celda, celda);
+}
+
+// Factura desde el celular: la base da un código (15 minutos, una factura), se muestra como QR con la dirección de
+// celu.html, y acá se consulta cada 2 segundos cómo va. Cuando la IA terminó, se abre la revisión como con un archivo.
+async function desdeCelular(alLlegar) {
+  const p = await llamar('crear_subida_celular');
+  const url = new URL(`celu.html#${p.codigo}`, location.href).href;
+  const m = modal('Mandar la factura desde el celular', `<div class="fila celu-qr">
+      <canvas id="qr" class="qr" aria-label="Código QR para abrir en el celular"></canvas>
+      <div class="crece"><ol><li>Abrí la cámara del celular y apuntá al código.</li>
+          <li>Sacá una foto de cada hoja y tocá <b>Mandar a la PC</b>.</li></ol>
+        <p class="muted chico">El celular solo necesita internet (no hace falta el mismo WiFi). El código vence en ${p.minutos} minutos y sirve para una factura.</p></div></div>
+    <p id="celu-estado"><span class="etiqueta">Esperando la foto…</span></p>
+    <div class="fila fin"><button class="btn" data-cerrar>Cancelar</button></div>`, { alCerrar: () => { if (abierto) { abierto = false; llamar('cancelar_subida_celular', { p_id: p.id }).catch(() => {}); } } });
+  let abierto = true, t0 = null;
+  await dibujarQR($('#qr', m.el), url).catch(() => { $('#qr', m.el).replaceWith(Object.assign(document.createElement('p'), { textContent: url, className: 'mono chico' })); });
+  const estado = html => { if ($('#celu-estado', m.el)) $('#celu-estado', m.el).innerHTML = html; };
+  while (abierto) {
+    await new Promise(ok => setTimeout(ok, 2000));
+    if (!abierto) return;
+    let e;
+    try { e = await llamar('estado_subida_celular', { p_id: p.id }); } catch { continue; }   // un corte momentáneo: se reintenta
+    if (e.estado === 'esperando') continue;
+    if (e.estado === 'leyendo') {
+      t0 ??= Date.now();
+      estado(`<span class="etiqueta pendiente">Llegó (${e.paginas} ${e.paginas === 1 ? 'hoja' : 'hojas'}). Leyendo la factura con IA… ${Math.round((Date.now() - t0) / 1000)} s</span>`);
+    } else if (e.estado === 'error') {
+      t0 = null;
+      estado(`<span class="etiqueta alerta">No se pudo leer</span> ${esc(e.error || '')} <span class="muted">· Desde el celular se puede volver a mandar.</span>`);
+    } else if (e.estado === 'vencido') {
+      abierto = false;
+      return estado('<span class="etiqueta alerta">El código venció.</span> <span class="muted">Cerrá esta ventana y pedí otro.</span>');
+    } else if (e.estado === 'lista') {
+      abierto = false;
+      m.cerrar();
+      carga = null;
+      await correr(async () => {
+        await iniciar(validarFactura(e.resultado.factura), null, { uso: e.resultado.uso, segundos: t0 ? Math.round((Date.now() - t0) / 1000) : null });
+        alLlegar();
+        aviso('Llegó la factura del celular', 'ok');
+      });
+      return;
+    } else { abierto = false; m.cerrar(); return; }   // cancelada o ya entregada
+  }
+}
+
 export async function pantallaFactura(vista, ctx, alSalir) {
   const c = carga;
   vista.innerHTML = `<div class="cabecera"><h2>Cargar desde factura</h2><div class="acciones">
@@ -114,7 +169,8 @@ export async function pantallaFactura(vista, ctx, alSalir) {
     <div class="recuadro-blanco form ancho"><div class="fila entre">
       <div><b>Factura o remito del proveedor</b><p class="muted chico">Elegí el PDF, el escaneo o las fotos (hasta 5, una por hoja): la lee la IA.
         Tarda entre 10 y 40 segundos y cuesta unos centavos de dólar. También sirve un archivo .json ya leído.</p></div>
-      <label class="btn primario">📄 Elegir PDF o fotos<input type="file" id="archivo" accept=".pdf,application/pdf,image/*,.json,application/json" multiple hidden></label></div>
+      <div class="acciones"><label class="btn">📄 Elegir PDF o fotos<input type="file" id="archivo" accept=".pdf,application/pdf,image/*,.json,application/json" multiple hidden></label>
+        <button class="btn primario" id="celu">📱 Desde el celular</button></div></div>
       <p id="leyendo" hidden></p></div>
     ${c?.lectura ? `<div class="recuadro-blanco fila"><span class="etiqueta info">Leída con IA</span>
         <span class="muted chico">${c.lectura.segundos ? c.lectura.segundos + ' s · ' : ''}US$ ${(+c.lectura.uso?.costo_usd || 0).toFixed(3)} · revisá cada renglón antes de guardar</span>
@@ -122,6 +178,7 @@ export async function pantallaFactura(vista, ctx, alSalir) {
         ${c.f.observaciones ? `<p class="crece"><b>La IA avisa:</b> ${esc(c.f.observaciones)}</p>` : ''}</div>` : ''}
     <div id="cuerpo">${c ? '' : '<p class="muted vacio">Elegí la factura para empezar.</p>'}</div>`;
   $('#volver').onclick = alSalir;
+  $('#celu').onclick = () => correr(() => desdeCelular(() => pantallaFactura(vista, ctx, alSalir)));
   if ($('#ver')) $('#ver').onclick = () => window.open(c.lectura.verUrl, '_blank');
   if ($('#descartar')) $('#descartar').onclick = async () => {
     if (await confirmar('Descartar', '¿Descartar esta factura sin guardar la compra?', 'Descartar')) { carga = null; pantallaFactura(vista, ctx, alSalir); }

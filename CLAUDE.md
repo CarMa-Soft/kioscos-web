@@ -244,4 +244,14 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   vencimiento ("" si no trae), items: [{ codigo, codigo_barras, descripcion, cantidad, unidad: unidad|bulto|kg,
   unidades_por_bulto, precio_unitario, bonificacion, importe (sin IVA), alicuota_iva, precio_sugerido }], descuento_global,
   otros_cargos, subtotal, iva, percepciones, total, observaciones }`.
-- Pendiente (8b): mandar la foto desde el celular con un QR.
+- La lectura con IA está en `supabase/functions/_shared/lectura.ts` (la usan leer-factura y subir-factura).
+
+## Factura desde el celular (etapa 8b)
+- En Cargar desde factura → "Desde el celular": `crear_subida_celular()` da un código (48 hex, vence a los 15 minutos, una
+  factura; la base guarda solo su sha256 en `subidas_celular`). La PC lo muestra como QR de `celu.html#código` (QR dibujado
+  en canvas con qrcode-generator de jsDelivr) y consulta `estado_subida_celular(id)` cada 2 s; cuando está `lista` entrega
+  `{factura, uso}` una sola vez. Cerrar la ventana llama a `cancelar_subida_celular`.
+- `celu.html` + `celu.js`: sin sesión ni supabase-js; achica las fotos (hasta 5) y las manda a la función `subir-factura`
+  (`verify_jwt = false`), que con la clave de servicio usa `revisar_subida_celular`, `tomar_subida_celular` (pasa a leyendo,
+  controla el límite de 60 por día) y `terminar_subida_celular` (lista, o error para volver a mandar). No hace falta el mismo WiFi.
+- `funciones.yml` publica todas las funciones; `pages.yml` marca la versión en todas las páginas (`app/*.html`).

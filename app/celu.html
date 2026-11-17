@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Página del celular para mandar la factura a la PC (se abre con el QR). No inicia sesión: la autoriza el código del QR.
+       Solo habla con el proyecto de Supabase; blob: es para ver las fotos sacadas antes de mandarlas. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob:; connect-src https://jmktvtbyeifrminlrhpa.supabase.co; base-uri 'self'; form-action 'self'; object-src 'none'">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex">
+  <title>Mandar factura · Kioscos y Almacenes</title>
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <div id="app" class="caja-sola celu"><p class="muted">Cargando…</p></div>
+  <script type="module" src="js/celu.js"></script>
+</body>
+</html>
