@@ -36,7 +36,7 @@ select set_config('prueba.cf', public.registrar_compra_factura(jsonb_build_objec
     jsonb_build_object('nuevo', jsonb_build_object('nombre', 'Leche entera 1 L', 'categoria_id', null, 'por_peso', false, 'precio', 1200),
       'codigo', 'L01', 'codigo_barras', '7790001112223', 'descripcion', 'LECHE ENTERA X 1LT', 'unidades', 12, 'cantidad', 24, 'costo', 968, 'precio_nuevo', 1200),
     jsonb_build_object('producto_id', current_setting('prueba.p1')::bigint, 'codigo', 'Y9', 'descripcion', 'YERBA MATE SUAVE 1KG',
-      'unidades', 1, 'cantidad', 3, 'costo', 1089, 'precio_nuevo', '')))))::text, false);
+      'unidades', 1, 'cantidad', 3, 'costo', 1089, 'precio_nuevo', ''))))::text, false);
 select set_config('prueba.leche', current_setting('prueba.cf')::jsonb -> 'productos' ->> 0, false);
 select pruebas.ok((current_setting('prueba.cf')::jsonb ->> 'creados')::int = 1 and (current_setting('prueba.cf')::jsonb ->> 'total')::numeric = 26499,
   'crea el producto nuevo y la compra con el total de la factura');
