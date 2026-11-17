@@ -51,6 +51,13 @@ jobs:
           } > "$RUNNER_TEMP/pruebas.sql"
           cat "$RUNNER_TEMP/pruebas.sql"
 
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Revisar las funciones de Supabase
+        run: for f in supabase/functions/*/index.ts; do deno check "$f"; done
+
       - name: Correr las pruebas
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}

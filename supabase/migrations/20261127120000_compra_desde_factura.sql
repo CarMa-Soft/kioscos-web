@@ -152,12 +152,12 @@ begin
     else
       v_bus := public.palabras(it ->> 'descripcion');
       v_lineas := v_lineas || jsonb_build_array(jsonb_build_object('producto_id', null, 'unidades', null, 'sugerencias', coalesce((
-        select jsonb_agg(jsonb_build_object('id', s.id, 'nombre', s.nombre) order by s.puntaje desc, s.nombre) from (
+        select jsonb_agg(jsonb_build_object('id', s.id, 'nombre', s.nombre) order by s.puntaje desc, s.nombre) from (select * from (
           select pr.id, pr.nombre, (select count(*) from unnest(v_bus) w where exists (select 1 from unnest(public.palabras(pr.nombre)) x
                    where x = w or (length(w) > 3 and (x like w || '%' or w like x || '%'))))::numeric
                  / greatest(cardinality(v_bus), cardinality(public.palabras(pr.nombre)), 1) as puntaje
           from public.productos pr where pr.negocio_id = v_neg and pr.activo and cardinality(v_bus) > 0
-        ) s where s.puntaje > 0 order by s.puntaje desc, s.nombre limit 5), '[]'::jsonb)));
+        ) s0 where s0.puntaje > 0 order by s0.puntaje desc, s0.nombre limit 5) s), '[]'::jsonb)));
     end if;
   end loop;
   return jsonb_build_object('proveedor', case when v_prov is null then null else jsonb_build_object('id', v_prov) end, 'cuit', v_cuit, 'lineas', v_lineas,
