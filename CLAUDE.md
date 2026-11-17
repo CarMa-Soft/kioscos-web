@@ -206,3 +206,12 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   `devuelto` y la lista `devoluciones`.
 - `anular_compra` con devoluciones anula solo lo que quedó: stock restante, y a la caja vuelve lo pagado menos lo
   que el proveedor ya devolvió en plata.
+
+## Entradas y salidas de mercadería (etapa 6)
+- Pantalla `remitos.js` (menú "Entradas y salidas", solo dueño). Por dentro se llaman "remitos": tablas `remitos`
+  (tipo `ingreso`/`egreso`, numeradas por negocio y tipo: RI-0001 / RE-0001) y `remito_items` (con costo y stock antes/después).
+- `registrar_remito(p)`: `{tipo, motivo, notas, items[{producto_id, cantidad}]}`; el mismo producto dos veces se suma.
+  Mueve el stock (movimiento "Entrada RI-0001 — motivo") y devuelve `stock_negativo` con lo que quedó debajo de cero.
+- `anular_remito(id)`: el movimiento al revés. `remitos(p_tipo)` (últimas 300) y `remito(id)`.
+- Motivos editables en Ajustes: `motivos_remito()` / `guardar_motivos_remito(p)` (config `motivos_remito`, con los de fábrica).
+  Las devoluciones no van acá: se hacen desde la venta o la compra.

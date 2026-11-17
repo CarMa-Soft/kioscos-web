@@ -65,3 +65,14 @@ export function ticketCierre(r, cfg) {
       ${+b.otros ? `<tr><td>Monedas y otros</td><td class="n">${plata(b.otros)}</td></tr>` : ''}</table>` : ''}
     ${r.notas ? `<hr><div>${esc(r.notas)}</div>` : ''}</div>`;
 }
+
+// Entrada o salida de mercadería (RI / RE), con lugar para las firmas
+export function ticketRemito(r, cfg) {
+  const signo = r.tipo === 'ingreso' ? '+' : '-';
+  return `<div class="ticket">${encabezado(cfg)}<hr>
+    <div class="c grande">${r.tipo === 'ingreso' ? 'ENTRADA' : 'SALIDA'} ${esc(r.etiqueta)}${r.anulado ? ' (ANULADA)' : ''}</div>
+    <div>${fechaHora(r.fecha)} · ${esc(r.usuario)}</div><div>Motivo: ${esc(r.motivo)}</div>${r.notas ? `<div>${esc(r.notas)}</div>` : ''}<hr>
+    <table>${r.items.map(x => `<tr><td>${esc(x.nombre)}</td><td class="n">${signo}${cant(x.cantidad)}</td></tr>`).join('')}</table>
+    <br><br><div class="c">______________________</div><div class="c">Entregó</div>
+    <br><br><div class="c">______________________</div><div class="c">Recibió</div></div>`;
+}
