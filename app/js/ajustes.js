@@ -1,10 +1,11 @@
-// Ajustes (solo dueño): datos del negocio y ticket, formas de pago, recargos, tope de descuento, balanza y billetes
+// Ajustes (solo dueño): datos del negocio y ticket, formas de pago, recargos, tope de descuento, balanza, billetes
+// y motivos de las entradas y salidas de mercadería
 import { llamar } from './base.js';
 import { $, $$, esc, numero, aviso, correr } from './ui.js';
 import { imprimir, ticketVenta } from './impresion.js';
 
 export async function pantallaAjustes(vista, ctx) {
-  const c = await llamar('estado_caja');
+  const [c, motivos] = await Promise.all([llamar('estado_caja'), llamar('motivos_remito')]);
   let formas = c.formas_pago.filter(f => f !== 'Efectivo');
   const recargos = { ...c.recargos };
   const n = { nombre: ctx.negocio.nombre, ...(ctx.config.negocio || {}) };
@@ -46,7 +47,23 @@ export async function pantallaAjustes(vista, ctx) {
       <p class="muted">Los valores que aparecen al contar la caja. Separalos con comas (pueden salir billetes nuevos).</p>
       <input class="input" name="billetes" value="${esc((c.billetes || []).join(', '))}">
       <div class="fila"><button class="btn primario">Guardar</button></div>
+    </form>
+    <form class="form ancho recuadro-blanco" id="f-motivos">
+      <h3>Motivos de entradas y salidas de mercadería</h3>
+      <p class="muted">Uno por renglón. Son los que se eligen al cargar una entrada o una salida.</p>
+      <div class="fila"><label class="crece">Entradas<textarea class="input" name="ingreso" rows="6">${esc((motivos.ingreso || []).join('\n'))}</textarea></label>
+        <label class="crece">Salidas<textarea class="input" name="egreso" rows="6">${esc((motivos.egreso || []).join('\n'))}</textarea></label></div>
+      <div class="fila"><button class="btn primario">Guardar</button></div>
     </form>`;
+  $('#f-motivos').onsubmit = e => {
+    e.preventDefault();
+    const f = new FormData(e.target);
+    const lineas = k => String(f.get(k)).split(/\r?\n/).map(x => x.trim()).filter(Boolean);
+    correr(async () => {
+      await llamar('guardar_motivos_remito', { p: { ingreso: lineas('ingreso'), egreso: lineas('egreso') } });
+      aviso('Motivos guardados', 'ok');
+    });
+  };
   $('#f-negocio').onsubmit = e => {
     e.preventDefault();
     const f = new FormData(e.target);
