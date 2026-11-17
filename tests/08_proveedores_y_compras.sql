@@ -50,8 +50,8 @@ select pruebas.ok((public.cuenta_proveedor(current_setting('prueba.prov')::bigin
 select pruebas.ok((public.estado_caja() -> 'turno' ->> 'esperado')::numeric = current_setting('prueba.esp')::numeric - 1300, 'y no toca la caja');
 select public.pagar_proveedor(current_setting('prueba.prov')::bigint, 1000, true, 'Efectivo');
 select pruebas.ok((public.estado_caja() -> 'turno' ->> 'esperado')::numeric = current_setting('prueba.esp')::numeric - 2300, 'pago de la caja: sale del turno');
-select set_config('prueba.aj', (select (x ->> 'id') from jsonb_array_elements(
-  (public.ajuste_proveedor(current_setting('prueba.prov')::bigint, 500, 'Deuda del cuaderno') || public.cuenta_proveedor(current_setting('prueba.prov')::bigint)) -> 'movimientos') x
+select public.ajuste_proveedor(current_setting('prueba.prov')::bigint, 500, 'Deuda del cuaderno');
+select set_config('prueba.aj', (select (x ->> 'id') from jsonb_array_elements(public.cuenta_proveedor(current_setting('prueba.prov')::bigint) -> 'movimientos') x
   where x ->> 'tipo' = 'ajuste'), false);
 select pruebas.ok((public.cuenta_proveedor(current_setting('prueba.prov')::bigint) ->> 'saldo')::numeric = 3500, 'saldo inicial o ajuste');
 select public.anular_mov_proveedor(current_setting('prueba.aj')::bigint);
