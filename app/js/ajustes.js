@@ -54,7 +54,23 @@ export async function pantallaAjustes(vista, ctx) {
       <div class="fila"><label class="crece">Entradas<textarea class="input" name="ingreso" rows="6">${esc((motivos.ingreso || []).join('\n'))}</textarea></label>
         <label class="crece">Salidas<textarea class="input" name="egreso" rows="6">${esc((motivos.egreso || []).join('\n'))}</textarea></label></div>
       <div class="fila"><button class="btn primario">Guardar</button></div>
+    </form>
+    <form class="form ancho recuadro-blanco" id="f-precios">
+      <h3>Redondeo de precios</h3>
+      <p class="muted">Al aplicar un aumento de precios, los precios se pueden redondear hacia arriba a múltiplos de este valor
+        (ej: con 10, $1.234 queda en $1.240). Con 0 no se redondea.</p>
+      <label>Redondear a múltiplos de<input class="input corto" name="redondeo" inputmode="decimal" value="${esc(String(ctx.config.redondeo ?? 10))}"></label>
+      <div class="fila"><button class="btn primario">Guardar</button></div>
     </form>`;
+  $('#f-precios').onsubmit = e => {
+    e.preventDefault();
+    const v = numero(new FormData(e.target).get('redondeo'));
+    if (!(v >= 0)) return aviso('Revisá el redondeo');
+    correr(async () => {
+      ctx.config.redondeo = await llamar('guardar_redondeo', { p_valor: v });
+      aviso('Redondeo guardado', 'ok');
+    });
+  };
   $('#f-motivos').onsubmit = e => {
     e.preventDefault();
     const f = new FormData(e.target);

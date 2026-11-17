@@ -215,3 +215,12 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
 - `anular_remito(id)`: el movimiento al revés. `remitos(p_tipo)` (últimas 300) y `remito(id)`.
 - Motivos editables en Ajustes: `motivos_remito()` / `guardar_motivos_remito(p)` (config `motivos_remito`, con los de fábrica).
   Las devoluciones no van acá: se hacen desde la venta o la compra.
+
+## Aumentos masivos de precios (etapa 7)
+- Botón "Aumento de precios" en Productos. `aumento_masivo(p)`: `{alcance: ids|categoria|proveedor|todos, ids, categoria_id,
+  proveedor_id, modo: pct|monto, valor, costo, redondear, descripcion, simular}`. Solo productos activos; por proveedor
+  cuenta el habitual y los de `producto_proveedores`. Con `simular` devuelve `{cantidad, ejemplos}` sin cambiar nada
+  (la vista previa de la pantalla). Nada baja de cero (`valor_aumentado`).
+- Redondeo hacia arriba a múltiplos de config `redondeo` (10 de fábrica, 0 = sin redondeo): `guardar_redondeo` en Ajustes.
+- `aumentos` / `aumento_cambios` guardan antes y después. `deshacer_aumento(id)` vuelve al antes solo los productos que no
+  cambiaron después (`{revertidos, saltados}`). `aumentos()`: los últimos 15.
