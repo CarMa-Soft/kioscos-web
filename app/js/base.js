@@ -12,10 +12,10 @@ export function guardarToken(t) {
 }
 let tokenEnMemoria = leerToken();
 
-// Solo los pedidos a la base (/rest/v1/) llevan el token; los de inicio de sesión no
+// Solo los pedidos a la base (/rest/v1/) y a sus funciones (/functions/v1/) llevan el token; los de inicio de sesión no
 function fetchConUsuario(input, init = {}) {
   const url = typeof input === 'string' ? input : input.url;
-  if (tokenEnMemoria && url.startsWith(SUPABASE_URL + '/rest/v1/')) {
+  if (tokenEnMemoria && (url.startsWith(SUPABASE_URL + '/rest/v1/') || url.startsWith(SUPABASE_URL + '/functions/v1/'))) {
     const headers = new Headers(init.headers || (typeof input === 'string' ? undefined : input.headers));
     headers.set('x-usuario-kiosco', tokenEnMemoria);
     init = { ...init, headers };
@@ -42,6 +42,19 @@ export function traducir(error) {
   if (error?.code === '23505') return new ErrorBase(/^Ya /.test(msg) ? msg : 'Ya existe un registro con ese dato', error.code);
   if (/permission denied|row-level security/i.test(msg)) return new ErrorBase('Sin permiso para hacer esto', '42501');
   return new ErrorBase(msg, error?.code || '');
+}
+
+// Llama a una función de Supabase (supabase/functions), como la lectura de facturas con IA. Responde { error, hint } si falla.
+export async function funcion(nombre, cuerpo) {
+  let r;
+  try { r = await sb.functions.invoke(nombre, { body: cuerpo }); } catch (e) { throw traducir(e); }
+  if (r.error) {
+    let d = null;
+    try { d = await r.error.context?.json(); } catch { /* sin cuerpo */ }
+    if (r.error.context?.status === 404) throw new ErrorBase('Esta función todavía no está publicada en Supabase', 'funcion');
+    throw traducir(d?.error ? { message: d.error, hint: d.hint } : r.error);
+  }
+  return r.data;
 }
 
 // Llama a una función de la base (las operaciones que tocan varias tablas son funciones SQL atómicas)

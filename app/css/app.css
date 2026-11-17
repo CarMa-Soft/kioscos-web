@@ -167,4 +167,5 @@ p.muted { margin: 0 0 1.25rem; }
 .ticket td { padding: .3mm 0; vertical-align: top; word-break: break-word; }
 .ticket td.n { white-space: nowrap; text-align: right; padding-left: 1.5mm; }
 .etiqueta.pendiente { background: #fef0c7; color: #93370d; }
-.etiqueta.entra { background: #dcfae6; color: #067647; } .etiqueta.sale { background: #fef0c7; color: #93370d; }
+.etiqueta.entra, .etiqueta.bien { background: #dcfae6; color: #067647; } .etiqueta.alerta { background: #fee4e2; color: #b42318; }
+.etiqueta.info { background: #d1e9ff; color: #175cd3; } .etiqueta.sale { background: #fef0c7; color: #93370d; }
