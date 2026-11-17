@@ -24,7 +24,7 @@ export async function pantallaCompras(vista, ctx) {
       ${lista.map(c => `<tr class="clic ${c.anulada ? 'anulada' : ''}" data-id="${c.id}"><td>${c.fecha_factura ? dia(c.fecha_factura) : `${fecha(c.fecha)}<div class="muted chico">${c.factura_pendiente ? 'sin factura' : 'registrada'}</div>`}</td>
         <td>${esc(c.proveedor || '—')}</td>
         <td>${c.factura_pendiente && !c.anulada ? `<span class="etiqueta pendiente">Factura pendiente</span>${c.remito ? `<div class="muted chico">Remito ${esc(c.remito)}</div>` : ''}` : esc(c.comprobante)}</td>
-        <td class="num">${c.items}</td><td class="num">${plata(c.total)}</td>
+        <td class="num">${c.items}</td><td class="num">${+c.devuelto && !c.anulada ? `${plata(c.total - c.devuelto)}<div class="aviso-chico"><s>${plata(c.total)}</s> · devuelto ${plata(c.devuelto)}</div>` : plata(c.total)}</td>
         <td>${c.anulada ? '<span class="etiqueta">anulada</span>' : c.pagada_caja ? `De la caja (${esc(c.forma)})` : c.proveedor ? `<span class="muted">A cuenta</span>${c.vencimiento ? `<div class="muted chico">vence ${dia(c.vencimiento)}</div>` : ''}` : '<span class="muted">Aparte</span>'}</td></tr>`).join('')}</tbody>`
       : `<tbody><tr><td class="muted vacio">${soloPendientes ? 'No hay compras esperando la factura.' : 'Todavía no hay compras cargadas.'}</td></tr></tbody>`}</table></div>`;
   $$('[data-f]').forEach(b => b.onclick = () => { soloPendientes = b.dataset.f === 'p'; ctx.recargar(); });
@@ -45,19 +45,72 @@ function verCompra(id, ctx) {
         ${c.factura_fecha ? `<dt>Factura cargada</dt><dd>${fecha(c.factura_fecha)} · ${esc(c.factura_por)}</dd>` : ''}
         ${c.anulada ? `<dt>Anulada</dt><dd class="mal">${fecha(c.anulada_fecha)} · ${esc(c.anulada_por)}</dd>` : ''}</dl>
       <div class="tabla-caja"><table class="tabla"><thead><tr><th>Producto</th><th class="num">Cant.</th><th class="num">Costo</th><th class="num">Precio nuevo</th><th class="num">Importe</th></tr></thead><tbody>
-        ${c.items.map(i => `<tr><td>${esc(i.nombre)}</td><td class="num">${cant(i.cantidad)}</td>
+        ${c.items.map(i => `<tr><td>${esc(i.nombre)}</td><td class="num">${cant(i.cantidad)}${+i.devuelto ? `<div class="aviso-chico">devuelto ${cant(i.devuelto)}</div>` : ''}</td>
           <td class="num">${plata(i.costo)}${+i.costo_anterior !== +i.costo ? `<div class="muted chico">antes ${plata(i.costo_anterior)}</div>` : ''}</td>
           <td class="num">${i.precio_nuevo != null ? `${plata(i.precio_nuevo)}<div class="muted chico">antes ${plata(i.precio_anterior)}</div>` : '—'}</td>
           <td class="num">${plata(i.cantidad * i.costo)}</td></tr>`).join('')}</tbody>
-        <tfoot><tr><th colspan="4">Total</th><th class="num">${plata(c.total)}</th></tr></tfoot></table></div>
+        <tfoot><tr><th colspan="4">Total</th><th class="num">${plata(c.total)}</th></tr>
+          ${+c.devuelto ? `<tr><td colspan="4" class="aviso-chico">Devuelto al proveedor</td><td class="num aviso-chico">−${plata(c.devuelto)}</td></tr>` : ''}</tfoot></table></div>
       <p>${c.pagada_caja ? `Pagada con la caja (${esc(c.forma)})` : c.proveedor ? 'A cuenta del proveedor' : 'Pagada aparte'}</p>
       ${c.notas ? `<p class="muted">${esc(c.notas)}</p>` : ''}
+      ${c.devoluciones.length ? `<h3>Devoluciones al proveedor</h3><table class="tabla"><tbody>${c.devoluciones.map(d => `<tr><td><b>${esc(d.etiqueta)}</b> · ${fecha(d.fecha)} · ${esc(d.usuario)}
+          <div class="muted chico">${d.items.map(x => `${cant(x.cantidad)} ${esc(x.nombre)}`).join(', ')}${d.motivo ? ' · ' + esc(d.motivo) : ''}</div></td>
+        <td>${d.forma === 'Cuenta' ? 'a su cuenta' : d.forma === 'Sin reintegro' ? 'sin reintegro' : 'devolvió ' + esc(d.forma)}</td><td class="num">${plata(d.total)}</td></tr>`).join('')}</tbody></table>` : ''}
       <div class="fila fin">${c.anulada ? '' : '<button class="btn peligro izq" id="anular">Anular compra</button>'}
+        ${!c.anulada && c.items.some(i => +i.cantidad - +i.devuelto > 0.0005) ? '<button class="btn" id="devolver">Devolver al proveedor</button>' : ''}
         ${pendiente ? '<button class="btn primario" id="factura">Agregar factura</button>' : ''}<button class="btn ${pendiente ? '' : 'primario'}" data-cerrar>Cerrar</button></div>`, { ancho: true });
     if ($('#factura', m.el)) $('#factura', m.el).onclick = () => { m.cerrar(); agregarFactura(c, ctx); };
+    if ($('#devolver', m.el)) $('#devolver', m.el).onclick = () => { m.cerrar(); devolverAlProveedor(c, ctx); };
     if ($('#anular', m.el)) $('#anular', m.el).onclick = async () => {
-      if (!await confirmar('Anular compra', `Sale del stock lo que entró${c.pagada_caja ? `, vuelven ${plata(c.total)} a la caja del turno abierto` : ''}${c.proveedor && !c.pagada_caja ? ' y se saca de la cuenta del proveedor' : ''}. Los costos y precios de los productos no cambian.`, 'Anular')) return;
+      if (!await confirmar('Anular compra', `${+c.devuelto ? 'Ya tuvo devoluciones: se anula solo lo que quedó. ' : ''}Sale del stock lo que entró${c.pagada_caja ? ' y vuelve a la caja del turno abierto lo que se pagó con ella' : ''}${c.proveedor && !c.pagada_caja ? ' y se saca de la cuenta del proveedor' : ''}. Los costos y precios de los productos no cambian.`, 'Anular')) return;
       correr(async () => { await llamar('anular_compra', { p_id: c.id }); m.cerrar(); aviso('Compra anulada', 'ok'); await cat.actualizar(); ctx.recargar(); });
+    };
+  });
+}
+
+// Devolver al proveedor parte o toda la compra. Sale el stock; la plata va a su cuenta, entra a la caja si la devolvió,
+// o sin reintegro (solo sin proveedor). El importe es costo × cantidad, y se puede cambiar.
+function devolverAlProveedor(c, ctx) {
+  correr(async () => {
+    const caja = await llamar('estado_caja');
+    const filas = c.items.map(i => ({ i, queda: Math.round((+i.cantidad - +i.devuelto) * 1000) / 1000, cantidad: '' })).filter(f => f.queda > 0.0005);
+    const formas = c.proveedor ? [['Cuenta', `A la cuenta de ${c.proveedor} (baja lo que le debés)`], ...caja.formas_pago.map(f => [f, `Devolvió la plata · ${f} (entra a la caja)`])]
+      : [...caja.formas_pago.map(f => [f, `Devolvió la plata · ${f} (entra a la caja)`]), ['Sin reintegro', 'Sin reintegro']];
+    const m = modal(`Devolver al proveedor · compra${c.proveedor ? ' a ' + c.proveedor : ''}`, `<form class="form ancho" id="f-dp">
+      <p class="muted">Elegí qué devolvés y cuántos. Sale del stock.</p>
+      <div class="tabla-caja"><table class="tabla" id="dp-tabla"></table></div>
+      <div class="fila"><label class="crece">Qué pasa con la plata<select class="input" name="forma">${formas.map(([v, t]) => `<option value="${esc(v)}">${esc(t)}</option>`).join('')}</select></label>
+        <label class="crece">Importe <span class="muted">(vacío = costo × cantidad)</span><input class="input" name="total" inputmode="decimal"></label></div>
+      <label>Motivo<input class="input" name="motivo" maxlength="200" placeholder="ej: vencido, roto, mal enviado"></label>
+      ${caja.turno ? '' : '<p class="muted chico">La caja está cerrada: si el proveedor devolvió la plata, primero abrí el turno.</p>'}
+      <div class="fila entre"><span>Importe de la devolución</span><span class="total chico-total" id="dp-total">${plata(0)}</span></div>
+      <div class="fila fin"><button type="button" class="btn" data-cerrar>Cancelar</button><button class="btn primario">Devolver</button></div></form>`, { ancho: true });
+    const suma = () => filas.reduce((s, f) => s + Math.round(+f.i.costo * (numero(f.cantidad) || 0) * 100) / 100, 0);
+    const totales = () => { const t = numero($('[name=total]', m.el).value); $('#dp-total', m.el).textContent = plata(t >= 0 ? t : suma()); };
+    const pintar = () => {
+      $('#dp-tabla', m.el).innerHTML = `<thead><tr><th>Producto</th><th class="num">Puede devolver</th><th class="num">Costo</th><th class="num">Devuelve</th></tr></thead><tbody>
+        ${filas.map((f, k) => `<tr><td>${esc(f.i.nombre)}</td><td class="num">${cant(f.queda)} <button type="button" class="link" data-todo="${k}">Todo</button></td><td class="num">${plata(f.i.costo)}</td>
+          <td class="num"><input class="input cant" data-cant="${k}" value="${esc(f.cantidad)}" inputmode="decimal" placeholder="0"></td></tr>`).join('')}</tbody>`;
+      $$('[data-cant]', m.el).forEach(inp => inp.oninput = () => { filas[+inp.dataset.cant].cantidad = inp.value; totales(); });
+      $$('[data-todo]', m.el).forEach(b => b.onclick = () => { filas[+b.dataset.todo].cantidad = String(filas[+b.dataset.todo].queda); pintar(); });
+      totales();
+    };
+    $('[name=total]', m.el).oninput = totales;
+    pintar();
+    $('#f-dp', m.el).onsubmit = e => {
+      e.preventDefault();
+      const f = new FormData(e.target);
+      const items = filas.filter(x => numero(x.cantidad) > 0).map(x => ({ id: x.i.id, cantidad: numero(x.cantidad) }));
+      if (!items.length) return aviso('Elegí qué productos devolvés');
+      if (filas.some(x => numero(x.cantidad) > x.queda + 0.0005)) return aviso('Hay más cantidad de la que se puede devolver');
+      correr(async () => {
+        const r = await llamar('devolver_compra', { p: { compra_id: c.id, items, forma: f.get('forma'), motivo: f.get('motivo'),
+          total: f.get('total') === '' ? null : numero(f.get('total')) } });
+        m.cerrar();
+        aviso(`${r.devolucion.etiqueta}: ${plata(r.devolucion.total)}${r.devolucion.stock_negativo.length ? ` · ojo: quedó stock negativo en ${r.devolucion.stock_negativo.join(', ')}` : ''}`,
+          r.devolucion.stock_negativo.length ? 'info' : 'ok');
+        await cat.actualizar(); ctx.recargar();
+      });
     };
   });
 }

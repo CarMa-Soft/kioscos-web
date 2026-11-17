@@ -194,3 +194,15 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
 - Commits con el email privado de GitHub (`…@users.noreply.github.com`), no el personal: `git config user.email` en este repo.
 - GitHub CLI en Windows: `"C:\Program Files\GitHub CLI\gh.exe"`.
 - Avisarse antes de tocar la misma función de la base o el mismo archivo a la vez.
+
+## Devolución a proveedor (etapa 5c)
+- `devoluciones_compra` (DP-0001 por negocio) y `devolucion_compra_items`; se devuelve desde el detalle de la compra,
+  hasta lo que queda de cada renglón (`devuelto_compra_item`). Siempre sale el stock (movimiento "Devolución a …").
+- `devolver_compra(p)`: `{compra_id, items[{id, cantidad}], total?, forma, motivo}`. Importe = costo × cantidad si no
+  viene `total` (el proveedor puede acreditar otro monto). `forma`: `Cuenta` (con proveedor: `cc_prov` tipo
+  `devolucion`, < 0, aplicada sola a esa compra), una forma de pago (devolvió la plata: `devolucion` + `reintegro`
+  con `par_id` que se compensan, y entra a la caja del turno) o `Sin reintegro` (solo sin proveedor).
+- `creditos_proveedor` incluye las devoluciones a cuenta. `compra_json` trae `devuelto` por renglón, el total
+  `devuelto` y la lista `devoluciones`.
+- `anular_compra` con devoluciones anula solo lo que quedó: stock restante, y a la caja vuelve lo pagado menos lo
+  que el proveedor ya devolvió en plata.
