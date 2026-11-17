@@ -134,7 +134,8 @@ select pruebas.ok(jsonb_typeof(public.estado_caja() -> 'turno') = 'null', 'despu
 \echo == Bajas
 select pruebas.como('a0000000-0000-4000-8000-0000000000c1', current_setting('prueba.t_ana'));
 select pruebas.ok(public.eliminar_producto(current_setting('prueba.coca')::bigint) ? 'desactivado', 'un producto vendido se da de baja, no se borra');
-select pruebas.ok(public.eliminar_producto(current_setting('prueba.chicle')::bigint) ? 'eliminado', 'uno sin ventas se borra');
+-- desde la migración de bajas de productos, un ajuste de stock también es un movimiento (ver 15_bajas_de_productos.sql)
+select pruebas.ok(public.eliminar_producto(current_setting('prueba.chicle')::bigint) ? 'desactivado', 'uno sin ventas pero con un ajuste de stock se da de baja');
 select pruebas.ok(not exists (select 1 from jsonb_array_elements(public.catalogo() -> 'productos') p where (p ->> 'id') = current_setting('prueba.coca')),
   'el dado de baja no está en el catálogo completo');
 select pruebas.ok(exists (select 1 from jsonb_array_elements(public.catalogo(now() - interval '1 hour') -> 'productos') p
