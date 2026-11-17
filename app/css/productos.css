@@ -1,0 +1,34 @@
+/* Productos: filtros y tabla de la lista. Clases con prefijo p- para no tocar las de otras secciones. */
+.p-filtros { background: #fff; border: 1px solid var(--borde); border-radius: 14px; padding: 1.1rem 1.25rem; box-shadow: 0 1px 2px rgba(16, 24, 40, .04);
+  display: grid; gap: .9rem; }
+.p-busqueda { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: .75rem; }
+.p-buscar { display: flex; align-items: center; gap: .6rem; padding: 0 .9rem; border: 1px solid #cbd2d9; border-radius: 10px; background: #fff; cursor: text; }
+.p-buscar:focus-within { outline: 2px solid var(--primario); outline-offset: 1px; border-color: transparent; }
+.p-buscar svg { width: 1.05rem; height: 1.05rem; flex: none; fill: none; stroke: var(--suave); stroke-width: 2; stroke-linecap: round; }
+.p-buscar input { font: inherit; flex: 1; min-width: 0; padding: .65rem 0; border: 0; background: transparent; outline: none; color: var(--texto); }
+.p-select { height: 100%; }
+.p-filtros .chip { display: inline-flex; align-items: center; gap: .35rem; }
+.p-filtros .chip.elegido { background: #111827; border-color: #111827; }
+.p-cuenta { color: var(--suave); font-size: .85em; }
+.chip.elegido .p-cuenta { color: #cbd2d9; }
+.p-aviso { margin-top: .75rem; padding: .6rem .9rem; border-radius: 10px; background: #fef6e7; color: #93370d; font-size: .92rem; }
+
+.p-tabla { border-radius: 14px; margin-top: 1rem; box-shadow: 0 1px 2px rgba(16, 24, 40, .04); }
+.p-tabla .tabla th { background: #f9fafb; padding: .7rem 1rem; }
+.p-tabla .tabla td { padding: .7rem 1rem; }
+.p-tabla tbody tr:last-child td { border-bottom: 0; }
+.p-orden { font: inherit; font-size: .8rem; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--suave); background: none; border: 0;
+  padding: 0; cursor: pointer; display: inline-flex; align-items: center; gap: .3rem; }
+.p-orden span { font-size: .75rem; opacity: .45; }
+.p-orden:hover, .p-orden.activo { color: var(--texto); }
+.p-orden.activo span { opacity: 1; }
+.p-nombre { font-weight: 600; }
+.p-estrella { color: var(--texto); }
+.p-sub { color: var(--suave); font-size: .85rem; margin-top: .1rem; }
+.p-alerta { color: #b54708; }
+
+@media (max-width: 800px) {
+  .p-busqueda { grid-template-columns: 1fr; }
+  .p-select { height: auto; }
+  .p-tabla .tabla th, .p-tabla .tabla td { padding: .6rem .6rem; }
+}
