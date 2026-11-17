@@ -8,17 +8,22 @@ import { pantallaProductos } from './productos.js';
 import { pantallaUsuarios } from './usuarios.js';
 import { pantallaClientes } from './clientes.js';
 import { pantallaAjustes } from './ajustes.js';
+import { pantallaInicio } from './inicio.js';
+import { pantallaReportes } from './reportes.js';
 
 const raiz = $('#app');
 let datos = null;            // lo que devuelve datos_inicio()
 let teclas = null;           // atajos de teclado de la sección abierta
 let refresco = null;         // actualización periódica del catálogo
 
+// La primera es la que se abre al entrar
 const SECCIONES = [
   { ruta: '#/vender', nombre: 'Vender', fn: pantallaVender },
+  { ruta: '#/inicio', nombre: 'Hoy', fn: pantallaInicio },
   { ruta: '#/caja', nombre: 'Caja', fn: pantallaCaja },
   { ruta: '#/clientes', nombre: 'Clientes', fn: pantallaClientes },
   { ruta: '#/productos', nombre: 'Productos', fn: pantallaProductos, admin: true },
+  { ruta: '#/reportes', nombre: 'Reportes', fn: pantallaReportes, admin: true },
   { ruta: '#/usuarios', nombre: 'Usuarios', fn: pantallaUsuarios },
   { ruta: '#/ajustes', nombre: 'Ajustes', fn: pantallaAjustes, admin: true },
 ];
