@@ -120,6 +120,19 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   reparten entre los renglones (importe × total / subtotal). Los días son de la hora local del negocio
   (`zona_horaria`, config; por defecto Argentina).
 
+## Proveedores y compras (etapa 5a)
+- Todo solo el dueño. `proveedores` (CUIT validado con `cuit_valido`, único por negocio; `plazo` en días),
+  `producto_proveedores` (proveedores de cada producto con su último costo), `productos.proveedor_id` (habitual).
+- `registrar_compra(p)`: suma stock (movimiento "Compra a …"), actualiza el costo (si es > 0) y el precio si viene
+  `precio_nuevo`, deja al proveedor como habitual si no tenía y guarda su último costo. `total` de la factura opcional
+  (si no, la suma). Con `pagar_caja` sale de la caja del turno; con proveedor y sin caja, queda a cuenta.
+- **Cuenta del proveedor** (`cc_prov`): monto > 0 suma deuda (`compra`, `ajuste`), < 0 la baja (`pago`, `ajuste`).
+  Una compra pagada con la caja agrega su pago en el momento. `pagar_proveedor` (de la caja o aparte),
+  `ajuste_proveedor` (saldo inicial o corrección, sin plata), `anular_mov_proveedor` (pagos y ajustes; al revés).
+- `anular_compra`: saca el stock, devuelve a la caja lo pagado con ella y saca de la cuenta lo que dejó la compra
+  (lo pagado aparte queda a favor). No cambia costos ni precios. Un proveedor con compras no se borra.
+- Pendiente (5b): factura pendiente, fecha de factura y vencimiento, aplicación de pagos; (5c) devolución a proveedor.
+
 ## Balanza, cierre por billetes y turnos anteriores (etapa 4c)
 - **Etiquetas de balanza** (Ajustes → Balanza: activa, prefijo, tipo `peso` | `importe` | `importe_centavos`):
   EAN-13 = prefijo + PLU (hasta el dígito 7) + 5 dígitos de valor + verificador. Las lee `vender.js` con el catálogo
