@@ -185,11 +185,11 @@ function pintar(vista, ctx, alSalir) {
         ${+f.descuento_global ? `<span class="etiqueta">Descuento global ${plata(f.descuento_global)}</span>` : ''}
         ${+f.otros_cargos ? `<span class="etiqueta">Otros cargos ${plata(f.otros_cargos)}</span>` : ''}
         ${chip(!sinProducto, sinProducto ? `${sinProducto} renglón(es) sin producto` : 'Todos los renglones tienen producto')}</div></div>
-    <div class="tabla-caja"><table class="tabla"><thead><tr><th>En la factura</th><th>Producto</th><th class="num">Unidades de venta</th><th class="num">Entran</th><th class="num">Costo c/u</th><th class="num">Precio de venta</th></tr></thead>
+    <div class="tabla-caja"><table class="tabla factura"><thead><tr><th>En la factura</th><th>Producto</th><th class="num">Unidades de venta</th><th class="num">Entran</th><th class="num">Costo c/u</th><th class="num">Precio de venta</th></tr></thead>
       <tbody>${f.items.map((it, i) => {
         const l = c.lineas[i], p = l.producto_id && c.prods.get(+l.producto_id), k = calcular(it, l);
         const subio = p && k.costo > +p.costo + 0.5;
-        return `<tr><td><div class="muted chico mono">${esc(it.codigo || '')}${it.codigo_barras && it.codigo_barras !== it.codigo ? ` · EAN ${esc(it.codigo_barras)}` : ''}</div><b>${esc(it.descripcion)}</b>
+        return `<tr class="${l.producto_id || l.nuevo ? '' : 'sin-producto'}"><td><div class="muted chico mono"><span class="nro">${i + 1}</span> ${esc(it.codigo || '')}${it.codigo_barras && it.codigo_barras !== it.codigo ? ` · EAN ${esc(it.codigo_barras)}` : ''}</div><b>${esc(it.descripcion)}</b>
             <div class="muted chico">${cant(it.cantidad)} ${unidadTxt(it)} · ${plata(it.importe)}${+it.bonificacion ? ` · bonif. ${cant(it.bonificacion)}%` : ''}
               ${lineaCierra(it) ? '' : ' <span class="etiqueta alerta">no cierra</span>'}</div></td>
           <td>${l.nuevo ? `<div class="muted chico">Producto nuevo · <button class="link" data-no-nuevo="${i}">elegir otro</button></div>

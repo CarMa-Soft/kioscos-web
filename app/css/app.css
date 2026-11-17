@@ -69,6 +69,13 @@ p.muted { margin: 0 0 1.25rem; }
 .tabla tr.clic { cursor: pointer; } .tabla tr.clic:hover { background: var(--fondo); }
 .tabla tr.anulada td { color: var(--suave); text-decoration: line-through; }
 .tabla td.vacio { text-align: center; padding: 2rem; }
+/* Renglones de una factura: bien separados (fondo alternado, línea más marcada), con su número, y los que todavía no
+   tienen producto marcados a la izquierda */
+.tabla.factura td { vertical-align: top; padding-top: .8rem; padding-bottom: .8rem; border-bottom: 2px solid #cbd2d9; }
+.tabla.factura tbody tr:nth-child(even) td { background: #f3f5f8; }
+.tabla.factura tr.sin-producto td:first-child { box-shadow: inset 4px 0 0 #f79009; }
+.tabla.factura .nro { display: inline-block; min-width: 1.6rem; padding: 0 .35rem; border-radius: 999px; background: var(--barra); color: #fff;
+  font-weight: 700; text-align: center; }
 .tabla td.corto { max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .etiqueta { display: inline-block; font-size: .75rem; padding: .05rem .4rem; border-radius: 999px; background: var(--fondo); color: var(--suave); text-decoration: none; }
 
