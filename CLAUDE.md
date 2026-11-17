@@ -93,7 +93,7 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   (o el dueño). Las funciones que mueven plata o stock bloquean la fila del negocio (`for update`) para no cruzarse.
 - **Anular** (solo dueño): devuelve el stock y saca la plata de la caja del turno abierto.
 - **Productos:** un producto con ventas no se borra, se da de baja (`activo = false`).
-- **Pendiente (etapa 4):** reportes. Imprimir tickets y comprobantes (todavía no hay impresión).
+- **Pendiente:** imprimir tickets y comprobantes (todavía no hay impresión).
 
 ## Devoluciones de venta (etapa 4d)
 - Desde el detalle de la venta (Caja), `devolver_venta(venta, items [{ id del renglón, cantidad, vuelve_stock }], forma, motivo, autorización)`:
@@ -104,7 +104,15 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   (el mismo permiso de un solo uso de `autorizar_dueno`; la ventana es `pedirAutorizacion` en `ui.js`).
 - `venta_json` trae `devuelto` por renglón, `devoluciones` y `devuelto` total. **Anular** una venta con devoluciones
   anula solo lo que quedó: el stock no devuelto y la plata que quedaba, repartida entre los pagos.
-- Pendiente para reportes: restar lo devuelto en la fecha de la devolución (las de ventas anuladas no).
+
+## Inicio y Reportes (etapa 4e)
+- `inicio()`: ventas de hoy, últimas ventas, caja y fiado pendiente. El empleado ve solo sus ventas y no la ganancia.
+- `reporte(desde, hasta)` (solo dueño, días inclusive, hasta 400): ventas, costo, devoluciones y pérdidas, por día,
+  hora, forma, vendedor, categoría y producto, descuentos y recargos, autorizaciones, mercadería valorizada y fiado.
+- Mismas cuentas que la app local: las devoluciones se restan **en la fecha de la devolución** (las de ventas anuladas
+  no); el costo recupera lo que volvió al stock (lo roto queda como pérdida); el descuento general y los recargos se
+  reparten entre los renglones (importe × total / subtotal). Los días son de la hora local del negocio
+  (`zona_horaria`, config; por defecto Argentina).
 
 ## Balanza, cierre por billetes y turnos anteriores (etapa 4c)
 - **Etiquetas de balanza** (Ajustes → Balanza: activa, prefijo, tipo `peso` | `importe` | `importe_centavos`):
