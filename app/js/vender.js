@@ -59,6 +59,7 @@ export async function pantallaVender(vista, ctx) {
           <div id="resultados" class="resultados flotan" hidden></div>
         </div>
         <p class="v-tip">Tip: escribí <kbd>3*</kbd> antes del código para cargar 3 unidades · <kbd>↑</kbd><kbd>↓</kbd> para elegir · clic en el precio para cambiarlo</p>
+        <div id="accesos"></div>
         <div class="v-barra">
           <button class="v-btn" id="varios">${ICO.mas} Varios / precio libre</button>
           <button class="v-btn peligro" id="vaciar">${ICO.tacho} Vaciar</button>
@@ -208,8 +209,31 @@ export async function pantallaVender(vista, ctx) {
     return { subtotal, descuento, base, pagos, recargo, total: r2(base + recargo) };
   }
 
+  // ---------- Accesos rápidos ----------
+  // Los productos con "Botón rápido en Vender" (favorito), en orden alfabético. Los primeros 9 se cargan con Alt + número.
+  const accesos = () => cat.productos().filter(p => p.favorito && p.activo !== false).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+  function pintarAccesos() {
+    const lista = accesos(), cont = $('#accesos');
+    cont.innerHTML = lista.length ? `<div class="v-accesos-tit"><span>Accesos rápidos</span><span>Alt + número</span></div>
+      <div class="v-accesos">${lista.map((p, k) => `<button class="v-acceso" data-acceso="${p.id}" title="${esc(p.nombre)}${k < 9 ? ` (Alt + ${k + 1})` : ''}">
+        <span class="v-inicial">${esc(p.nombre.trim().charAt(0).toUpperCase())}</span>
+        <span class="v-acceso-txt"><b>${esc(p.nombre)}</b><small>${plata(p.precio)}${p.por_peso ? '/kg' : ''}</small></span>
+        ${k < 9 ? `<kbd>${k + 1}</kbd>` : ''}</button>`).join('')}</div>` : '';
+    $$('[data-acceso]', cont).forEach(b => b.onclick = () => { const p = cat.producto(+b.dataset.acceso); if (p) agregar(p); });
+  }
+  function accesoRapido(e) {
+    if (!e.altKey || e.ctrlKey || e.metaKey || document.querySelector('.modal-fondo')) return false;
+    const n = /^(?:Digit|Numpad)([1-9])$/.exec(e.code)?.[1];
+    if (!n) return false;
+    e.preventDefault();
+    const p = accesos()[n - 1];
+    if (p) agregar(p);
+    return true;
+  }
+
   // ---------- Pintar ----------
   function pintar() {
+    pintarAccesos();
     const t = $('#renglones');
     t.innerHTML = venta.items.length ? `<div class="v-fila v-enc"><span>Producto</span><span class="v-der-txt">Cantidad</span><span class="v-der-txt v-precio">Precio</span><span class="v-der-txt">Importe</span><span></span></div>
       ${venta.items.map((i, k) => { const p = i.producto_id && cat.producto(i.producto_id); return `<div class="v-fila v-item">
@@ -417,6 +441,7 @@ export async function pantallaVender(vista, ctx) {
   $('#vaciar').onclick = async () => { if (!venta.items.length || await confirmar('Vaciar', '¿Sacar todos los productos de la venta?', 'Vaciar')) { venta = vacia(); pintar(); escaner.focus(); } };
   escaner.onblur = () => setTimeout(() => { if (document.activeElement !== escaner) res.hidden = true; }, 150);
   ctx.alTeclear(e => {
+    if (accesoRapido(e)) return;
     if (e.key === 'F2') { e.preventDefault(); cobrar(); }
     if (e.key === 'F1') { e.preventDefault(); venta.forma = 'Efectivo'; venta.dos = null; pintarPanel(); }
   });
