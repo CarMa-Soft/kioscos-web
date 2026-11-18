@@ -21,9 +21,16 @@ export async function preciosModal({ productos, categorias, visibles, ctx, alTer
   let redAjustes = +(ctx.config.redondeo ?? 10);
   const catNombre = id => categorias.find(c => c.id === id)?.nombre || '';
   let tab = 'precios';
+  // qué se hace en cada pestaña (la leyenda abajo de las pestañas)
+  const LEYENDAS = {
+    config: 'El redondeo de los precios y el margen automático con el que arrancan los productos nuevos.',
+    margen: 'Poné un margen a varios productos a la vez: su precio pasa a calcularse solo (costo + margen) y sigue al costo en cada compra. O quitáselo y queda con precio fijo.',
+    precios: 'Subí o bajá de una vez el precio de venta de los productos de precio fijo, o el costo cuando el proveedor cambia su lista (los de margen automático recalculan su precio solos).',
+  };
   const excluidos = new Set();
   const m = modal('Precios y márgenes', `<div class="form ancho">
-    <div class="chips" id="pm-tabs"><button type="button" class="chip elegido" data-tab="precios">Actualizar precios</button><button type="button" class="chip" data-tab="margen">Asignar margen</button><button type="button" class="chip" data-tab="config">Configuración</button></div>
+    <div class="chips" id="pm-tabs"><button type="button" class="chip" data-tab="config">Configuración</button><button type="button" class="chip" data-tab="margen">Asignar margen</button><button type="button" class="chip elegido" data-tab="precios">Actualizar precios</button></div>
+    <p class="pm-leyenda" id="pm-leyenda"></p>
     <div class="fila" id="pm-ambito-f">
       <label class="crece">¿A qué productos?<select class="input" id="pm-ambito">
         <option value="buscar">Los que coinciden con una búsqueda (ej: yerba)</option>
@@ -100,6 +107,7 @@ export async function preciosModal({ productos, categorias, visibles, ctx, alTer
   const pintar = () => {
     const p0 = plan();
     $$('#pm-tabs .chip', m.el).forEach(c => c.classList.toggle('elegido', c.dataset.tab === tab));
+    $('#pm-leyenda', m.el).textContent = LEYENDAS[tab];
     $('#pm-tab-precios', m.el).hidden = tab !== 'precios'; $('#pm-tab-margen', m.el).hidden = tab !== 'margen';
     const config = tab === 'config';
     $('#pm-tab-config', m.el).hidden = !config;
