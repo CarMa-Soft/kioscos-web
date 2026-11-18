@@ -258,3 +258,7 @@ p.muted { margin: 0 0 1.25rem; }
 .pm-modal .pm-lista { max-height: min(420px, 50vh); }
 .pm-leyenda { margin: -.25rem 0 .25rem; padding: .55rem .8rem; border-radius: 8px; background: var(--fondo); color: var(--suave); font-size: .92rem; }
 .input.chico-sel { width: auto; padding: .15rem .35rem; font-size: .8rem; margin-top: .3rem; }
+
+/* Cuenta del cliente: las compras pagadas, plegadas */
+details.pagadas summary { cursor: pointer; list-style-position: outside; }
+details.pagadas summary h3 { display: inline-block; }
