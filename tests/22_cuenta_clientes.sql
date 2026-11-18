@@ -16,7 +16,9 @@ set local role authenticated;
 select pruebas.como('d0000000-0000-4000-8000-0000000000c3', current_setting('prueba.t_carla'));
 
 \echo == Plazo
-select pruebas.ok((public.cuenta_cliente((public.guardar_cliente('{"nombre": "Para ver el plazo"}') ->> 'id')::bigint) ->> 'plazo_general')::int = 30,
+-- (en dos pasos: cuenta_cliente es stable y no ve lo que se guardó en la misma sentencia)
+select set_config('prueba.cli_plazo', public.guardar_cliente('{"nombre": "Para ver el plazo"}') ->> 'id', false);
+select pruebas.ok((public.cuenta_cliente(current_setting('prueba.cli_plazo')::bigint) ->> 'plazo_general')::int = 30,
   'el plazo general de fábrica es 30 días');
 select pruebas.ok(public.guardar_plazo_clientes(15) = 15, 'el dueño cambia el plazo general');
 select pruebas.falla('select public.guardar_plazo_clientes(400)', 'entre 0 y 365', 'plazo general fuera de rango');
