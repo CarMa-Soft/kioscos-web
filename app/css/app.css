@@ -184,3 +184,9 @@ p.muted { margin: 0 0 1.25rem; }
 .celu-foto { display: flex; flex-direction: column; gap: .3rem; }
 .celu-foto img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border: 1px solid var(--borde); border-radius: 8px; }
 .celu-ancho { display: block; width: 100%; text-align: center; margin-top: .8rem; }
+
+/* Pedidos: un recuadro por proveedor */
+.pedido { margin-bottom: 1rem; }
+.pedido .cabecera { align-items: center; }
+.pedido h3 { margin: 0; }
+.pedido .tabla-caja { margin-bottom: 0; }
