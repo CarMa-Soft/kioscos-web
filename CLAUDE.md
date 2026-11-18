@@ -273,3 +273,10 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   librería write-excel-file usa workers, que la política de seguridad bloquearía) y WhatsApp (`wa.me` con el teléfono del
   proveedor pasado a 549…; si no tiene, se elige el contacto). Los precios de referencia van en el PDF y el Excel solo si se tilda.
 - `pages.yml` marca la versión en todas las hojas de estilo (`css/*.css`), no solo en app.css.
+
+## Escanear con la cámara del celular
+- `escaner.js`: `botonCamara(input)` agrega 📷 junto a un campo de escanear, solo donde el navegador trae `BarcodeDetector`
+  (Chrome en Android; no en Windows ni en Safari de iPhone, donde el botón no aparece). Cada código leído se pone en el
+  campo y se dispara un `keydown` Enter (sin burbujear), así cada pantalla lo procesa con su propio manejo del lector.
+  El mismo código no se vuelve a contar mientras siga a la vista. Está en Vender, Cargar compra, Entradas y salidas y la
+  ficha del producto (ahí con `continuo: false` y `alLeer`, solo llena el código).

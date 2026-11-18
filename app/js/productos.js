@@ -2,6 +2,7 @@
 import { llamar } from './base.js';
 import * as cat from './catalogo.js';
 import { $, $$, esc, plata, cant, fecha, numero, aviso, correr, modal, confirmar } from './ui.js';
+import { botonCamara } from './escaner.js';
 
 // Lo que se eligió en la lista se mantiene al ir y volver de la sección
 let filtro = '', grupo = 'todos', categoria = '', orden = { col: 'nombre', asc: true };
@@ -117,6 +118,8 @@ export async function pantallaProductos(vista, ctx) {
       <div class="fila fin">${p ? '<button type="button" class="btn peligro izq" id="eliminar">Eliminar</button>' : ''}
         <button type="button" class="btn" data-cerrar>Cancelar</button><button class="btn primario">Guardar</button></div></form>`, { ancho: true });
     $('[name=por_peso]', m.el).onchange = ev => { $('#plu-box', m.el).hidden = !ev.target.checked; };
+    const campoCodigo = $('[name=codigo]', m.el);
+    botonCamara(campoCodigo, { continuo: false, alLeer: c => { campoCodigo.value = c; } });   // 📷: el código del producto con la cámara
     $('#f-prod', m.el).onsubmit = ev => {
       ev.preventDefault();
       const f = new FormData(ev.target);

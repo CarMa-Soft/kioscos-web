@@ -3,6 +3,7 @@
 import { llamar } from './base.js';
 import * as cat from './catalogo.js';
 import { $, $$, esc, plata, cant, fecha, dia, hoyDia, sumarDias, numero, aviso, correr, modal, confirmar } from './ui.js';
+import { botonCamara } from './escaner.js';
 import { formProveedor } from './proveedores.js';
 import { pantallaFactura, hayCargaFactura } from './facturas.js';
 
@@ -184,6 +185,7 @@ async function nuevaCompra(vista, ctx) {
       <div class="fila fin"><button class="btn primario grande" id="guardar">Guardar compra</button></div>
     </div>`;
   const escaner = $('#escaner'), res = $('#resultados');
+  botonCamara(escaner);   // 📷 en el celular: cada código leído se agrega como con el lector
   let sugeridos = [], marcado = 0;
   const buscar = t => { const w = t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').split(/\s+/).filter(Boolean);
     return cata.productos.filter(p => { const s = (p.nombre + ' ' + (p.codigo || '')).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); return w.every(x => s.includes(x)); }).slice(0, 12); };
