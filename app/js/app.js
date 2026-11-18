@@ -150,7 +150,7 @@ async function mostrarSeccion() {
   const ctx = {
     yo, negocio: datos.negocio, usuarios: datos.usuarios,
     config: datos.config,          // configuración del negocio (datos para el ticket, cuándo imprimir); Ajustes la actualiza
-    ir: ruta => { location.hash = ruta; },
+    ir: ruta => { location.replace(ruta); },   // sin sumar al historial (ver ui.js: botón atrás)
     recargar: () => mostrarSeccion(),
     alTeclear: fn => { teclas = fn; },
   };

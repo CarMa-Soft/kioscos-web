@@ -45,13 +45,43 @@ export async function correr(fn) {
   }
 }
 
-// Ventana sobre la pantalla. Devuelve { el, cerrar }. Escape o "Cancelar" (data-cerrar) la cierran.
+// ---------- Botón "atrás" (el del celular o el del navegador) ----------
+// Cambiar de sección no deja historial (reemplaza la dirección), así "atrás" no recorre una por una las secciones
+// visitadas: si hay una ventana abierta la cierra, y si no, sale de la app. Cada ventana deja una entrada en el historial
+// para que "atrás" la cierre; las de ventanas cerradas con sus botones se saltean solas.
+const abiertas = [];                 // ventanas abiertas, la última arriba
+let hashActual = location.hash;
+window.addEventListener('hashchange', () => { hashActual = location.hash; });
+window.addEventListener('popstate', () => {
+  if (location.hash !== hashActual) { hashActual = location.hash; return; }   // cambio de sección, no el botón atrás
+  const arriba = abiertas[abiertas.length - 1];
+  if (arriba) return arriba.cerrar();
+  history.back();   // sin ventanas abiertas: sigue hacia atrás hasta salir de la app
+});
+// Los enlaces a secciones (#/...) reemplazan la dirección en vez de sumar una entrada al historial
+document.addEventListener('click', e => {
+  const a = e.target.closest?.('a[href^="#/"]');
+  if (!a || e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey) return;
+  e.preventDefault();
+  if (location.hash !== a.getAttribute('href')) location.replace(a.getAttribute('href'));
+});
+
+// Ventana sobre la pantalla. Devuelve { el, cerrar }. Escape, "Cancelar" (data-cerrar) o "atrás" la cierran.
 export function modal(titulo, cuerpo, { ancho = false, alCerrar } = {}) {
   const fondo = document.createElement('div');
   fondo.className = 'modal-fondo';
   fondo.innerHTML = `<div class="modal ${ancho ? 'ancho' : ''}" role="dialog" aria-modal="true"><h2>${esc(titulo)}</h2>${cuerpo}</div>`;
   document.body.append(fondo);
-  const cerrar = () => { fondo.remove(); document.removeEventListener('keydown', tecla); alCerrar?.(); };
+  history.pushState({ ventana: true }, '');
+  let cerrada = false;
+  const cerrar = () => {
+    if (cerrada) return;
+    cerrada = true;
+    const k = abiertas.indexOf(ventana); if (k >= 0) abiertas.splice(k, 1);
+    fondo.remove(); document.removeEventListener('keydown', tecla); alCerrar?.();
+  };
+  const ventana = { cerrar };
+  abiertas.push(ventana);
   const tecla = e => { if (e.key === 'Escape') cerrar(); };
   document.addEventListener('keydown', tecla);
   $$('[data-cerrar]', fondo).forEach(b => b.onclick = cerrar);
