@@ -6,9 +6,10 @@ create function pruebas.en_lista(p_filtro jsonb, p_id text) returns jsonb langua
   select x from jsonb_array_elements(public.lista_precios(p_filtro)) x where x ->> 'id' = p_id;
 $$;
 grant execute on function pruebas.en_lista(jsonb, text) to authenticated;
+-- el día de hoy en la zona horaria del negocio C (como postgres: las funciones internas no están abiertas a la app)
+select set_config('prueba.hoy_c', (now() at time zone public.zona_horaria((select negocio_id from public.usuarios where id = current_setting('prueba.carla')::bigint)))::date::text, false);
 set local role authenticated;
 select pruebas.como('d0000000-0000-4000-8000-0000000000c3', current_setting('prueba.t_carla'));
-select set_config('prueba.hoy_c', (now() at time zone public.zona_horaria(public.mi_negocio()))::date::text, false);
 select set_config('prueba.cat_lp', public.guardar_categoria(null, 'Conservas') ->> 'id', false);
 select set_config('prueba.ace2', public.guardar_producto(jsonb_build_object('nombre', 'Aceitunas verdes', 'codigo', '7790000000093',
   'categoria_id', current_setting('prueba.cat_lp'), 'costo', 600, 'precio', 1000)) ->> 'id', false);
