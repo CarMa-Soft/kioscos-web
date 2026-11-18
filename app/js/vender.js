@@ -3,6 +3,7 @@
 import { llamar } from './base.js';
 import * as cat from './catalogo.js';
 import { $, $$, esc, plata, cant, numero, aviso, correr, modal, confirmar, pedirAutorizacion } from './ui.js';
+import { botonCamara } from './escaner.js';
 import { formCliente, textoSaldo } from './clientes.js';
 import { imprimir, ticketVenta } from './impresion.js';
 
@@ -70,6 +71,7 @@ export async function pantallaVender(vista, ctx) {
       <aside class="v-der" id="panel"></aside>
     </div>`;
   const escaner = $('#escaner'), res = $('#resultados');
+  botonCamara(escaner, { envolver: false });   // 📷 en el celular: cada código leído se agrega como con el lector
   // "Lector listo" cuando el cursor está en el buscador (ahí entra lo que manda el lector de códigos)
   const lector = listo => { $('#lector').classList.toggle('listo', listo); $('#lector span').textContent = listo ? 'Lector listo' : 'Clic acá para escanear'; };
   escaner.addEventListener('focus', () => lector(true));
