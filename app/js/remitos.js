@@ -87,7 +87,7 @@ async function nuevoRemito(vista, ctx, tipo) {
       <div class="fila entre"><span class="total-etq">Valor al costo</span><span class="total chico-total" id="tot"></span></div>
       <div class="fila fin"><button class="btn primario grande" id="guardar">Guardar ${nombreTipo(tipo).toLowerCase()}</button></div></div>`;
   const escaner = $('#escaner'), res = $('#resultados');
-  botonCamara(escaner);   // 📷 en el celular: cada código leído se agrega como con el lector
+  botonCamara(escaner, { describir: c => porCodigo.get(c.toLowerCase())?.nombre });   // 📷 en el celular: cada código leído se agrega como con el lector
   let sugeridos = [], marcado = 0;
   const buscar = t => { const w = t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').split(/\s+/).filter(Boolean);
     return cata.productos.filter(p => { const s = (p.nombre + ' ' + (p.codigo || '')).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); return w.every(x => s.includes(x)); }).slice(0, 12); };

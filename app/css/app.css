@@ -232,3 +232,7 @@ p.muted { margin: 0 0 1.25rem; }
 .camara { position: relative; width: 100%; aspect-ratio: 4 / 3; background: #000; border-radius: 10px; overflow: hidden; margin-bottom: .75rem; }
 .camara video { width: 100%; height: 100%; object-fit: cover; display: block; }
 .camara-guia { position: absolute; inset: 32% 8%; border: 2px solid rgba(255, 255, 255, .9); border-radius: 8px; box-shadow: 0 0 0 999px rgba(0, 0, 0, .3); pointer-events: none; }
+.cam-estado { min-height: 3rem; }
+.cam-leido { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .55rem .75rem; border-radius: 10px; background: #ecfdf3; }
+.cam-leido .btn { font-size: 1.1rem; font-weight: 700; padding: .45rem 1rem; }
+.cam-estado p { margin: .5rem 0 0; }
