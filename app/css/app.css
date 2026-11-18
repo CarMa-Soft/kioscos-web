@@ -257,3 +257,4 @@ p.muted { margin: 0 0 1.25rem; }
 .modal.pm-modal { width: min(1000px, 100%); }
 .pm-modal .pm-lista { max-height: min(420px, 50vh); }
 .pm-leyenda { margin: -.25rem 0 .25rem; padding: .55rem .8rem; border-radius: 8px; background: var(--fondo); color: var(--suave); font-size: .92rem; }
+.input.chico-sel { width: auto; padding: .15rem .35rem; font-size: .8rem; margin-top: .3rem; }
