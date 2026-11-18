@@ -52,6 +52,7 @@ export async function pantallaVender(vista, ctx) {
 
   vista.innerHTML = `
     ${caja.turno ? '' : '<p class="aviso mal">La caja está cerrada: <a href="#/caja">abrí tu turno en Caja</a> para poder cobrar.</p>'}
+    <div id="entregas"></div>
     <div class="v">
       <section class="v-izq">
         <div class="buscador">
@@ -391,6 +392,78 @@ export async function pantallaVender(vista, ctx) {
     });
   }
 
+  // ---------- Vender más de lo que hay: entregas pendientes ----------
+  // Si algún producto se vende por más de lo que hay en stock, se pregunta: ¿se lleva todo ahora (el stock estaba mal)
+  // o se lleva lo que hay y el resto queda para entregar después, a nombre del cliente o de un nombre?
+  // Devuelve { pend: { índice del renglón: cantidad pendiente }, entrega: { nombre, telefono } | null } o null (volver).
+  function preguntarFaltantes() {
+    const cortos = [], usado = {};
+    venta.items.forEach((i, k) => {
+      if (!i.producto_id) return;
+      const p = cat.producto(i.producto_id); if (!p) return;
+      const disp = Math.max(0, +p.stock - (usado[i.producto_id] || 0)), c = +i.cantidad;
+      usado[i.producto_id] = (usado[i.producto_id] || 0) + c;
+      if (c > disp + 0.0005) cortos.push({ k, nombre: i.nombre, c, disp, kg: p.por_peso ? ' kg' : '' });
+    });
+    if (!cortos.length) return Promise.resolve({ pend: {}, entrega: null });
+    return new Promise(listo => {
+      let res = null;
+      const m = modal('No alcanza el stock', `<form class="form ancho" id="f-faltan">
+        ${cortos.map(x => `<div class="faltante"><div><b>${esc(x.nombre)}</b>: vendés ${cant(x.c)}${x.kg}, hay ${cant(x.disp)}${x.kg} en stock.</div>
+          <label class="check"><input type="radio" name="m${x.k}" value="pend" checked> ${x.disp > 0 ? `Se lleva ${cant(x.disp)}${x.kg} ahora y ` : 'No se lleva nada ahora: '}quedan
+            <b>${cant(x.c - x.disp)}${x.kg} para entregar</b> cuando llegue la mercadería</label>
+          <label class="check"><input type="radio" name="m${x.k}" value="todo"> Se lleva todo ahora (el stock estaba mal cargado)</label></div>`).join('')}
+        <div id="ent-datos">${venta.cliente ? `<p class="muted">Lo pendiente queda a nombre de <b>${esc(venta.cliente.nombre)}</b>.</p>`
+          : `<div class="fila"><label class="crece">A nombre de<input class="input" name="nombre" maxlength="80" placeholder="Quién lo retira"></label>
+              <label class="crece">Teléfono <span class="muted">(opcional)</span><input class="input" name="telefono" maxlength="40" inputmode="tel"></label></div>`}</div>
+        <div class="fila fin"><button type="button" class="btn" data-cerrar>Volver a la venta</button><button class="btn primario">Seguir</button></div></form>`,
+        { ancho: true, alCerrar: () => listo(res) });
+      const f = $('#f-faltan', m.el);
+      const hayPend = () => cortos.some(x => f.elements['m' + x.k].value === 'pend');
+      const mostrarDatos = () => { $('#ent-datos', m.el).hidden = !hayPend(); };
+      f.querySelectorAll('input[type=radio]').forEach(r => { r.onchange = mostrarDatos; });
+      mostrarDatos();
+      f.onsubmit = e => {
+        e.preventDefault();
+        const pend = {};
+        for (const x of cortos) if (f.elements['m' + x.k].value === 'pend') pend[x.k] = Math.round((x.c - x.disp) * 1000) / 1000;
+        let entrega = null;
+        if (Object.keys(pend).length && !venta.cliente) {
+          const nombre = String(f.elements.nombre.value).trim();
+          if (!nombre) { f.elements.nombre.focus(); return aviso('Poné a nombre de quién queda lo que se entrega después'); }
+          entrega = { nombre, telefono: String(f.elements.telefono.value).trim() };
+        }
+        res = { pend, entrega }; m.cerrar();
+      };
+    });
+  }
+
+  // Aviso de entregas pendientes (arriba de Vender) y la lista para entregar lo que ya llegó
+  async function cargarEntregas() {
+    let lista = [];
+    try { lista = await llamar('entregas_pendientes'); } catch { return; }
+    const cont = $('#entregas'); if (!cont) return;
+    const listas = lista.filter(e => e.lista).length;
+    cont.innerHTML = lista.length ? `<div class="v-entregas ${listas ? 'listas' : ''}"><span>📦 <b>${lista.length}</b> entrega${lista.length === 1 ? '' : 's'} pendiente${lista.length === 1 ? '' : 's'}
+        ${listas ? ` · <b>${listas} lista${listas === 1 ? '' : 's'} para entregar</b> (llegó la mercadería)` : ''}</span>
+        <button class="btn chico" id="ver-entregas">Ver</button></div>` : '';
+    if (lista.length) $('#ver-entregas').onclick = () => verEntregas(lista);
+  }
+  function verEntregas(lista) {
+    const m = modal('Entregas pendientes', `<div class="tabla-caja"><table class="tabla"><tbody>
+      ${lista.map(e => `<tr><td><b>${cant(e.cantidad)}${e.por_peso ? ' kg' : ''} ${esc(e.nombre)}</b>
+          <div class="muted chico">${esc(e.a_nombre)}${e.telefono ? ' · ' + esc(e.telefono) : ''} · venta #${e.venta} del ${new Date(e.fecha).toLocaleDateString('es-AR')}</div></td>
+        <td class="num">${e.lista ? `<button class="btn primario chico" data-entregar="${e.id}">Entregar</button>`
+          : `<span class="muted chico">Hay ${cant(e.stock)} en stock</span>`}</td></tr>`).join('')}</tbody></table></div>
+      <p class="muted chico">Lo pendiente ya está cobrado: al entregarlo sale del stock, sin plata. Llega cuando se carga la compra.</p>
+      <div class="fila fin"><button class="btn" data-cerrar>Cerrar</button></div>`, { ancho: true });
+    $$('[data-entregar]', m.el).forEach(b => b.onclick = () => correr(async () => {
+      const r = await llamar('entregar_pendiente', { p_id: +b.dataset.entregar });
+      aviso(`Entregado: ${cant(r.cantidad)} ${r.nombre} a ${r.a_nombre}`, 'ok');
+      m.cerrar(); cat.actualizar().catch(() => {}); cargarEntregas();
+    }));
+  }
+
   let cobrando = false;
   async function cobrar() {
     if (cobrando) return;
@@ -414,6 +487,10 @@ export async function pantallaVender(vista, ctx) {
     };
     cobrando = true;
     try {
+      const faltan = await preguntarFaltantes();
+      if (!faltan) return escaner.focus();   // volvió a la venta: no se grabó nada
+      args.p_items = args.p_items.map((it, k) => faltan.pend[k] ? { ...it, pendiente: faltan.pend[k] } : it);
+      if (faltan.entrega) args.p_entrega = faltan.entrega;
       const eleccion = await confirmarCobro(tt, efectivo, pc);
       if (!eleccion) return escaner.focus();   // Esc: sigue cargando, no se grabó nada
       await correr(async () => {
@@ -432,7 +509,9 @@ export async function pantallaVender(vista, ctx) {
         }
         venta = vacia(); pintar(); escaner.focus();
         if (r.repetida) aviso(`Esta venta ya se había registrado como #${r.numero} (${plata(r.total)}): no se cobró de nuevo`, 'info');
-        else aviso(`Venta #${r.numero} registrada${pc > 0 && efectivo ? ' · Vuelto ' + plata(pc - efectivo) : ''}`, 'ok');
+        else aviso(`Venta #${r.numero} registrada${pc > 0 && efectivo ? ' · Vuelto ' + plata(pc - efectivo) : ''}${r.pendientes?.length
+          ? ` · Para entregar después: ${r.pendientes.map(e => `${cant(e.cantidad)} ${e.nombre}`).join(', ')} (${r.pendientes[0].a_nombre})` : ''}`, r.pendientes?.length ? 'info' : 'ok');
+        cargarEntregas();
         if (eleccion === 'imprimir') imprimir(ticketVenta(r, ctx.config));
         cat.actualizar().then(pintar).catch(() => {});
       });
@@ -448,4 +527,5 @@ export async function pantallaVender(vista, ctx) {
     if (e.key === 'F1') { e.preventDefault(); venta.forma = 'Efectivo'; venta.dos = null; pintarPanel(); }
   });
   pintar();
+  cargarEntregas();
 }

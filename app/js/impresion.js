@@ -32,6 +32,8 @@ export function ticketVenta(v, cfg) {
       <tr class="grande"><td>TOTAL</td><td class="n">${plata(v.total)}</td></tr>
       ${v.pagos.map(p => `<tr><td>${esc(p.forma)}</td><td class="n">${plata(p.monto)}</td></tr>`).join('')}
       ${efectivo && +v.paga_con > +efectivo.monto ? `<tr><td>Paga con</td><td class="n">${plata(v.paga_con)}</td></tr><tr><td>Vuelto</td><td class="n">${plata(v.paga_con - efectivo.monto)}</td></tr>` : ''}</table>
+    ${v.pendientes?.length ? `<hr><div class="c">PENDIENTE DE ENTREGA</div>${v.pendientes.map(e => `<div>&nbsp;${cant(e.cantidad)} x ${esc(e.nombre)}</div>`).join('')}
+      <div>A nombre de: ${esc(v.pendientes[0].a_nombre)}</div>` : ''}
     ${v.anulada ? '<hr><div class="c grande">ANULADA</div>' : ''}${pie(cfg)}</div>`;
 }
 
