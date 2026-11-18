@@ -106,6 +106,10 @@ export async function pantallaProductos(vista, ctx) {
       <label>Nombre<input class="input" name="nombre" maxlength="120" required value="${esc(v.nombre || '')}" autofocus></label>
       <div class="fila"><label class="crece">Código de barras<input class="input mono" name="codigo" maxlength="40" value="${esc(v.codigo || '')}" autocomplete="off"></label>
         <label class="crece">Categoría<select class="input" name="categoria_id"><option value="">Sin categoría</option>${cats.map(c => `<option value="${c.id}" ${c.id === v.categoria_id ? 'selected' : ''}>${esc(c.nombre)}</option>`).join('')}</select></label></div>
+      ${p ? `<div class="otros-codigos"><div><b>Otros códigos</b> <span class="muted chico">(el mismo producto con otro envase: cualquiera lo encuentra)</span></div>
+        <div class="chips" id="oc-lista"></div>
+        <div class="fila"><input class="input mono crece" id="oc-nuevo" maxlength="40" placeholder="Agregar otro código" autocomplete="off">
+          <button type="button" class="btn" id="oc-agregar">Agregar</button></div></div>` : ''}
       <div class="fila"><label class="crece">Costo<input class="input" name="costo" inputmode="decimal" value="${v.costo ?? ''}"></label>
         <label class="crece">Precio de venta<input class="input" name="precio" inputmode="decimal" required value="${v.precio ?? ''}"></label></div>
       <div class="fila"><label class="crece">Stock<input class="input" name="stock" inputmode="decimal" value="${v.stock ?? 0}"></label>
@@ -120,6 +124,31 @@ export async function pantallaProductos(vista, ctx) {
     $('[name=por_peso]', m.el).onchange = ev => { $('#plu-box', m.el).hidden = !ev.target.checked; };
     const campoCodigo = $('[name=codigo]', m.el);
     botonCamara(campoCodigo, { continuo: false, alLeer: c => { campoCodigo.value = c; } });   // 📷: el código del producto con la cámara
+    // Otros códigos (producto_codigos): se agregan y se quitan al momento, sin esperar a Guardar
+    if (p) {
+      const pintarOtros = () => {
+        $('#oc-lista', m.el).innerHTML = (p.codigos || []).map(c => `<span class="chip mono">${esc(c)} <button type="button" class="link" data-oc="${esc(c)}" title="Quitar este código">✕</button></span>`).join('')
+          || '<span class="muted chico">Ninguno</span>';
+        $$('[data-oc]', m.el).forEach(b => b.onclick = () => correr(async () => {
+          const r = await llamar('quitar_codigo', { p_producto_id: p.id, p_codigo: b.dataset.oc });
+          p.codigos = r.codigos; pintarOtros(); cat.actualizar().catch(() => {});
+        }));
+      };
+      const nuevo = $('#oc-nuevo', m.el);
+      const agregarOtro = () => {
+        const c = nuevo.value.trim(); if (!c) return;
+        correr(async () => {
+          const r = await llamar('agregar_codigo', { p_producto_id: p.id, p_codigo: c });
+          p.codigos = r.codigos; nuevo.value = '';
+          if (!campoCodigo.value.trim() && r.codigo) { campoCodigo.value = r.codigo; p.codigo = r.codigo; }   // no tenía: quedó como el principal
+          pintarOtros(); cat.actualizar().catch(() => {});
+        });
+      };
+      $('#oc-agregar', m.el).onclick = agregarOtro;
+      nuevo.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); agregarOtro(); } };
+      botonCamara(nuevo, { continuo: false, alLeer: c => { nuevo.value = c; agregarOtro(); } });
+      pintarOtros();
+    }
     $('#f-prod', m.el).onsubmit = ev => {
       ev.preventDefault();
       const f = new FormData(ev.target);

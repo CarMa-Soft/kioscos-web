@@ -281,3 +281,14 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   El mismo código dos veces seguidas no se suma solo (con el pulso la cámara lo pierde y lo vuelve a ver): para otra
   unidad de lo mismo está el botón +1; la ventana muestra el nombre del último leído (`describir`). Está en Vender, Cargar compra, Entradas y salidas y la
   ficha del producto (ahí con `continuo: false` y `alLeer`, solo llena el código).
+
+## Varios códigos por producto y alta rápida desde Compras
+- `producto_codigos`: otros códigos de un producto (por ejemplo, el envase nuevo), además del principal (`productos.codigo`).
+  Un código es de un solo producto (principal u otro, por negocio; lo controlan `agregar_codigo`, el trigger
+  `productos_codigo_principal` y `codigo_usado_por`). `producto_json` trae `codigos`; `catalogo.js` los indexa
+  (`codigosDe`, `mapaPorCodigo`), así Vender, Compras y Entradas y salidas los encuentran. `producto_por_codigo` los usa al
+  leer facturas, y `registrar_compra_factura` guarda como otro código un código de barras nuevo de un producto que ya tenía.
+- Ficha del producto: "Otros códigos" se agregan (también con 📷) y se quitan al momento (`agregar_codigo` / `quitar_codigo`;
+  si el producto no tenía código, el agregado queda como principal).
+- `alta-producto.js` (`productoNoEncontrado`): en Cargar compra y Entradas y salidas, un código o nombre que no está ofrece
+  crear el producto ahí mismo (`guardar_producto`) o agregarle el código a uno existente; el producto se suma a la lista.
