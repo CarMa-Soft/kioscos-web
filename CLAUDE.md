@@ -292,3 +292,9 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   si el producto no tenía código, el agregado queda como principal).
 - `alta-producto.js` (`productoNoEncontrado`): en Cargar compra y Entradas y salidas, un código o nombre que no está ofrece
   crear el producto ahí mismo (`guardar_producto`) o agregarle el código a uno existente; el producto se suma a la lista.
+
+## Botón "atrás" (celular y navegador)
+- `ui.js`: los enlaces a secciones (`#/...`) y `ctx.ir` usan `location.replace`, así cambiar de sección no suma historial.
+  Cada ventana (`modal`) hace `pushState`; "atrás" cierra la de arriba. Sin ventanas abiertas, el `popstate` sigue con
+  `history.back()` hasta salir de la app (salteando las entradas de ventanas ya cerradas). Un `popstate` con otro `#` es un
+  cambio de sección, no el botón atrás.

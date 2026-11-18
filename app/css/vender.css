@@ -136,7 +136,12 @@ button.v-campo small.mal { color: var(--mal); }
 .v-confirmar .btn.primario kbd { background: transparent; color: #fff; border-color: rgba(255, 255, 255, .6); }
 
 @media (max-width: 1000px) {
-  .v { grid-template-columns: 1fr; }
+  /* minmax(0, 1fr) y min-width: 0: que ningún contenido ensanche la columna más que la pantalla (en el celular, con la
+     letra agrandada del teléfono, la página quedaba más ancha y se cortaba a la derecha) */
+  .v { grid-template-columns: minmax(0, 1fr); }
+  .v-izq, .v-der { min-width: 0; }
+  .v-formas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .v-forma { min-width: 0; }
   .v-der { position: static; }
   .v-izq { min-height: 0; padding: 1rem; }
   .v-fila { grid-template-columns: minmax(0, 1fr) 7.5rem 6.5rem 2rem; }
@@ -151,4 +156,9 @@ button.v-campo small.mal { color: var(--mal); }
   .v-enc { display: none; }
   .v-fila > :nth-child(2) { justify-self: start; }
   .v-busca-input { font-size: 1.1rem; }
+  /* cliente y descuento: el título arriba y el campo a lo ancho */
+  .v-opc { grid-template-columns: minmax(0, 1fr) auto; }
+  .v-opc-etq { grid-column: 1 / -1; }
+  /* los atajos de teclado no sirven en el celular */
+  .v-tip, .v-accesos-tit span:last-child, .v-acceso kbd { display: none; }
 }
