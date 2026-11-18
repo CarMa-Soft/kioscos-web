@@ -351,3 +351,7 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   con el de la factura. El costo = neto × (1 + IVA si se tilda + percepciones si se tilda + impuestos internos); percepciones
   e internos se reparten en proporción al neto. Las tildes "Sumar el IVA / las percepciones al costo" se recuerdan en la PC
   (para un monotributista son costo; un responsable inscripto los descuenta).
+- Cargar compra (a mano) tiene lo mismo: "Los costos que cargás" ya incluyen el IVA o son sin IVA (alícuota por renglón y
+  tilde "Sumar el IVA al costo"), percepciones (con su tilde) e impuestos internos como importes de la factura, repartidos
+  según el importe de cada renglón. Se guarda el costo final de cada producto, el total propuesto suma todo y las notas
+  dicen cómo se calculó. Las tildes se comparten con Cargar desde factura.

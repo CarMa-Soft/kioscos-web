@@ -9,9 +9,15 @@ import { formProveedor } from './proveedores.js';
 import { pantallaFactura, hayCargaFactura } from './facturas.js';
 
 const r2 = n => Math.round((+n || 0) * 100) / 100;
+// Si el IVA y las percepciones van al costo (lo mismo que en Cargar desde factura, y recordado en la misma PC):
+// para un monotributista son costo; un responsable inscripto los descuenta.
+const preferencia = clave => { try { return localStorage.getItem('kioscos.factura.' + clave) !== 'no'; } catch { return true; } };
+const recordar = (clave, si) => { try { localStorage.setItem('kioscos.factura.' + clave, si ? 'si' : 'no'); } catch { /* sin almacenamiento */ } };
+const ALICUOTAS = [0, 2.5, 5, 10.5, 21, 27];
 // La compra que se está cargando sobrevive a cambiar de sección
 let borrador = null;
 const vacio = () => ({ proveedor_id: '', comprobante: '', notas: '', total: '', pagar_caja: false, forma: 'Efectivo', items: [],
+  sin_iva: false, percepciones: '', internos: '',
   sin_factura: false, fecha_factura: hoyDia(), vencimiento: '', vence_a_mano: false });
 let soloPendientes = false;
 let enFactura = false;   // cargando una compra desde la factura
@@ -177,6 +183,19 @@ async function nuevaCompra(vista, ctx) {
     <div class="buscador"><input class="input grande" id="escaner" placeholder="Escaneá o escribí el producto que entra" autocomplete="off" autofocus>
       <div id="resultados" class="resultados flotan" hidden></div></div>
     <div class="tabla-caja"><table class="tabla" id="lineas"></table></div>
+    <div class="recuadro-blanco form ancho" id="impuestos">
+      <h3>Impuestos</h3>
+      <div class="fila">
+        <label class="crece">Los costos que cargás<select class="input" id="modo-iva">
+          <option value="con" ${d.sin_iva ? '' : 'selected'}>Ya incluyen el IVA (costo final)</option>
+          <option value="sin" ${d.sin_iva ? 'selected' : ''}>Son sin IVA (como en la factura A): se suma el IVA de cada producto</option></select></label>
+        <label class="crece">Percepciones $ <span class="muted">(IVA, IIBB…)</span><input class="input" id="perc" inputmode="decimal" value="${esc(d.percepciones)}" placeholder="0"></label>
+        <label class="crece">Impuestos internos $<input class="input" id="internos" inputmode="decimal" value="${esc(d.internos)}" placeholder="0"></label></div>
+      <div class="fila">
+        <label class="check" id="sumar-iva-l"><input type="checkbox" id="sumar-iva"> Sumar el IVA al costo</label>
+        <label class="check" id="sumar-perc-l"><input type="checkbox" id="sumar-perc"> Sumar las percepciones al costo</label></div>
+      <p class="muted chico">Para un monotributista el IVA y las percepciones son costo; un responsable inscripto los descuenta y no van al costo.
+        Las percepciones y los impuestos internos se reparten entre los productos según el importe de cada uno; los internos siempre van al costo.</p></div>
     <div class="recuadro-blanco form ancho">
       <div class="fila"><label class="crece">Total de la factura <span class="muted">(vacío = la suma)</span><input class="input" id="total" inputmode="decimal" value="${esc(d.total)}"></label>
         <label class="check"><input type="checkbox" id="caja" ${d.pagar_caja ? 'checked' : ''} ${caja.turno ? '' : 'disabled'}> Pagar con la caja${caja.turno ? '' : ' (la caja está cerrada)'}</label>
@@ -227,10 +246,22 @@ async function nuevaCompra(vista, ctx) {
     agregar(q);
   }
 
-  const suma = () => r2(d.items.reduce((s, i) => s + r2(numero(i.cantidad) * (numero(i.costo) || 0)), 0));
+  // Impuestos: el costo final de cada unidad = costo cargado × (1 + IVA si se suma + parte de percepciones + parte de internos)
+  let sumarIva = preferencia('iva'), sumarPerc = preferencia('perc');
+  const neto = i => r2(numero(i.cantidad) * (numero(i.costo) || 0));
+  const netoTotal = () => d.items.reduce((s, i) => s + neto(i), 0);
+  const ivaDe = i => i.iva != null ? +i.iva : 21;
+  const costoFinal = i => {
+    const nt = netoTotal(), perc = numero(d.percepciones) || 0, internos = numero(d.internos) || 0;
+    return r2((numero(i.costo) || 0) * (1 + (d.sin_iva && sumarIva ? ivaDe(i) / 100 : 0)
+      + (nt > 0 && sumarPerc ? perc / nt : 0) + (nt > 0 ? internos / nt : 0)));
+  };
+  // la suma de la factura: neto + IVA (si los costos son sin IVA) + percepciones + internos
+  const suma = () => r2(netoTotal() + (d.sin_iva ? d.items.reduce((s, i) => s + neto(i) * ivaDe(i) / 100, 0) : 0)
+    + (numero(d.percepciones) || 0) + (numero(d.internos) || 0));
   function pintar() {
     $('#lineas').innerHTML = d.items.length ? `<thead><tr><th>Producto</th><th class="num">Cantidad</th><th class="num">Costo unitario</th><th class="num">Precio de venta nuevo</th><th class="num">Importe</th><th></th></tr></thead><tbody>
-      ${d.items.map((i, k) => { const p = prods.get(i.producto_id) || {}; const costo = numero(i.costo), pn = numero(i.precio_nuevo);
+      ${d.items.map((i, k) => { const p = prods.get(i.producto_id) || {}; const base = numero(i.costo), costo = costoFinal(i), pn = numero(i.precio_nuevo);
         // con margen automático y sin precio escrito, el precio sigue al costo: se muestra en cuánto queda
         const auto = p.margen != null && !(pn > 0) && costo > 0, red = +(ctx.config.redondeo ?? 10);
         const precioAuto = auto ? (x => red > 0 ? Math.ceil(r2(x) / red) * red : r2(x))(costo * (1 + p.margen / 100)) : null;
@@ -238,14 +269,19 @@ async function nuevaCompra(vista, ctx) {
         const margen = costo > 0 && precio > 0 ? Math.round((precio / costo - 1) * 100) : null;
         return `<tr><td>${esc(p.nombre || '?')}<div class="muted chico">stock ${cant(p.stock)} · costo actual ${plata(p.costo)} · precio ${plata(p.precio)}</div></td>
         <td class="num"><input class="input cant" data-c="cantidad" data-k="${k}" value="${esc(i.cantidad)}" inputmode="decimal"></td>
-        <td class="num"><input class="input corto" data-c="costo" data-k="${k}" value="${esc(i.costo)}" inputmode="decimal"></td>
+        <td class="num"><input class="input corto" data-c="costo" data-k="${k}" value="${esc(i.costo)}" inputmode="decimal">
+          ${d.sin_iva ? `<div><select class="input chico-sel" data-iva="${k}" title="Alícuota de IVA de este producto">${ALICUOTAS.map(a => `<option value="${a}" ${a === ivaDe(i) ? 'selected' : ''}>IVA ${String(a).replace('.', ',')}%</option>`).join('')}</select></div>` : ''}
+          ${base > 0 && Math.abs(costo - base) > 0.004 ? `<div class="muted chico">final <b>${plata(costo)}</b> c/u</div>` : ''}</td>
         <td class="num"><input class="input corto" data-c="precio_nuevo" data-k="${k}" value="${esc(i.precio_nuevo)}" inputmode="decimal" placeholder="${auto ? 'auto' : 'no cambia'}" title="${auto ? 'Con margen automático el precio se calcula solo; escribí uno solo si querés otro' : 'Vacío: el precio no cambia'}">
           ${auto ? `<div class="muted chico">margen ${String(+p.margen).replace('.', ',')}% auto: queda en <b>${plata(precioAuto)}</b></div>`
             : margen != null ? `<div class="muted chico ${margen < 0 ? 'mal' : ''}">margen ${margen}%</div>` : ''}</td>
-        <td class="num">${plata(numero(i.cantidad) * (costo || 0))}</td><td><button class="link" data-quitar="${k}">✕</button></td></tr>`; }).join('')}</tbody>`
+        <td class="num">${plata(neto(i))}</td><td><button class="link" data-quitar="${k}">✕</button></td></tr>`; }).join('')}</tbody>`
       : '<tbody><tr><td class="muted vacio">Escaneá o buscá los productos que entran.</td></tr></tbody>';
     $$('[data-c]').forEach(inp => inp.onchange = () => { d.items[+inp.dataset.k][inp.dataset.c] = inp.value; pintar(); });
     $$('[data-quitar]').forEach(b => b.onclick = () => { d.items.splice(+b.dataset.quitar, 1); pintar(); });
+    $$('[data-iva]').forEach(sel => sel.onchange = () => { d.items[+sel.dataset.iva].iva = +sel.value; pintar(); });
+    $('#sumar-iva-l').hidden = !d.sin_iva; $('#sumar-iva').checked = sumarIva;
+    $('#sumar-perc-l').hidden = !(numero(d.percepciones) > 0); $('#sumar-perc').checked = sumarPerc;
     const t = numero(d.total) >= 0 ? numero(d.total) : suma();
     $('#tot').textContent = plata(t);
     const prov = provs.find(p => String(p.id) === String(d.proveedor_id));
@@ -270,6 +306,11 @@ async function nuevaCompra(vista, ctx) {
   $('#comp').oninput = e => { d.comprobante = e.target.value; };
   $('#notas').oninput = e => { d.notas = e.target.value; };
   $('#total').oninput = e => { d.total = e.target.value; pintar(); };
+  $('#modo-iva').onchange = e => { d.sin_iva = e.target.value === 'sin'; pintar(); };
+  $('#perc').onchange = e => { d.percepciones = e.target.value; pintar(); };
+  $('#internos').onchange = e => { d.internos = e.target.value; pintar(); };
+  $('#sumar-iva').onchange = e => { sumarIva = e.target.checked; recordar('iva', sumarIva); pintar(); };
+  $('#sumar-perc').onchange = e => { sumarPerc = e.target.checked; recordar('perc', sumarPerc); pintar(); };
   $('#caja').onchange = e => { d.pagar_caja = e.target.checked; $('#forma').hidden = !d.pagar_caja; pintar(); };
   $('#forma').onchange = e => { d.forma = e.target.value; };
   // Volver a la lista sin perder lo cargado (el botón ofrece seguir); si no tenía nada, se descarta
@@ -277,11 +318,15 @@ async function nuevaCompra(vista, ctx) {
   $('#descartar').onclick = async () => { if (!d.items.length || await confirmar('Descartar', '¿Descartar la compra sin guardarla?', 'Descartar')) { borrador = null; ctx.recargar(); } };
   $('#guardar').onclick = () => {
     if (!d.items.length) return aviso('La compra no tiene productos');
-    const items = d.items.map(i => ({ producto_id: i.producto_id, cantidad: numero(i.cantidad), costo: numero(i.costo) || 0, precio_nuevo: numero(i.precio_nuevo) > 0 ? numero(i.precio_nuevo) : null }));
+    const items = d.items.map(i => ({ producto_id: i.producto_id, cantidad: numero(i.cantidad), costo: costoFinal(i), precio_nuevo: numero(i.precio_nuevo) > 0 ? numero(i.precio_nuevo) : null }));
+    const perc = numero(d.percepciones) || 0, internos = numero(d.internos) || 0;
+    if (perc < 0 || internos < 0) return aviso('Revisá las percepciones y los impuestos internos');
+    const detalle = [d.sin_iva ? (sumarIva ? 'costos sin IVA + IVA de cada producto' : 'costos sin IVA (el IVA no va al costo)') : '',
+      perc ? `percepciones ${plata(perc)}${sumarPerc ? ' en el costo' : ' fuera del costo'}` : '', internos ? `impuestos internos ${plata(internos)} en el costo` : ''].filter(Boolean).join(' · ');
     if (items.some(i => !(i.cantidad > 0))) return aviso('Revisá las cantidades');
     if (d.total !== '' && !(numero(d.total) >= 0)) return aviso('Revisá el total');
     correr(async () => {
-      await llamar('registrar_compra', { p: { proveedor_id: d.proveedor_id || null, comprobante: d.comprobante, notas: d.notas, total: d.total === '' ? null : numero(d.total),
+      await llamar('registrar_compra', { p: { proveedor_id: d.proveedor_id || null, comprobante: d.comprobante, notas: [d.notas, detalle].filter(Boolean).join(' · '), total: d.total === '' ? suma() : numero(d.total),
         pagar_caja: d.pagar_caja, forma: d.forma, items,
         factura_pendiente: d.sin_factura, fecha_factura: d.sin_factura ? null : d.fecha_factura || null, vencimiento: d.vencimiento || null } });
       borrador = null; aviso(d.sin_factura ? 'Compra guardada con factura pendiente: stock actualizado' : 'Compra guardada: stock y costos actualizados', 'ok');
