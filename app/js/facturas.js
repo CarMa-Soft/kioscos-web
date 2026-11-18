@@ -262,8 +262,9 @@ function pintar(vista, ctx, alSalir) {
             : `<input class="input cant" data-u="${i}" value="${esc(l.unidades)}" inputmode="decimal"><div class="muted chico">por ${it.unidad === 'bulto' ? 'bulto' : 'unidad'} facturada</div>`}</td>
           <td class="num">${cant(k.ingresan)}</td>
           <td class="num">${plata(k.costo)}${p && Math.abs(k.costo - p.costo) > 0.5 ? `<div class="muted chico">antes ${plata(p.costo)}</div>` : ''}</td>
-          <td class="num"><input class="input corto" data-pr="${i}" value="${esc(l.precio ?? (l.nuevo ? k.propuesto : ''))}" inputmode="decimal" placeholder="${p ? 'sin cambio' : ''}">
-            ${p ? `<div class="muted chico">hoy ${plata(p.precio)}${(subio || k.sugerido) && l.precio == null ? ` · <button class="link" data-usar="${i}">usar ${plata(k.propuesto)}</button>` : ''}</div>`
+          <td class="num"><input class="input corto" data-pr="${i}" value="${esc(l.precio ?? (l.nuevo ? k.propuesto : ''))}" inputmode="decimal" placeholder="${p ? (p.margen != null ? 'auto' : 'sin cambio') : ''}">
+            ${p && p.margen != null ? `<div class="muted chico">margen ${String(+p.margen).replace('.', ',')}% auto: queda en <b>${plata(redondear(k.costo * (1 + p.margen / 100), carga.prep.redondeo))}</b></div>`
+            : p ? `<div class="muted chico">hoy ${plata(p.precio)}${(subio || k.sugerido) && l.precio == null ? ` · <button class="link" data-usar="${i}">usar ${plata(k.propuesto)}</button>` : ''}</div>`
               : k.sugerido ? '<div class="muted chico">sugerido por el proveedor</div>' : ''}</td></tr>`;
       }).join('')}</tbody></table></div>
     <div class="recuadro-blanco form ancho"><div class="fila">

@@ -214,7 +214,7 @@ async function nuevaCompra(vista, ctx) {
     const t = escaner.value.trim();
     const p = porCodigo.get(t.toLowerCase()) || (!res.hidden && sugeridos[marcado]);
     if (p) agregar(p);
-    else if (t) productoNoEncontrado(t, { productos: cata.productos, categorias: cata.categorias, alElegir: incorporar });   // crearlo o agregarle el código a uno
+    else if (t) productoNoEncontrado(t, { productos: cata.productos, categorias: cata.categorias, alElegir: incorporar, config: ctx.config });   // crearlo o agregarle el código a uno
   };
   escaner.onblur = () => setTimeout(() => { res.hidden = true; }, 150);
   // Un producto recién creado (o al que se le agregó un código): entra a la lista de esta pantalla y se suma
@@ -230,13 +230,18 @@ async function nuevaCompra(vista, ctx) {
   const suma = () => r2(d.items.reduce((s, i) => s + r2(numero(i.cantidad) * (numero(i.costo) || 0)), 0));
   function pintar() {
     $('#lineas').innerHTML = d.items.length ? `<thead><tr><th>Producto</th><th class="num">Cantidad</th><th class="num">Costo unitario</th><th class="num">Precio de venta nuevo</th><th class="num">Importe</th><th></th></tr></thead><tbody>
-      ${d.items.map((i, k) => { const p = prods.get(i.producto_id) || {}; const costo = numero(i.costo), pn = numero(i.precio_nuevo), precio = pn > 0 ? pn : +p.precio;
+      ${d.items.map((i, k) => { const p = prods.get(i.producto_id) || {}; const costo = numero(i.costo), pn = numero(i.precio_nuevo);
+        // con margen automático y sin precio escrito, el precio sigue al costo: se muestra en cuánto queda
+        const auto = p.margen != null && !(pn > 0) && costo > 0, red = +(ctx.config.redondeo ?? 10);
+        const precioAuto = auto ? (x => red > 0 ? Math.ceil(r2(x) / red) * red : r2(x))(costo * (1 + p.margen / 100)) : null;
+        const precio = pn > 0 ? pn : auto ? precioAuto : +p.precio;
         const margen = costo > 0 && precio > 0 ? Math.round((precio / costo - 1) * 100) : null;
         return `<tr><td>${esc(p.nombre || '?')}<div class="muted chico">stock ${cant(p.stock)} · costo actual ${plata(p.costo)} · precio ${plata(p.precio)}</div></td>
         <td class="num"><input class="input cant" data-c="cantidad" data-k="${k}" value="${esc(i.cantidad)}" inputmode="decimal"></td>
         <td class="num"><input class="input corto" data-c="costo" data-k="${k}" value="${esc(i.costo)}" inputmode="decimal"></td>
-        <td class="num"><input class="input corto" data-c="precio_nuevo" data-k="${k}" value="${esc(i.precio_nuevo)}" inputmode="decimal" placeholder="no cambia">
-          ${margen != null ? `<div class="muted chico ${margen < 0 ? 'mal' : ''}">margen ${margen}%</div>` : ''}</td>
+        <td class="num"><input class="input corto" data-c="precio_nuevo" data-k="${k}" value="${esc(i.precio_nuevo)}" inputmode="decimal" placeholder="${auto ? 'auto: ' + plata(precioAuto) : 'no cambia'}">
+          ${auto ? `<div class="muted chico">margen ${String(+p.margen).replace('.', ',')}% auto: queda en <b>${plata(precioAuto)}</b></div>`
+            : margen != null ? `<div class="muted chico ${margen < 0 ? 'mal' : ''}">margen ${margen}%</div>` : ''}</td>
         <td class="num">${plata(numero(i.cantidad) * (costo || 0))}</td><td><button class="link" data-quitar="${k}">✕</button></td></tr>`; }).join('')}</tbody>`
       : '<tbody><tr><td class="muted vacio">Escaneá o buscá los productos que entran.</td></tr></tbody>';
     $$('[data-c]').forEach(inp => inp.onchange = () => { d.items[+inp.dataset.k][inp.dataset.c] = inp.value; pintar(); });

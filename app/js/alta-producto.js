@@ -9,7 +9,7 @@ import { botonCamara } from './escaner.js';
 
 const pareceCodigo = t => /^\S{4,40}$/.test(t) && /\d/.test(t);
 
-export function productoNoEncontrado(texto, { productos, categorias, alElegir }) {
+export function productoNoEncontrado(texto, { productos, categorias, alElegir, config = {} }) {
   const t = String(texto || '').trim();
   const esCodigo = pareceCodigo(t);
   const m = modal('No está en tus productos', `<p>No hay ningún producto con ${esCodigo ? 'el código' : ''} <b>${esc(t)}</b>.</p>
@@ -17,32 +17,48 @@ export function productoNoEncontrado(texto, { productos, categorias, alElegir })
       <button class="btn primario" id="alta-nuevo">＋ Es un producto nuevo: crearlo</button>
       ${esCodigo ? '<button class="btn" id="alta-codigo">Es uno que ya tengo (cambió el envase): agregarle este código</button>' : ''}
       <button class="btn" data-cerrar>Cancelar</button></div>`);
-  $('#alta-nuevo', m.el).onclick = () => { m.cerrar(); formNuevo(esCodigo ? { codigo: t } : { nombre: t }, categorias, alElegir); };
+  $('#alta-nuevo', m.el).onclick = () => { m.cerrar(); formNuevo(esCodigo ? { codigo: t } : { nombre: t }, categorias, alElegir, config); };
   if (esCodigo) $('#alta-codigo', m.el).onclick = () => { m.cerrar(); elegirParaCodigo(t, productos, alElegir); };
 }
 
 // Alta rápida: lo justo para cargarlo en la compra; lo demás (stock mínimo, botón rápido…) se completa después en Productos
-function formNuevo(v, categorias, alElegir) {
+function formNuevo(v, categorias, alElegir, config) {
+  // margen automático de la configuración (Precios y márgenes → Configuración); con 0, precio fijo
+  const mgDef = +(config.margen ?? 40), red = +(config.redondeo ?? 10);
   const m = modal('Producto nuevo', `<form class="form ancho" id="f-alta">
     <label>Nombre<input class="input" name="nombre" maxlength="120" required value="${esc(v.nombre || '')}" ${v.nombre ? '' : 'autofocus'}></label>
     <div class="fila"><label class="crece">Código de barras<input class="input mono" name="codigo" maxlength="40" value="${esc(v.codigo || '')}" autocomplete="off"></label>
       <label class="crece">Categoría<select class="input" name="categoria_id"><option value="">Sin categoría</option>
         ${categorias.map(c => `<option value="${c.id}">${esc(c.nombre)}</option>`).join('')}</select></label></div>
     <div class="fila"><label class="crece">Costo<input class="input" name="costo" inputmode="decimal"></label>
+      <label class="crece">Margen %<input class="input" name="margen" inputmode="decimal" value="${mgDef > 0 ? mgDef : ''}"></label>
       <label class="crece">Precio de venta<input class="input" name="precio" inputmode="decimal" required></label></div>
+    <label class="check"><input type="checkbox" name="margen_auto" ${mgDef > 0 ? 'checked' : ''}> Margen automático <span class="muted">(el precio sigue al costo)</span></label>
     <label class="check"><input type="checkbox" name="por_peso"> Se vende por kilo</label>
     <p class="muted chico">El stock lo suma la compra. El stock mínimo y lo demás se completan después en Productos.</p>
     <div class="fila fin"><button type="button" class="btn" data-cerrar>Cancelar</button><button class="btn primario">Crear y agregar</button></div></form>`, { ancho: true });
   const campo = $('[name=codigo]', m.el);
   botonCamara(campo, { continuo: false, alLeer: c => { campo.value = c; } });
+  // costo, margen y precio conectados (como en la ficha del producto)
+  const [cCosto, cMargen, cPrecio] = ['costo', 'margen', 'precio'].map(n => $(`[name=${n}]`, m.el));
+  const precioDesdeMargen = () => {
+    const c = numero(cCosto.value), mg = numero(cMargen.value);
+    if (!(c > 0) || !Number.isFinite(mg)) return;
+    const x = Math.round(c * (1 + mg / 100) * 100) / 100;
+    cPrecio.value = String(red > 0 ? Math.ceil(x / red) * red : x);
+  };
+  cCosto.oninput = precioDesdeMargen; cMargen.oninput = precioDesdeMargen;
+  cPrecio.oninput = () => { const c = numero(cCosto.value), pr = numero(cPrecio.value); cMargen.value = c > 0 && pr >= 0 ? String(Math.round((pr - c) / c * 1000) / 10) : ''; };
   $('#f-alta', m.el).onsubmit = e => {
     e.preventDefault();
     const f = new FormData(e.target);
     const datos = { nombre: f.get('nombre'), codigo: f.get('codigo'), categoria_id: f.get('categoria_id') || null,
       costo: numero(f.get('costo')) || 0, precio: numero(f.get('precio')), por_peso: f.get('por_peso') === 'on' };
     if (!(datos.precio >= 0)) return aviso('Revisá el precio de venta');
+    const auto = f.get('margen_auto') === 'on' && datos.costo > 0 && numero(f.get('margen')) >= 0;
     correr(async () => {
-      const p = await llamar('guardar_producto', { p: datos });
+      let p = await llamar('guardar_producto', { p: datos });
+      if (auto) p = await llamar('margen_producto', { p_id: p.id, p_margen: numero(f.get('margen')) });
       m.cerrar(); aviso(`${p.nombre} creado`, 'ok');
       cat.actualizar().catch(() => {});
       alElegir(p);

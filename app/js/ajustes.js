@@ -55,31 +55,12 @@ export async function pantallaAjustes(vista, ctx) {
         <label class="crece">Salidas<textarea class="input" name="egreso" rows="6">${esc((motivos.egreso || []).join('\n'))}</textarea></label></div>
       <div class="fila"><button class="btn primario">Guardar</button></div>
     </form>
-    <form class="form ancho recuadro-blanco" id="f-precios">
-      <h3>Precios</h3>
-      <p class="muted">Al aplicar un aumento o proponer el precio de un producto nuevo de una factura, los precios se redondean hacia
-        arriba a múltiplos de este valor (ej: con 10, $1.234 queda en $1.240). Con 0 no se redondea.</p>
-      <div class="fila"><label class="crece">Redondear a múltiplos de<input class="input corto" name="redondeo" inputmode="decimal" value="${esc(String(ctx.config.redondeo ?? 10))}"></label>
-        <label class="crece">Margen para los productos nuevos de una factura (%)<input class="input corto" name="margen" inputmode="decimal" value="${esc(String(ctx.config.margen ?? 40))}"></label></div>
-      <div class="fila"><button class="btn primario">Guardar</button></div>
-    </form>
     <div class="form ancho recuadro-blanco"><h3>Lectura de facturas con IA</h3><div id="uso-ia" class="muted">…</div></div>`;
   llamar('uso_ia').then(u => {
     $('#uso-ia').innerHTML = `Este mes: <b>${u.mes.lecturas}</b> lectura${+u.mes.lecturas === 1 ? '' : 's'} · US$ ${(+u.mes.costo_usd).toFixed(2)}
       · En total: ${u.total.lecturas} · US$ ${(+u.total.costo_usd).toFixed(2)}
       <p class="chico">El costo es estimado; el detalle oficial está en la consola de Anthropic. Hasta 60 lecturas por día.</p>`;
   }).catch(() => { $('#uso-ia').textContent = 'No se pudo consultar el consumo.'; });
-  $('#f-precios').onsubmit = e => {
-    e.preventDefault();
-    const f = new FormData(e.target), v = numero(f.get('redondeo')), mg = numero(f.get('margen'));
-    if (!(v >= 0)) return aviso('Revisá el redondeo');
-    if (!(mg >= 0)) return aviso('Revisá el margen');
-    correr(async () => {
-      ctx.config.redondeo = await llamar('guardar_redondeo', { p_valor: v });
-      ctx.config.margen = await llamar('guardar_margen', { p_valor: mg });
-      aviso('Precios guardados', 'ok');
-    });
-  };
   $('#f-motivos').onsubmit = e => {
     e.preventDefault();
     const f = new FormData(e.target);

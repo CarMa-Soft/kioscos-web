@@ -337,3 +337,9 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   Vista previa con la misma cuenta que la base y destildar. `ajustar_precios(p)` lo aplica y lo deja en aumentos /
   aumento_cambios (con `margen_antes`/`margen_despues`); `deshacer_aumento` vuelve también el margen.
 - Ficha: Margen % y la tilde "Margen automático" (`margen_producto`). `aumento_masivo` queda pero ya no lo usa la pantalla.
+- Configuración de precios (antes en Ajustes → Precios): pestaña "Configuración" de Precios y márgenes. `redondeo`
+  (`guardar_redondeo`) y `margen` (`guardar_margen`): el margen automático de los productos nuevos (0 = precio fijo).
+  `registrar_compra_factura` se lo pone a los nuevos de una factura (después de la compra, para no pisar el precio
+  elegido); la pantalla, al alta rápida (`alta-producto.js`) y a "Nuevo producto" (con `margen_producto`; sin costo
+  quedan con precio fijo).
+- Cargar compra y Cargar desde factura muestran, en los productos con margen automático, el precio en que van a quedar.
