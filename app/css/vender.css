@@ -162,3 +162,9 @@ button.v-campo small.mal { color: var(--mal); }
   /* los atajos de teclado no sirven en el celular */
   .v-tip, .v-accesos-tit span:last-child, .v-acceso kbd { display: none; }
 }
+
+/* Entregas pendientes: el aviso arriba de Vender y la pregunta al cobrar */
+.v-entregas { display: flex; align-items: center; justify-content: space-between; gap: .75rem; margin-bottom: 1rem; padding: .7rem 1rem;
+  border-radius: 12px; background: #f2f4f7; border: 1px solid var(--borde); }
+.v-entregas.listas { background: #ecfdf3; border-color: #abefc6; color: #067647; }
+.faltante { display: grid; gap: .35rem; padding: .75rem; border: 1px solid var(--borde); border-radius: 10px; }

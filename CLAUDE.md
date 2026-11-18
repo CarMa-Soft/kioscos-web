@@ -298,3 +298,14 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   Cada ventana (`modal`) hace `pushState`; "atrás" cierra la de arriba. Sin ventanas abiertas, el `popstate` sigue con
   `history.back()` hasta salir de la app (salteando las entradas de ventanas ya cerradas). Un `popstate` con otro `#` es un
   cambio de sección, no el botón atrás.
+
+## Entregas pendientes (vender más de lo que hay)
+- Al cobrar, si un producto se vende por más de lo que hay en stock (según el catálogo del navegador), Vender pregunta:
+  se lleva todo ahora (el stock estaba mal: sale todo, como antes) o se lleva lo que hay y el resto queda pendiente, a
+  nombre del cliente o de un nombre y teléfono. `registrar_venta` tiene `p_entrega {nombre, telefono}` y por renglón
+  `pendiente`: se cobra todo, del stock sale solo lo entregado, y lo pendiente va a `entregas_pendientes`.
+- `comprometido(producto)`: lo pendiente de entregar. `pedidos()` lo suma (stock − comprometido ≤ mínimo; trae
+  `para_entregar` y la nota `entregas`). Vender muestra el aviso (`entregas_pendientes()`) y "Entregar"
+  (`entregar_pendiente`, cualquier usuario, con stock suficiente) lo saca del stock sin plata.
+- `devolver_venta` descuenta primero de lo pendiente (`descontar_pendiente`: eso no vuelve al stock); `anular_venta` cancela
+  lo pendiente y devuelve al stock solo lo entregado. `venta_json` trae `pendientes`, y el ticket los imprime.
