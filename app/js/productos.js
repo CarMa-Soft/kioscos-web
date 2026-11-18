@@ -115,6 +115,7 @@ export async function pantallaProductos(vista, ctx) {
         <div class="fila"><input class="input mono crece" id="oc-nuevo" maxlength="40" placeholder="Agregar otro código" autocomplete="off">
           <button type="button" class="btn" id="oc-agregar">Agregar</button></div></div>` : ''}
       <div class="fila"><label class="crece">Costo<input class="input" name="costo" inputmode="decimal" value="${v.costo ?? ''}"></label>
+        <label class="crece">Margen % <span class="muted chico" id="margen-ayuda"></span><input class="input" name="margen" inputmode="decimal" value="${margen(v) == null ? '' : Math.round(margen(v) * 10) / 10}"></label>
         <label class="crece">Precio de venta<input class="input" name="precio" inputmode="decimal" required value="${v.precio ?? ''}"></label></div>
       <div class="fila"><label class="crece">Stock<input class="input" name="stock" inputmode="decimal" value="${v.stock ?? 0}"></label>
         <label class="crece">Stock mínimo<input class="input" name="stock_min" inputmode="decimal" value="${v.stock_min ?? 0}"></label></div>
@@ -126,6 +127,25 @@ export async function pantallaProductos(vista, ctx) {
       <div class="fila fin">${p ? '<button type="button" class="btn peligro izq" id="eliminar">Eliminar</button>' : ''}
         <button type="button" class="btn" data-cerrar>Cancelar</button><button class="btn primario">Guardar</button></div></form>`, { ancho: true });
     $('[name=por_peso]', m.el).onchange = ev => { $('#plu-box', m.el).hidden = !ev.target.checked; };
+    // Costo, margen y precio conectados: el margen calcula el precio (redondeado hacia arriba como en Ajustes → Precios),
+    // el precio muestra el margen que queda, y un costo nuevo mantiene el margen y propone el precio.
+    const [cCosto, cMargen, cPrecio] = ['costo', 'margen', 'precio'].map(n => $(`[name=${n}]`, m.el));
+    const redondeo = +(ctx.config.redondeo ?? 10);
+    const precioDesdeMargen = () => {
+      const c = numero(cCosto.value), mg = numero(cMargen.value);
+      if (!(c > 0) || !Number.isFinite(mg) || cMargen.value.trim() === '') return;
+      const x = c * (1 + mg / 100);
+      cPrecio.value = String(redondeo > 0 ? Math.ceil(Math.round(x * 100) / 100 / redondeo) * redondeo : Math.round(x * 100) / 100);
+      $('#margen-ayuda', m.el).textContent = redondeo > 0 ? `(redondeado a ${plata(redondeo)})` : '';
+    };
+    const margenDesdePrecio = () => {
+      const c = numero(cCosto.value), pr = numero(cPrecio.value);
+      cMargen.value = c > 0 && pr >= 0 ? String(Math.round((pr - c) / c * 1000) / 10) : '';
+      $('#margen-ayuda', m.el).textContent = '';
+    };
+    cMargen.oninput = precioDesdeMargen;
+    cPrecio.oninput = margenDesdePrecio;
+    cCosto.oninput = () => { if (cMargen.value.trim() !== '') precioDesdeMargen(); else margenDesdePrecio(); };
     const campoCodigo = $('[name=codigo]', m.el);
     botonCamara(campoCodigo, { continuo: false, alLeer: c => { campoCodigo.value = c; } });   // 📷: el código del producto con la cámara
     // Otros códigos (producto_codigos): se agregan y se quitan al momento, sin esperar a Guardar
