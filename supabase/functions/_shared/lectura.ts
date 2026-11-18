@@ -14,7 +14,7 @@ const ORIGENES = new Set(['https://carma-soft.github.io']);
 const nulo = (tipo: string) => ({ anyOf: [{ type: tipo }, { type: 'null' }] });
 const ESQUEMA = {
   type: 'object', additionalProperties: false,
-  required: ['proveedor', 'comprobante', 'fecha', 'vencimiento', 'items', 'descuento_global', 'otros_cargos', 'subtotal', 'iva', 'percepciones', 'total', 'observaciones'],
+  required: ['proveedor', 'comprobante', 'fecha', 'vencimiento', 'items', 'descuento_global', 'otros_cargos', 'subtotal', 'iva', 'percepciones', 'impuestos_internos', 'total', 'observaciones'],
   properties: {
     proveedor: { type: 'object', additionalProperties: false, required: ['nombre', 'cuit'], properties: { nombre: { type: 'string' }, cuit: nulo('string') } },
     comprobante: nulo('string'),
@@ -35,6 +35,7 @@ const ESQUEMA = {
     },
     descuento_global: nulo('number'), otros_cargos: nulo('number'),
     subtotal: nulo('number'), iva: nulo('number'), percepciones: nulo('number'), total: nulo('number'),
+    impuestos_internos: { type: 'number' },   // 0 si no hay (no nulo: ya están los 16 campos que pueden ser null)
     observaciones: nulo('string'),
   },
 };
@@ -49,9 +50,9 @@ const INSTRUCCIONES = `Leés facturas y remitos de proveedores para un kiosco o 
   - Si el precio es por unidad, unidad "unidad" y cantidad = total de unidades. Si la factura separa bultos y unidades sueltas con precio por unidad, cantidad = bultos × unidades por bulto + unidades sueltas, y unidades_por_bulto = el UxB.
   - Si se cobra por peso (fiambres o quesos por pieza, verdura), unidad "kg" y cantidad = los kilos.
 - importe: el importe del renglón tal como figura, ya con su bonificación y sin IVA. precio_unitario y bonificacion (en %) como figuran.
-- alicuota_iva: la del renglón si figura; si no, la de la factura (21 o 10,5).
+- alicuota_iva: la del renglón si figura. Una misma factura puede tener renglones con distintas alícuotas (por ejemplo 10,5% y 21%): si el renglón no la dice pero la factura discrimina IVA por alícuota, asigná a cada renglón la que le corresponde de modo que el IVA de cada alícuota cierre con los totales de la factura. Si hay una sola alícuota, esa. Si no se puede saber, poné la de la mayoría y anotalo en observaciones.
 - precio_sugerido: precio de venta sugerido al público por unidad, solo si la factura lo trae.
-- subtotal: neto gravado de toda la factura (sin IVA). iva: total de IVA. percepciones: suma de todas las percepciones (IVA, IIBB, municipal). total: total final.
+- subtotal: neto gravado de toda la factura (sin IVA). iva: total de IVA (de todas las alícuotas). percepciones: suma de todas las percepciones (IVA, IIBB, municipal). impuestos_internos: impuestos internos (cigarrillos, bebidas alcohólicas, etc.) y otros impuestos que no son IVA ni percepciones; 0 si no hay. total: total final.
 - Números: devolvelos como números con punto decimal. Las facturas pueden usar "1.234,56" o "1,234.56": interpretalos según el contexto y verificá que cantidad × precio_unitario × (1 − bonificación) dé el importe, y que la suma de renglones cierre con el subtotal.
 - Ignorá tildes, sellos, marcas de agua y anotaciones a mano que no sean parte del comprobante.
 - Si algo no se lee o no figura, poné null: nunca inventes datos. En observaciones anotá en una o dos frases lo dudoso (renglones ilegibles, cuentas que no cierran); si no hay nada, null.`;

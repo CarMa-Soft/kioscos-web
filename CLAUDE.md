@@ -343,3 +343,11 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   elegido); la pantalla, al alta rápida (`alta-producto.js`) y a "Nuevo producto" (con `margen_producto`; sin costo
   quedan con precio fijo).
 - Cargar compra y Cargar desde factura muestran, en los productos con margen automático, el precio en que van a quedar.
+
+## Impuestos en la factura (IVA por renglón, percepciones, impuestos internos)
+- La IA lee la alícuota de IVA de cada renglón (aunque la factura mezcle 10,5% y 21%) e `impuestos_internos` aparte
+  (número, 0 si no hay: el esquema ya usa los 16 campos que pueden ser null).
+- En la revisión, cada renglón tiene su IVA editable (`alicuota` en la línea) y un control compara el IVA de los renglones
+  con el de la factura. El costo = neto × (1 + IVA si se tilda + percepciones si se tilda + impuestos internos); percepciones
+  e internos se reparten en proporción al neto. Las tildes "Sumar el IVA / las percepciones al costo" se recuerdan en la PC
+  (para un monotributista son costo; un responsable inscripto los descuenta).

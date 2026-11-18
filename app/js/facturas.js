@@ -78,18 +78,26 @@ async function iniciar(f, proveedor_id = null, lectura = null) {
     comprobante: prev?.comprobante ?? (f.comprobante || ''),
     fecha_factura: prev?.fecha_factura ?? (/^\d{4}-\d{2}-\d{2}$/.test(f.fecha || '') ? f.fecha : hoyDia()),
     vencimiento: prev?.vencimiento ?? (/^\d{4}-\d{2}-\d{2}$/.test(f.vencimiento || '') ? f.vencimiento : ''),
-    sumarIva: prev?.sumarIva ?? true, pagar_caja: prev?.pagar_caja ?? false, forma: prev?.forma ?? 'Efectivo',
+    sumarIva: prev?.sumarIva ?? preferencia('iva'), sumarPerc: prev?.sumarPerc ?? preferencia('perc'),
+    pagar_caja: prev?.pagar_caja ?? false, forma: prev?.forma ?? 'Efectivo',
     lineas: f.items.map((it, i) => {
       const p = prep.lineas[i], ant = prev?.lineas[i];
       if (ant && !p.producto_id) return { ...ant, sugerencias: p.sugerencias };
       const unidades = p.unidades ?? (it.unidad === 'kg' ? 1 : it.unidad === 'bulto' && +it.unidades_por_bulto > 0 ? +it.unidades_por_bulto : unidadesDeDescripcion(it.descripcion) ?? 1);
       return { producto_id: p.producto_id ? String(p.producto_id) : '', recordado: !!p.producto_id, sugerencias: p.sugerencias,
-        nuevo: null, unidades: String(+unidades), precio: null };
+        nuevo: null, unidades: String(+unidades), precio: null, alicuota: it.alicuota_iva != null ? +it.alicuota_iva : 21 };
     }),
   };
 }
 
 // Cuentas de un renglón: unidades de venta que entran, costo por unidad y precio propuesto
+// Si el IVA y las percepciones van al costo: para un monotributista son costo; un responsable inscripto los descuenta.
+// Lo que se elige queda recordado en esta PC.
+const preferencia = clave => { try { return localStorage.getItem('kioscos.factura.' + clave) !== 'no'; } catch { return true; } };
+const recordar = (clave, si) => { try { localStorage.setItem('kioscos.factura.' + clave, si ? 'si' : 'no'); } catch { /* sin almacenamiento */ } };
+const alicuotaDe = (it, l) => l?.alicuota ?? (it.alicuota_iva != null ? +it.alicuota_iva : 21);
+const ALICUOTAS = [0, 2.5, 5, 10.5, 21, 27];
+
 function calcular(it, l) {
   const f = carga.f;
   const suma = f.items.reduce((s, x) => s + +x.importe, 0);
@@ -98,7 +106,11 @@ function calcular(it, l) {
   const factor = numero(l.unidades) > 0 ? numero(l.unidades) : 1;
   const ingresan = r3(+it.cantidad * factor);
   const neto = ingresan > 0 ? +it.importe * ajuste / ingresan : 0;
-  const costo = r2(neto * (carga.sumarIva ? 1 + (+it.alicuota_iva || 21) / 100 : 1));
+  // percepciones e impuestos internos se reparten en proporción al neto de cada renglón; los internos siempre son costo
+  const netoTotal = suma * ajuste;
+  const pPerc = netoTotal > 0 && carga.sumarPerc ? (+f.percepciones || 0) / netoTotal : 0;
+  const pInt = netoTotal > 0 ? (+f.impuestos_internos || 0) / netoTotal : 0;
+  const costo = r2(neto * (1 + (carga.sumarIva ? alicuotaDe(it, l) / 100 : 0) + pPerc + pInt));
   const sugerido = +it.precio_sugerido > 0 ? +it.precio_sugerido : null;
   return { ingresan, costo, propuesto: sugerido ?? redondear(costo * (1 + carga.prep.margen / 100), carga.prep.redondeo), sugerido };
 }
@@ -219,7 +231,10 @@ function pintar(vista, ctx, alSalir) {
   const suma = r2(f.items.reduce((s, x) => s + +x.importe, 0));
   const neto = r2(suma - (+f.descuento_global || 0) + (+f.otros_cargos || 0));
   const okSubtotal = !(+f.subtotal > 0) || Math.abs(neto - +f.subtotal) <= 1;
-  const okTotal = !(+f.total > 0) || !(+f.subtotal > 0) || Math.abs(+f.subtotal + (+f.iva || 0) + (+f.percepciones || 0) - +f.total) <= 1;
+  const okTotal = !(+f.total > 0) || !(+f.subtotal > 0) || Math.abs(+f.subtotal + (+f.iva || 0) + (+f.percepciones || 0) + (+f.impuestos_internos || 0) - +f.total) <= 1;
+  const ajusteNeto = suma > 0 ? neto / suma : 1;
+  const ivaRenglones = r2(f.items.reduce((s, it, i) => s + +it.importe * ajusteNeto * alicuotaDe(it, c.lineas[i]) / 100, 0));
+  const okIva = !(+f.iva > 0) || Math.abs(ivaRenglones - +f.iva) <= Math.max(1, +f.iva * 0.005);
   const malas = f.items.filter(it => !lineaCierra(it)).length;
   const sinProducto = c.lineas.filter(l => !l.producto_id && !l.nuevo).length;
   const chip = (b, txt) => `<span class="etiqueta ${b ? 'bien' : 'alerta'}">${b ? '✓' : '✗'} ${txt}</span>`;
@@ -238,7 +253,10 @@ function pintar(vista, ctx, alSalir) {
           <input class="input" type="date" id="f-vence" value="${esc(c.vencimiento || vencePropuesto())}"></label></div>
       <div class="chips">${chip(!malas, malas ? `${malas} renglón(es) no cierran` : 'Todos los renglones cierran')}
         ${chip(okSubtotal, `Renglones ${plata(neto)} ${okSubtotal ? '=' : '≠'} subtotal ${plata(f.subtotal)}`)}
+        ${+f.iva > 0 ? chip(okIva, `IVA de los renglones ${plata(ivaRenglones)} ${okIva ? '=' : '≠'} IVA de la factura ${plata(f.iva)}${okIva ? '' : ': revisá la alícuota de cada renglón'}`) : ''}
         ${chip(okTotal, `Total ${plata(f.total)}`)}
+        ${+f.percepciones ? `<span class="etiqueta">Percepciones ${plata(f.percepciones)}${c.sumarPerc ? ' · van al costo' : ''}</span>` : ''}
+        ${+f.impuestos_internos ? `<span class="etiqueta">Impuestos internos ${plata(f.impuestos_internos)} · van al costo</span>` : ''}
         ${+f.descuento_global ? `<span class="etiqueta">Descuento global ${plata(f.descuento_global)}</span>` : ''}
         ${+f.otros_cargos ? `<span class="etiqueta">Otros cargos ${plata(f.otros_cargos)}</span>` : ''}
         ${chip(!sinProducto, sinProducto ? `${sinProducto} renglón(es) sin producto` : 'Todos los renglones tienen producto')}</div></div>
@@ -261,14 +279,16 @@ function pintar(vista, ctx, alSalir) {
           <td class="num">${it.unidad === 'kg' ? '<span class="muted chico">por kg</span>'
             : `<input class="input cant" data-u="${i}" value="${esc(l.unidades)}" inputmode="decimal"><div class="muted chico">por ${it.unidad === 'bulto' ? 'bulto' : 'unidad'} facturada</div>`}</td>
           <td class="num">${cant(k.ingresan)}</td>
-          <td class="num">${plata(k.costo)}${p && Math.abs(k.costo - p.costo) > 0.5 ? `<div class="muted chico">antes ${plata(p.costo)}</div>` : ''}</td>
+          <td class="num">${plata(k.costo)}${p && Math.abs(k.costo - p.costo) > 0.5 ? `<div class="muted chico">antes ${plata(p.costo)}</div>` : ''}
+            <div><select class="input chico-sel" data-iva="${i}" title="Alícuota de IVA de este renglón">${ALICUOTAS.map(a => `<option value="${a}" ${a === alicuotaDe(it, l) ? 'selected' : ''}>IVA ${String(a).replace('.', ',')}%</option>`).join('')}</select></div></td>
           <td class="num"><input class="input corto" data-pr="${i}" value="${esc(l.precio ?? (l.nuevo ? k.propuesto : ''))}" inputmode="decimal" placeholder="${p ? (p.margen != null ? 'auto' : 'sin cambio') : ''}">
             ${p && p.margen != null ? `<div class="muted chico">margen ${String(+p.margen).replace('.', ',')}% auto: queda en <b>${plata(redondear(k.costo * (1 + p.margen / 100), carga.prep.redondeo))}</b></div>`
             : p ? `<div class="muted chico">hoy ${plata(p.precio)}${(subio || k.sugerido) && l.precio == null ? ` · <button class="link" data-usar="${i}">usar ${plata(k.propuesto)}</button>` : ''}</div>`
               : k.sugerido ? '<div class="muted chico">sugerido por el proveedor</div>' : ''}</td></tr>`;
       }).join('')}</tbody></table></div>
     <div class="recuadro-blanco form ancho"><div class="fila">
-      <label class="check" title="En las facturas A los precios vienen sin IVA"><input type="checkbox" id="f-iva" ${c.sumarIva ? 'checked' : ''}> Sumar el IVA al costo</label>
+      <label class="check" title="En las facturas A los precios vienen sin IVA. Para un monotributista el IVA es costo; un responsable inscripto lo descuenta"><input type="checkbox" id="f-iva" ${c.sumarIva ? 'checked' : ''}> Sumar el IVA al costo</label>
+      ${+f.percepciones ? `<label class="check" title="Para un monotributista las percepciones son costo; un responsable inscripto las descuenta"><input type="checkbox" id="f-perc" ${c.sumarPerc ? 'checked' : ''}> Sumar las percepciones al costo (${plata(f.percepciones)})</label>` : ''}
       <label class="check"><input type="checkbox" id="f-caja" ${c.pagar_caja ? 'checked' : ''} ${c.turno ? '' : 'disabled'}> Se pagó con la caja${c.turno ? '' : ' (la caja está cerrada)'}
         <span class="muted chico">(si no, queda en la cuenta del proveedor)</span></label>
       <select class="input" id="f-forma" ${c.pagar_caja ? '' : 'hidden'}>${c.formas.map(x => `<option ${x === c.forma ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></div>
@@ -281,7 +301,9 @@ function pintar(vista, ctx, alSalir) {
   $('#f-comp').oninput = e => { c.comprobante = e.target.value; };
   $('#f-fecha').onchange = e => { c.fecha_factura = e.target.value; repintar(); };
   $('#f-vence').onchange = e => { c.vencimiento = e.target.value; };
-  $('#f-iva').onchange = e => { c.sumarIva = e.target.checked; repintar(); };
+  $('#f-iva').onchange = e => { c.sumarIva = e.target.checked; recordar('iva', c.sumarIva); repintar(); };
+  if ($('#f-perc')) $('#f-perc').onchange = e => { c.sumarPerc = e.target.checked; recordar('perc', c.sumarPerc); repintar(); };
+  $$('[data-iva]', box).forEach(s => s.onchange = () => { c.lineas[+s.dataset.iva].alicuota = +s.value; repintar(); });
   $('#f-caja').onchange = e => { c.pagar_caja = e.target.checked; $('#f-forma').hidden = !c.pagar_caja; };
   $('#f-forma').onchange = e => { c.forma = e.target.value; };
   $$('[data-elegir]', box).forEach(s => s.onchange = () => {
@@ -346,7 +368,7 @@ function guardar(ctx, alSalir) {
       proveedor_nuevo: c.proveedor_id === 'nuevo' ? { nombre: f.proveedor?.nombre || 'Proveedor sin nombre', cuit: c.cuit } : null,
       comprobante: c.comprobante, total: f.total ?? null, pagar_caja: c.pagar_caja, forma: c.forma, lineas,
       fecha_factura: c.fecha_factura, vencimiento: c.vencimiento || vencePropuesto(),
-      notas: `Cargada desde la factura del ${f.fecha ? dia(f.fecha) : '—'} · neto ${plata(f.subtotal)} + IVA ${plata(f.iva)} + percepciones ${plata(f.percepciones)}${c.sumarIva ? ' · costos con IVA' : ' · costos sin IVA'}`,
+      notas: `Cargada desde la factura del ${f.fecha ? dia(f.fecha) : '—'} · neto ${plata(f.subtotal)} + IVA ${plata(f.iva)} + percepciones ${plata(f.percepciones)}${+f.impuestos_internos ? ' + impuestos internos ' + plata(f.impuestos_internos) : ''}${c.sumarIva ? ' · costos con IVA' : ' · costos sin IVA'}${+f.percepciones ? (c.sumarPerc ? ' y con percepciones' : ' y sin percepciones') : ''}`,
     } });
     carga = null;
     aviso(`Compra guardada${r.creados ? ` · ${r.creados} producto${r.creados === 1 ? '' : 's'} nuevo${r.creados === 1 ? '' : 's'}` : ''}`, 'ok');
