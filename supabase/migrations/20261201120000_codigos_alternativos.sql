@@ -103,7 +103,7 @@ $$;
 
 -- Leer facturas: el código de barras también encuentra los otros códigos
 create or replace function public.preparar_factura(p jsonb)
-returns jsonb language plpgsql stable security definer set search_path = '' as $
+returns jsonb language plpgsql stable security definer set search_path = '' as $$
 declare
   v_neg uuid := public.requiere_negocio(); f jsonb := p -> 'factura'; v_cuit text; v_prov bigint; v_primera text; it jsonb;
   v_lineas jsonb := '[]'::jsonb; v_pid bigint; v_un numeric; v_bus text[];
@@ -149,12 +149,12 @@ begin
   return jsonb_build_object('proveedor', case when v_prov is null then null else jsonb_build_object('id', v_prov) end, 'cuit', v_cuit, 'lineas', v_lineas,
     'margen', public.margen_precios(v_neg), 'redondeo', public.redondeo_precios(v_neg));
 end;
-$;
+$$;
 
 
 -- Guardar la compra desde la factura: un código de barras nuevo de un producto que ya tenía el suyo queda como otro código
 create or replace function public.registrar_compra_factura(p jsonb)
-returns jsonb language plpgsql volatile security definer set search_path = '' as $
+returns jsonb language plpgsql volatile security definer set search_path = '' as $$
 declare
   v_neg uuid := public.requiere_negocio(); v_u bigint := public.requiere_admin(); v_prov bigint; v_cuit text;
   l jsonb; k integer := 0; v_prod bigint; v_barras text; v_codigo text; v_unid numeric; v_items jsonb := '[]'::jsonb;
@@ -214,7 +214,7 @@ begin
     'vencimiento', p -> 'vencimiento', 'items', v_items));
   return r || jsonb_build_object('creados', v_creados, 'productos', v_ids);
 end;
-$;
+$$;
 
 
 revoke all on function public.codigo_usado_por(uuid, text, bigint), public.producto_por_codigo(uuid, text), public.controlar_codigo_principal(),
