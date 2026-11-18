@@ -317,3 +317,12 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
 - `createClient` con `auth.lock` directo (sin `navigator.locks`): con la pestaña un rato sin usar, ese bloqueo podía quedar
   tomado y la app quedaba esperando sin fin.
 - `mostrarSeccion`: si la sección no se pudo cargar, muestra "No se pudo cargar" con Reintentar y Recargar la página.
+
+## Lista de precios (para imprimir y etiquetar)
+- Productos → "Lista de precios" (`listaprecios.js`, solo dueño). `lista_precios(p)`: `{categoria_id, proveedor_id,
+  compra_ids, compras_desde, precio_desde, texto}`, se combinan; trae costo, precio y, según el filtro, `precio_antes`
+  (antes del primer cambio desde la fecha), `cambio` y `llego`. Se puede destildar productos.
+- `cambios_precio`: historial de precio y costo de cada producto, cargado por el trigger `productos_cambio_precio` (desde
+  la ficha, compras, aumentos o facturas); se completó con las compras y los aumentos de antes.
+- Sale en PDF (jsPDF): lista (con o sin costo, con el precio anterior) o etiquetas 3 × 8 por hoja A4 (sin costo). En PDF
+  y no con imprimir del navegador, porque en la PC del local Chrome imprime directo en la comandera.
