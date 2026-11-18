@@ -2,14 +2,17 @@
 // Chrome en Android); donde no está (la PC con Windows, Safari en iPhone) el botón 📷 no aparece y todo sigue igual.
 // botonCamara(input) agrega 📷 junto a un campo de escanear: cada código leído se pone en el campo y se "aprieta" Enter,
 // así la pantalla lo procesa igual que con el lector de la PC (agrega el producto, avisa si no existe, etc.).
-import { $, aviso, modal } from './ui.js';
+// El mismo código dos veces seguidas NUNCA se suma solo (con el pulso la cámara lo pierde y lo vuelve a ver, y antes se
+// contaba de nuevo): para otra unidad de lo mismo está el botón "+1"; un código distinto se suma al leerlo.
+import { $, esc, aviso, modal } from './ui.js';
 
 const FORMATOS = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'code_93', 'itf', 'codabar', 'qr_code'];
 export const camaraDisponible = () => 'BarcodeDetector' in window && !!navigator.mediaDevices?.getUserMedia;
 
 // continuo: la cámara queda abierta para el siguiente (compras, ventas); si no, se cierra al primer código (ficha del producto).
 // alLeer: qué hacer con el código; si no se pasa, se pone en el campo y se aprieta Enter.
-export function botonCamara(input, { continuo = true, alLeer = null, envolver = true } = {}) {
+// describir(código): el nombre del producto, para mostrar qué se leyó (null si no existe).
+export function botonCamara(input, { continuo = true, alLeer = null, envolver = true, describir = null } = {}) {
   if (!input || !camaraDisponible()) return;
   const b = document.createElement('button');
   b.type = 'button'; b.className = 'btn boton-camara'; b.title = 'Escanear con la cámara'; b.setAttribute('aria-label', 'Escanear con la cámara');
@@ -24,20 +27,36 @@ export function botonCamara(input, { continuo = true, alLeer = null, envolver = 
     input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: false, cancelable: true }));
     input.blur();   // la pantalla vuelve a poner el foco en el campo: sin esto, en el celular se abre el teclado sobre la cámara
   });
-  b.onclick = e => { e.preventDefault(); escanearConCamara(leer, { continuo }); };
+  b.onclick = e => { e.preventDefault(); escanearConCamara(leer, { continuo, describir }); };
 }
 
-export async function escanearConCamara(alLeer, { continuo = true } = {}) {
+export async function escanearConCamara(alLeer, { continuo = true, describir = null } = {}) {
   let formatos = FORMATOS;
   try { const s = await window.BarcodeDetector.getSupportedFormats(); formatos = FORMATOS.filter(f => s.includes(f)); } catch { /* se usan todos */ }
   const detector = new window.BarcodeDetector({ formats: formatos });
-  let stream = null, activo = true, leidos = 0, ultimo = '', vistoUltimo = 0;
+  let stream = null, activo = true, leidos = 0, ultimo = '', veces = 0;
   const m = modal('Escanear con la cámara', `<div class="camara"><video playsinline muted></video><div class="camara-guia"></div></div>
-    <p id="cam-estado" class="muted">Apuntá al código de barras, derecho y con buena luz.</p>
+    <div id="cam-estado" class="cam-estado"><span class="muted">Apuntá al código de barras, derecho y con buena luz.</span></div>
     <div class="fila fin"><button class="btn primario" data-cerrar>${continuo ? 'Listo' : 'Cancelar'}</button></div>`,
     { alCerrar: () => { activo = false; stream?.getTracks().forEach(t => t.stop()); } });
-  const estado = t => { const e = $('#cam-estado', m.el); if (e) e.textContent = t; };
   const video = $('video', m.el);
+  // Lo último leído: el producto, cuántas unidades se sumaron de él y el botón para sumar otra
+  const mostrar = () => {
+    const nombre = describir?.(ultimo);
+    $('#cam-estado', m.el).innerHTML = `<div class="cam-leido"><div><b>${nombre ? esc(nombre) : esc(ultimo)}</b>
+        <div class="muted chico">${veces > 1 ? `${veces} unidades · ` : ''}${leidos} lectura${leidos === 1 ? '' : 's'} en total</div></div>
+        <button type="button" class="btn" id="cam-otra">+1</button></div>
+      <p class="muted chico">El mismo código no se suma dos veces seguidas: para otra unidad de lo mismo tocá +1. Seguí con el próximo o tocá Listo.</p>`;
+    $('#cam-otra', m.el).onclick = () => sumar(ultimo);
+  };
+  const sumar = codigo => {
+    veces = codigo === ultimo ? veces + 1 : 1;
+    ultimo = codigo; leidos++;
+    navigator.vibrate?.(60);
+    alLeer(codigo);
+    if (!continuo) return m.cerrar();
+    mostrar();
+  };
   try {
     stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
   } catch (e) {
@@ -53,17 +72,9 @@ export async function escanearConCamara(alLeer, { continuo = true } = {}) {
     try {
       const r = video.readyState >= 2 ? await detector.detect(video) : [];
       const codigo = r[0]?.rawValue?.trim();
-      const ahora = Date.now();
-      // el mismo código sigue a la vista: no se vuelve a contar hasta que salga de cuadro y vuelva
-      if (codigo && !(codigo === ultimo && ahora - vistoUltimo < 1200)) {
-        ultimo = codigo; vistoUltimo = ahora; leidos++;
-        navigator.vibrate?.(60);
-        alLeer(codigo);
-        if (!continuo) return m.cerrar();
-        estado(`✓ ${codigo} · ${leidos} leído${leidos === 1 ? '' : 's'}. Seguí con el próximo o tocá Listo.`);
-      } else if (codigo) vistoUltimo = ahora;
+      if (codigo && codigo !== ultimo) sumar(codigo);   // el mismo de recién se ignora: para otra unidad, +1
     } catch { /* un cuadro que no se pudo leer: se sigue */ }
-    setTimeout(ciclo, 120);
+    if (activo) setTimeout(ciclo, 120);
   };
   ciclo();
 }

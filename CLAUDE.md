@@ -278,5 +278,6 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
 - `escaner.js`: `botonCamara(input)` agrega 📷 junto a un campo de escanear, solo donde el navegador trae `BarcodeDetector`
   (Chrome en Android; no en Windows ni en Safari de iPhone, donde el botón no aparece). Cada código leído se pone en el
   campo y se dispara un `keydown` Enter (sin burbujear), así cada pantalla lo procesa con su propio manejo del lector.
-  El mismo código no se vuelve a contar mientras siga a la vista. Está en Vender, Cargar compra, Entradas y salidas y la
+  El mismo código dos veces seguidas no se suma solo (con el pulso la cámara lo pierde y lo vuelve a ver): para otra
+  unidad de lo mismo está el botón +1; la ventana muestra el nombre del último leído (`describir`). Está en Vender, Cargar compra, Entradas y salidas y la
   ficha del producto (ahí con `continuo: false` y `alLeer`, solo llena el código).
