@@ -254,3 +254,5 @@ p.muted { margin: 0 0 1.25rem; }
 .pm-lista { max-height: min(360px, 45vh); overflow: auto; }
 .pm-hist { margin-top: .5rem; }
 .pm-hist summary { cursor: pointer; color: var(--suave); font-size: .9rem; }
+.modal.pm-modal { width: min(1000px, 100%); }
+.pm-modal .pm-lista { max-height: min(420px, 50vh); }
