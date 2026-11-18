@@ -1,5 +1,5 @@
 // Arranque: entrar con la cuenta (una vez por PC), elegir el usuario y poner el PIN, y después las secciones.
-import { sb, llamar, guardarToken } from './base.js';
+import { sb, llamar, guardarToken, conLimite } from './base.js';
 import * as cat from './catalogo.js';
 import { $, $$, esc, ROL, aviso, correr, siVenceLaSesion } from './ui.js';
 import { pantallaVender } from './vender.js';
@@ -154,7 +154,16 @@ async function mostrarSeccion() {
     recargar: () => mostrarSeccion(),
     alTeclear: fn => { teclas = fn; },
   };
-  await correr(() => s.fn(vista, ctx));
+  let ok = false;
+  await correr(async () => { await s.fn(vista, ctx); ok = true; });
+  // si no se pudo cargar (sin internet, la base no respondió), no queda en "Cargando…": se ofrece reintentar
+  if (!ok && $('#vista') === vista && /Cargando…/.test(vista.textContent)) {
+    vista.innerHTML = `<div class="recuadro-blanco"><p><b>No se pudo cargar ${esc(s.nombre)}.</b></p>
+      <p class="muted">Puede ser que se haya cortado internet o que la PC haya estado suspendida.</p>
+      <div class="fila"><button class="btn primario" id="reintentar-seccion">Reintentar</button><button class="btn" id="recargar-pagina">Recargar la página</button></div></div>`;
+    $('#reintentar-seccion').onclick = () => mostrarSeccion();
+    $('#recargar-pagina').onclick = () => location.reload();
+  }
 }
 
 // ---------- Versión nueva ----------
@@ -173,7 +182,8 @@ setInterval(revisarVersion, 2 * 60 * 1000);
 // ---------- Arranque ----------
 async function iniciar() {
   clearInterval(refresco);
-  const { data: { session } } = await sb.auth.getSession();
+  let session;
+  try { ({ data: { session } } = await conLimite(sb.auth.getSession())); } catch (e) { return pantallaSinNegocio(e.message); }
   if (!session) return pantallaCuenta();
   try { datos = await llamar('datos_inicio'); } catch (e) { return pantallaSinNegocio(e.message); }
   if (!datos.yo) { guardarToken(null); return pantallaElegir(); }
