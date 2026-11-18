@@ -123,11 +123,18 @@ async function salirDeLaCuenta() {
 function armarMarco() {
   const yo = datos.yo;
   raiz.className = 'marco';
-  raiz.innerHTML = `<header class="barra"><div class="negocio">${esc(datos.negocio.nombre)}</div>
-      <nav>${SECCIONES.filter(s => !s.admin || yo.rol === 'admin').map(s => `<a href="${s.ruta}" data-ruta="${s.ruta}">${s.nombre}</a>`).join('')}</nav>
+  // En el celular (pantalla angosta) el menú y el usuario se esconden detrás del botón ☰, que muestra la sección actual
+  raiz.innerHTML = `<header class="barra" id="barra"><div class="negocio">${esc(datos.negocio.nombre)}</div>
+      <button class="menu-boton" id="menu" aria-expanded="false" aria-controls="menu-nav"><span aria-hidden="true">☰</span> <span id="seccion-actual">Menú</span></button>
+      <nav id="menu-nav">${SECCIONES.filter(s => !s.admin || yo.rol === 'admin').map(s => `<a href="${s.ruta}" data-ruta="${s.ruta}">${s.nombre}</a>`).join('')}</nav>
       <div class="quien">${esc(yo.nombre)} · ${ROL[yo.rol]} <button class="btn chico" id="cambiar">Cambiar de usuario</button></div></header>
     <main id="vista" class="vista"></main>`;
   $('#cambiar').onclick = () => cambiarDeUsuario();
+  $('#menu').onclick = () => abrirMenu(!$('#barra').classList.contains('abierto'));
+}
+function abrirMenu(abrir) {
+  $('#barra')?.classList.toggle('abierto', abrir);
+  $('#menu')?.setAttribute('aria-expanded', String(abrir));
 }
 
 async function mostrarSeccion() {
@@ -135,6 +142,8 @@ async function mostrarSeccion() {
   let s = SECCIONES.find(x => x.ruta === location.hash && (!x.admin || yo.rol === 'admin'));
   if (!s) { s = SECCIONES[0]; history.replaceState(null, '', s.ruta); }
   $$('nav a').forEach(a => a.classList.toggle('activa', a.dataset.ruta === s.ruta));
+  $('#seccion-actual').textContent = s.nombre;
+  abrirMenu(false);
   teclas = null;
   const vista = $('#vista');
   vista.innerHTML = '<p class="muted">Cargando…</p>';
