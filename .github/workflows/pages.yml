@@ -34,7 +34,7 @@ jobs:
           sed -i -E "s#(from '\./[a-z_]+\.js)'#\1?v=$V'#g" app/js/*.js
           sed -i -E "s#(src=\"js/[a-z_]+\.js)\"#\1?v=$V\"#; s#(href=\"css/[a-z_]+\.css)\"#\1?v=$V\"#g" app/*.html
           grep -c "?v=$V" app/*.html app/js/*.js
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v3
         with:
           path: app
