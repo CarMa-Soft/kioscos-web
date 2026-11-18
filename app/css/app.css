@@ -31,6 +31,18 @@ p.muted { margin: 0 0 1.25rem; }
 .barra nav a.activa, .barra nav a:hover { background: #374151; color: #fff; }
 .barra .quien { display: flex; align-items: center; gap: .5rem; font-size: .85rem; color: #d1d5db; white-space: nowrap; }
 .barra .quien .btn { padding: .3rem .6rem; font-size: .85rem; }
+/* Botón ☰ del menú: solo en pantallas angostas (ver @media de abajo) */
+.menu-boton { display: none; align-items: center; gap: .45rem; font: inherit; font-size: .95rem; color: #fff; background: #374151;
+  border: 0; border-radius: 8px; padding: .5rem .8rem; cursor: pointer; }
+@media (max-width: 800px) {
+  .barra { gap: .5rem; padding: .5rem .75rem; }
+  .barra .negocio { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .menu-boton { display: inline-flex; }
+  .barra nav, .barra .quien { display: none; flex-basis: 100%; }
+  .barra.abierto nav { display: grid; grid-template-columns: 1fr 1fr; gap: .25rem; padding-top: .4rem; }
+  .barra.abierto nav a { font-size: 1rem; padding: .65rem .75rem; }
+  .barra.abierto .quien { display: flex; justify-content: space-between; padding: .6rem 0 .2rem; border-top: 1px solid #374151; font-size: .95rem; }
+}
 .vista { flex: 1; padding: 1.25rem; max-width: 1200px; width: 100%; margin: 0 auto; }
 
 /* Avisos */
