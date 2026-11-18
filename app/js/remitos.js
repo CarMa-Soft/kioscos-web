@@ -5,6 +5,7 @@ import { llamar } from './base.js';
 import * as cat from './catalogo.js';
 import { $, $$, esc, plata, cant, fecha, numero, aviso, correr, modal, confirmar } from './ui.js';
 import { botonCamara } from './escaner.js';
+import { productoNoEncontrado } from './alta-producto.js';
 import { imprimir, ticketRemito } from './impresion.js';
 
 const r3 = n => Math.round((+n || 0) * 1000) / 1000;
@@ -70,7 +71,7 @@ async function nuevoRemito(vista, ctx, tipo) {
   const ing = tipo === 'ingreso';
   const [cata, motivos] = await Promise.all([llamar('catalogo'), llamar('motivos_remito')]);
   const prods = new Map(cata.productos.map(p => [p.id, p]));
-  const porCodigo = new Map(cata.productos.filter(p => p.codigo).map(p => [p.codigo.toLowerCase(), p]));
+  const porCodigo = cat.mapaPorCodigo(cata.productos);
   d.items = d.items.filter(i => prods.has(i.producto_id));
   const lista = motivos[tipo] || [];
   vista.innerHTML = `<div class="cabecera"><h2>${nombreTipo(tipo)} de mercadería</h2><div class="acciones"><button class="btn" id="descartar">Descartar</button><button class="btn" id="volver">Volver</button></div></div>
@@ -90,7 +91,7 @@ async function nuevoRemito(vista, ctx, tipo) {
   botonCamara(escaner, { describir: c => porCodigo.get(c.toLowerCase())?.nombre });   // 📷 en el celular: cada código leído se agrega como con el lector
   let sugeridos = [], marcado = 0;
   const buscar = t => { const w = t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').split(/\s+/).filter(Boolean);
-    return cata.productos.filter(p => { const s = (p.nombre + ' ' + (p.codigo || '')).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); return w.every(x => s.includes(x)); }).slice(0, 12); };
+    return cata.productos.filter(p => { const s = (p.nombre + ' ' + cat.codigosDe(p).join(' ')).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); return w.every(x => s.includes(x)); }).slice(0, 12); };
   const agregar = p => {
     escaner.value = ''; res.hidden = true;
     const ya = d.items.find(i => i.producto_id === p.id);
@@ -101,7 +102,7 @@ async function nuevoRemito(vista, ctx, tipo) {
   const pintarSug = () => {
     res.hidden = false;
     res.innerHTML = sugeridos.map((p, k) => `<button class="resultado ${k === marcado ? 'marcado' : ''}" data-s="${k}" tabindex="-1"><span>${esc(p.nombre)}</span><span class="muted">stock ${cant(p.stock)}</span><b>${plata(p.costo)}</b></button>`).join('')
-      || '<p class="muted sin">No hay productos con ese nombre.</p>';
+      || '<p class="muted sin">No hay productos con ese nombre: apretá Enter para crearlo.</p>';
     $$('[data-s]', res).forEach(b => b.onmousedown = e => { e.preventDefault(); agregar(sugeridos[+b.dataset.s]); });
   };
   escaner.oninput = () => {
@@ -115,9 +116,19 @@ async function nuevoRemito(vista, ctx, tipo) {
     e.preventDefault();
     const t = escaner.value.trim();
     const p = porCodigo.get(t.toLowerCase()) || (!res.hidden && sugeridos[marcado]);
-    if (p) agregar(p); else if (t) aviso(`No hay ningún producto con "${t}"`);
+    if (p) agregar(p);
+    else if (t) productoNoEncontrado(t, { productos: cata.productos, categorias: cata.categorias, alElegir: incorporar });   // crearlo o agregarle el código a uno
   };
   escaner.onblur = () => setTimeout(() => { res.hidden = true; }, 150);
+  // Un producto recién creado (o al que se le agregó un código): entra a la lista de esta pantalla y se suma
+  function incorporar(p) {
+    const k = cata.productos.findIndex(x => x.id === p.id);
+    if (k >= 0) cata.productos[k] = { ...cata.productos[k], ...p }; else cata.productos.push(p);
+    const q = k >= 0 ? cata.productos[k] : p;
+    prods.set(q.id, q);
+    for (const c of cat.codigosDe(q)) porCodigo.set(c.toLowerCase(), q);
+    agregar(q);
+  }
 
   function pintar() {
     $('#lineas').innerHTML = d.items.length ? `<thead><tr><th>Producto</th><th class="num">Stock actual</th><th class="num">Cantidad</th><th class="num">Quedaría</th><th class="num">Valor al costo</th><th></th></tr></thead><tbody>

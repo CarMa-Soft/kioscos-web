@@ -236,3 +236,9 @@ p.muted { margin: 0 0 1.25rem; }
 .cam-leido { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .55rem .75rem; border-radius: 10px; background: #ecfdf3; }
 .cam-leido .btn { font-size: 1.1rem; font-weight: 700; padding: .45rem 1rem; }
 .cam-estado p { margin: .5rem 0 0; }
+
+/* Producto que no está (alta-producto.js) y otros códigos en la ficha */
+.opciones-alta { display: grid; gap: .5rem; }
+.opciones-alta .btn { text-align: left; }
+.otros-codigos { display: grid; gap: .45rem; padding: .75rem; border: 1px dashed #cbd2d9; border-radius: 10px; }
+.otros-codigos .chip { cursor: default; display: inline-flex; align-items: center; gap: .35rem; }

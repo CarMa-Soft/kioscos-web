@@ -8,13 +8,17 @@ let clave = null, estado = null;    // estado: { ahora, productos: { id: product
 const porCodigo = new Map(), porPlu = new Map();
 
 const normalizar = s => String(s ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+// Todos los códigos de un producto: el principal y los otros (por ejemplo, el del envase nuevo)
+export const codigosDe = p => [p.codigo, ...(p.codigos || [])].filter(Boolean);
+// Mapa código → producto, para las pantallas que trabajan con su propia lista de productos (con costos)
+export const mapaPorCodigo = productos => new Map(productos.flatMap(p => codigosDe(p).map(c => [c.toLowerCase(), p])));
 
 function indexar() {
   porCodigo.clear(); porPlu.clear();
   for (const p of Object.values(estado.productos)) {
-    if (p.codigo) porCodigo.set(p.codigo.toLowerCase(), p);
+    for (const c of codigosDe(p)) porCodigo.set(c.toLowerCase(), p);
     if (p.plu) porPlu.set(p.plu, p);
-    p._busca = normalizar(p.nombre + ' ' + (p.codigo || ''));
+    p._busca = normalizar(p.nombre + ' ' + codigosDe(p).join(' '));
   }
 }
 function guardar() {
