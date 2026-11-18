@@ -36,6 +36,25 @@ const icoForma = f => {
 const DIBUJO_VACIO = `<svg viewBox="0 0 120 70" aria-hidden="true">${[4, 10, 14, 22, 26, 34, 40, 44, 52, 58, 62, 70, 76, 80, 88, 94, 98, 106, 112]
   .map((x, k) => `<rect x="${x}" y="4" width="${k % 3 ? 2 : 4}" height="56" rx="1" fill="#d0d5dd"/>`).join('')}<rect class="v-laser" x="0" y="58" width="120" height="3" rx="1.5" fill="#0f7b45"/></svg>`;
 
+// Sonido de error (código que no existe): dos tonos graves cortos, hechos con el navegador (sin archivos de audio)
+let audio = null;
+function sonidoError() {
+  try {
+    audio ??= new (window.AudioContext || window.webkitAudioContext)();
+    if (audio.state === 'suspended') audio.resume();
+    const t = audio.currentTime;
+    [[0, 330], [0.17, 220]].forEach(([desde, hz]) => {
+      const o = audio.createOscillator(), g = audio.createGain();
+      o.type = 'square'; o.frequency.value = hz;
+      g.gain.setValueAtTime(0.0001, t + desde);
+      g.gain.exponentialRampToValueAtTime(0.18, t + desde + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + desde + 0.15);
+      o.connect(g).connect(audio.destination);
+      o.start(t + desde); o.stop(t + desde + 0.16);
+    });
+  } catch { /* sin audio: queda solo el aviso en pantalla */ }
+}
+
 const r2 = n => Math.round((+n || 0) * 100) / 100;
 const r3 = n => Math.round((+n || 0) * 1000) / 1000;
 
@@ -65,7 +84,7 @@ export async function pantallaVender(vista, ctx) {
         <div class="v-barra">
           <button class="v-btn" id="varios">${ICO.mas} Varios / precio libre</button>
           <button class="v-btn peligro" id="vaciar">${ICO.tacho} Vaciar</button>
-          <span class="v-atajos"><kbd>F2</kbd> cobrar <kbd>F1</kbd> efectivo <kbd>Esc</kbd> limpiar</span>
+          <span class="v-atajos"><kbd>F2</kbd> cobrar <kbd>F1</kbd> efectivo <kbd>F3</kbd> fiado <kbd>Esc</kbd> limpiar</span>
         </div>
         <div class="v-renglones" id="renglones"></div>
       </section>
@@ -113,7 +132,7 @@ export async function pantallaVender(vista, ctx) {
     const [n, texto] = separarCantidad(escaner.value.trim());
     if (!texto) return;
     const bal = leerBalanza(texto);
-    if (bal?.error) { escaner.select(); return aviso(bal.error); }
+    if (bal?.error) { escaner.select(); sonidoError(); return aviso(bal.error); }
     if (bal) {
       escaner.value = ''; res.hidden = true;
       venta.items.push({ producto_id: bal.p.id, nombre: bal.p.nombre, cantidad: bal.cantidad, precio: null, por_peso: true, etiqueta: bal.importe ?? null });
@@ -121,6 +140,8 @@ export async function pantallaVender(vista, ctx) {
     }
     const p = cat.porCodigoDeBarras(texto) || (!res.hidden && sugeridos[marcado]) || (cat.buscar(texto, 2).length === 1 ? cat.buscar(texto, 1)[0] : null);
     if (p) return agregar(p, n > 0 ? n : 1);
+    // no existe: suena y queda seleccionado, así el próximo escaneo lo reemplaza en vez de pegarse atrás
+    sonidoError(); escaner.select(); res.hidden = true;
     aviso(/^\d{6,}$/.test(texto) ? `No hay ningún producto con el código ${texto}` : `No hay productos con "${texto}"`);
   };
   function pintarSugeridos(texto) {
@@ -247,7 +268,7 @@ export async function pantallaVender(vista, ctx) {
           : `<span class="v-paso"><button data-menos="${k}" title="Uno menos" tabindex="-1">−</button><input data-cant="${k}" value="${cant(i.cantidad)}" inputmode="decimal" title="Cantidad"><button data-mas="${k}" title="Uno más" tabindex="-1">+</button></span>`}
         <div class="v-der-txt v-precio">${i.producto_id ? `<button class="link" data-precio="${k}" title="Cambiar el precio para esta venta">${plata(precioDe(i))}${i.por_peso ? '/kg' : ''}</button>${i.precio != null && p ? `<s>${plata(p.precio)}</s>` : ''}` : ''}</div>
         <div class="v-der-txt v-imp">${plata(importe(i))}</div>
-        <button class="v-quitar" data-quitar="${k}" title="Quitar">×</button></div>`; }).join('')}`
+        <button class="v-quitar" data-quitar="${k}" title="Quitar">×</button></div>`; }).reverse().join('')}`   /* el último que se agrega va arriba (en la venta y el ticket quedan en el orden en que se cargaron) */
       : `<div class="v-vacio">${DIBUJO_VACIO}<b>Escaneá un producto para empezar</b><span>o buscalo por nombre en la barra de arriba</span></div>`;
     $$('[data-quitar]', t).forEach(b => b.onclick = () => { venta.items.splice(+b.dataset.quitar, 1); pintar(); escaner.focus(); });
     $$('[data-precio]', t).forEach(b => b.onclick = () => cambiarPrecio(venta.items[+b.dataset.precio]));
@@ -294,7 +315,7 @@ export async function pantallaVender(vista, ctx) {
             <label>1. <select class="input" id="f1">${opciones(d.forma1)}</select><input class="input" id="m1" inputmode="decimal" placeholder="¿Cuánto paga?" value="${esc(d.monto1)}"></label>
             <label>2. <select class="input" id="f2">${opciones(d.forma2)}</select><span class="resto">${plata(tt.pagos[1].monto)}</span></label>
             <p class="muted chico">En el primero poné cuánto paga con ese medio; el resto va solo al segundo.</p></div>`
-          : `<div class="v-formas">${botones.map(f => `<button class="v-forma ${f === venta.forma ? 'elegida' : ''}" data-forma="${esc(f)}">${icoForma(f)}<span>${esc(f)}</span>${pct(f) ? `<small>+${pct(f)}%</small>` : ''}${f === 'Efectivo' ? '<kbd>F1</kbd>' : ''}</button>`).join('')}</div>`}
+          : `<div class="v-formas">${botones.map(f => `<button class="v-forma ${f === venta.forma ? 'elegida' : ''}" data-forma="${esc(f)}">${icoForma(f)}<span>${esc(f)}</span>${pct(f) ? `<small>+${pct(f)}%</small>` : ''}${f === 'Efectivo' ? '<kbd>F1</kbd>' : f === 'Fiado' ? '<kbd>F3</kbd>' : ''}</button>`).join('')}</div>`}
         <div class="v-opciones">
           <div class="v-opc"><span class="v-opc-etq">${ICO.persona} Cliente</span>
             <button class="v-campo" id="elegir-cliente" title="Elegir cliente"><span>${c ? esc(c.nombre) : 'Consumidor final'}</span>${c ? `<small class="${+c.saldo > 0.004 ? 'mal' : ''}">${textoSaldo(c.saldo)}</small>` : ''}${ICO.abajo}</button>
@@ -525,6 +546,13 @@ export async function pantallaVender(vista, ctx) {
     if (accesoRapido(e)) return;
     if (e.key === 'F2') { e.preventDefault(); cobrar(); }
     if (e.key === 'F1') { e.preventDefault(); venta.forma = 'Efectivo'; venta.dos = null; pintarPanel(); }
+    // F3: Fiado (en esta sección no abre el "buscar en la página" del navegador). Sin cliente, primero lo pide.
+    if (e.key === 'F3') {
+      e.preventDefault();
+      if (document.querySelector('.modal-fondo')) return;
+      if (!venta.cliente) return elegirCliente(() => { venta.forma = 'Fiado'; venta.dos = null; });
+      venta.forma = 'Fiado'; venta.dos = null; pintarPanel(); escaner.focus();
+    }
   });
   pintar();
   cargarEntregas();

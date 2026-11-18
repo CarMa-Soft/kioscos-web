@@ -21,7 +21,7 @@
 .v-lector.listo i { background: var(--primario); box-shadow: 0 0 0 3px rgba(15, 123, 69, .18); }
 .v-tip { margin: .7rem 0 0; color: var(--suave); font-size: .92rem; line-height: 1.9; }
 /* Accesos rápidos: productos con "Botón rápido en Vender" */
-.v-accesos-tit { display: flex; justify-content: space-between; margin-top: 1.1rem; color: var(--suave); font-size: .82rem; }
+.v-accesos-tit { display: flex; align-items: baseline; gap: .6rem; margin-top: 1.1rem; color: var(--suave); font-size: .82rem; }
 .v-accesos-tit span:first-child { font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #475467; }
 .v-accesos { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: .6rem; margin-top: .5rem; }
 .v-acceso { font: inherit; position: relative; display: flex; align-items: center; gap: .7rem; padding: .6rem 2rem .6rem .6rem; border: 1px solid var(--borde);
@@ -58,7 +58,7 @@
   border-bottom: 1px solid var(--borde); }
 .v-item { border-bottom: 1px solid #f0f2f5; border-radius: 10px; }
 .v-item:hover { background: #f9fafb; }
-.v-item:last-child { background: #f3faf6; }   /* el último que se agregó */
+.v-enc + .v-item { background: #f3faf6; }   /* el último que se agregó (va arriba) */
 .v-nom { min-width: 0; }
 .v-nom b { display: block; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .v-nom small { color: var(--suave); }
