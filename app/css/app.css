@@ -185,8 +185,12 @@ p.muted { margin: 0 0 1.25rem; }
 .celu-foto img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border: 1px solid var(--borde); border-radius: 8px; }
 .celu-ancho { display: block; width: 100%; text-align: center; margin-top: .8rem; }
 
-/* Pedidos: un recuadro por proveedor */
-.pedido { margin-bottom: 1rem; }
+/* Pedidos: un recuadro por proveedor, a todo el ancho (no el de 640 px de los demás recuadros), sin que se corten columnas */
+.pedido { margin-bottom: 1rem; max-width: none; }
 .pedido .cabecera { align-items: center; }
 .pedido h3 { margin: 0; }
 .pedido .tabla-caja { margin-bottom: 0; }
+.pedido .tabla td:first-child { min-width: 16rem; }
+.pedido .tabla td { vertical-align: middle; }
+.pedido .tabla select { min-width: 12rem; }
+.pedido .tabla .link, .pedido .tabla .etiqueta { white-space: nowrap; }
