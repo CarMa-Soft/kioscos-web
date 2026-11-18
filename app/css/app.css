@@ -249,3 +249,8 @@ p.muted { margin: 0 0 1.25rem; }
 .lp-opc { display: inline-flex; gap: 1rem; flex-wrap: wrap; }
 .tabla tr.lp-fuera td { color: var(--suave); text-decoration: line-through; }
 .tabla tr.lp-fuera td:first-child { text-decoration: none; }
+
+/* Precios y márgenes (precios.js) */
+.pm-lista { max-height: min(360px, 45vh); overflow: auto; }
+.pm-hist { margin-top: .5rem; }
+.pm-hist summary { cursor: pointer; color: var(--suave); font-size: .9rem; }

@@ -326,3 +326,14 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   la ficha, compras, aumentos o facturas); se completó con las compras y los aumentos de antes.
 - Sale en PDF (jsPDF): lista (con o sin costo, con el precio anterior) o etiquetas 3 × 8 por hoja A4 (sin costo). En PDF
   y no con imprimir del navegador, porque en la PC del local Chrome imprime directo en la comandera.
+
+## Precios y márgenes (como en GScom)
+- `productos.margen`: con margen, el precio sigue al costo. El trigger `productos_precio_sigue_costo` recalcula
+  `precio_por_margen` (costo + margen, redondeo de Ajustes) cuando cambia el costo y el precio no se cambió en el mismo
+  momento (compra, factura, ficha). Sin margen, el precio es fijo. En la lista de Productos se marca "auto".
+- Productos → "Precios y márgenes" (`precios.js`, reemplaza a "Aumento de precios"): solapa Actualizar precios (precio de
+  venta de los fijos, o costo: los de margen recalculan) con el redondeo elegido; solapa Asignar margen (calcular y dejarlo
+  automático, o quitarlo). A qué productos: búsqueda, los que se ven en la lista, todos, categoría o proveedor (habitual).
+  Vista previa con la misma cuenta que la base y destildar. `ajustar_precios(p)` lo aplica y lo deja en aumentos /
+  aumento_cambios (con `margen_antes`/`margen_despues`); `deshacer_aumento` vuelve también el margen.
+- Ficha: Margen % y la tilde "Margen automático" (`margen_producto`). `aumento_masivo` queda pero ya no lo usa la pantalla.

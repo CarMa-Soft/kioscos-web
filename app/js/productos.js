@@ -4,6 +4,7 @@ import * as cat from './catalogo.js';
 import { $, $$, esc, plata, cant, fecha, numero, aviso, correr, modal, confirmar } from './ui.js';
 import { botonCamara } from './escaner.js';
 import { pantallaListaPrecios } from './listaprecios.js';
+import { preciosModal } from './precios.js';
 
 // Lo que se eligió en la lista se mantiene al ir y volver de la sección
 let filtro = '', grupo = 'todos', categoria = '', orden = { col: 'nombre', asc: true };
@@ -31,7 +32,7 @@ export async function pantallaProductos(vista, ctx) {
   const cats = r.categorias, catNombre = id => cats.find(c => c.id === id)?.nombre || '';
   if (categoria && !cats.some(c => String(c.id) === categoria)) categoria = '';
   vista.innerHTML = `<div class="cabecera"><h2>Productos <span class="muted">(${activos.length})</span></h2>
-      <div class="acciones"><button class="btn" id="lista-precios">🏷️ Lista de precios</button><button class="btn" id="aumento">Aumento de precios</button><button class="btn" id="categorias">Categorías</button><button class="btn primario" id="nuevo">＋ Nuevo producto</button></div></div>
+      <div class="acciones"><button class="btn" id="lista-precios">🏷️ Lista de precios</button><button class="btn" id="aumento">Precios y márgenes</button><button class="btn" id="categorias">Categorías</button><button class="btn primario" id="nuevo">＋ Nuevo producto</button></div></div>
     <div class="p-filtros">
       <div class="p-busqueda">
         <label class="p-buscar"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg>
@@ -84,7 +85,7 @@ export async function pantallaProductos(vista, ctx) {
           <td class="num"><span class="${claseStock}">${cant(s)}${p.por_peso ? ' kg' : ''}</span>${min > 0 ? `<div class="p-sub">mín. ${cant(min)}</div>` : ''}</td>
           <td class="num">${plata(p.costo)}</td>
           <td class="num"><b>${plata(p.precio)}</b>${p.por_peso ? '<span class="muted">/kg</span>' : ''}</td>
-          <td class="num">${m == null ? '<span class="muted">—</span>' : `${Math.round(m)}%`}</td></tr>`; }).join('')
+          <td class="num">${m == null ? '<span class="muted">—</span>' : `${Math.round(m)}%`}${p.margen != null ? ' <span class="etiqueta info" title="Margen automático: el precio sigue al costo">auto</span>' : ''}</td></tr>`; }).join('')
         : `<tr><td class="muted vacio" colspan="6">${!(grupo === 'desactivados' ? bajas : activos).length
             ? (grupo === 'desactivados' ? 'No hay productos desactivados.' : 'Todavía no hay productos: cargá el primero con "Nuevo producto".')
             : 'Ningún producto coincide con los filtros.'}</td></tr>`}</tbody>
@@ -100,7 +101,7 @@ export async function pantallaProductos(vista, ctx) {
   $('#categoria').onchange = e => { categoria = e.target.value; pintar(); };
   $('#nuevo').onclick = () => ficha(null);
   $('#categorias').onclick = () => categorias(cats);
-  $('#aumento').onclick = () => correr(() => aumento(hayFiltros() ? visibles() : null, cats, ctx));
+  $('#aumento').onclick = () => correr(() => preciosModal({ productos: activos, categorias: cats, visibles: hayFiltros() ? visibles().filter(p => p.activo !== false) : null, ctx, alTerminar: () => ctx.recargar() }));
   $('#lista-precios').onclick = () => { enLista = true; ctx.recargar(); };
   pintar();
 
@@ -115,8 +116,9 @@ export async function pantallaProductos(vista, ctx) {
         <div class="fila"><input class="input mono crece" id="oc-nuevo" maxlength="40" placeholder="Agregar otro código" autocomplete="off">
           <button type="button" class="btn" id="oc-agregar">Agregar</button></div></div>` : ''}
       <div class="fila"><label class="crece">Costo<input class="input" name="costo" inputmode="decimal" value="${v.costo ?? ''}"></label>
-        <label class="crece">Margen % <span class="muted chico" id="margen-ayuda"></span><input class="input" name="margen" inputmode="decimal" value="${margen(v) == null ? '' : Math.round(margen(v) * 10) / 10}"></label>
+        <label class="crece">Margen % <span class="muted chico" id="margen-ayuda"></span><input class="input" name="margen" inputmode="decimal" value="${v.margen != null ? +v.margen : margen(v) == null ? '' : Math.round(margen(v) * 10) / 10}"></label>
         <label class="crece">Precio de venta<input class="input" name="precio" inputmode="decimal" required value="${v.precio ?? ''}"></label></div>
+      <label class="check"><input type="checkbox" name="margen_auto" ${v.margen != null ? 'checked' : ''}> Margen automático <span class="muted">(el precio sigue al costo: se recalcula solo al cargar una compra con costo nuevo)</span></label>
       <div class="fila"><label class="crece">Stock<input class="input" name="stock" inputmode="decimal" value="${v.stock ?? 0}"></label>
         <label class="crece">Stock mínimo<input class="input" name="stock_min" inputmode="decimal" value="${v.stock_min ?? 0}"></label></div>
       <label class="check"><input type="checkbox" name="por_peso" ${v.por_peso ? 'checked' : ''}> Se vende por kilo</label>
@@ -182,7 +184,13 @@ export async function pantallaProductos(vista, ctx) {
         favorito: f.get('favorito') === 'on', ...(p ? { activo: f.get('activo') === 'on' } : {}) };
       if (!(datos.precio >= 0)) return aviso('Revisá el precio');
       if (datos.costo > datos.precio && !confirm('El costo es mayor que el precio de venta. ¿Guardar igual?')) return;
-      correr(async () => { await llamar('guardar_producto', { p: datos }); m.cerrar(); aviso('Producto guardado', 'ok'); await cat.actualizar(); ctx.recargar(); });
+      const auto = f.get('margen_auto') === 'on', mg = numero(f.get('margen'));
+      if (auto && !(mg >= 0 && datos.costo > 0)) return aviso('Para el margen automático hacen falta el costo y el margen');
+      correr(async () => {
+        const r = await llamar('guardar_producto', { p: datos });
+        if (auto || p?.margen != null) await llamar('margen_producto', { p_id: r.id, p_margen: auto ? mg : null });
+        m.cerrar(); aviso('Producto guardado', 'ok'); await cat.actualizar(); ctx.recargar();
+      });
     };
     if (p) $('#eliminar', m.el).onclick = async () => {
       if (!await confirmar('Eliminar producto', `¿Eliminar "${p.nombre}"? Si ya tiene movimientos (ventas, compras, entradas o ajustes de stock), no se borra: queda dado de baja y se conserva el historial.`, 'Eliminar')) return;
@@ -213,76 +221,3 @@ export async function pantallaProductos(vista, ctx) {
   }
 }
 
-// Aumento masivo de precios: a los productos que se ven (si hay búsqueda), a una categoría, a un proveedor o a todos.
-// La vista previa la calcula la base (simular), así cuenta igual que al aplicar. Los aumentos anteriores se pueden deshacer.
-async function aumento(visibles, cats, ctx) {
-  const [provs, previos] = await Promise.all([llamar('proveedores'), llamar('aumentos')]);
-  const redondeo = +(ctx.config.redondeo ?? 10);
-  const m = modal('Aumento de precios', `<form class="form ancho" id="f-aum">
-    <label>¿A qué productos?<select class="input" name="alcance">
-      ${visibles ? `<option value="ids">Los ${visibles.length} que estás viendo (según la búsqueda y los filtros)</option>` : ''}
-      <option value="categoria">Una categoría</option><option value="proveedor">Un proveedor</option><option value="todos" ${visibles ? '' : 'selected'}>Todos los productos</option></select></label>
-    <label id="a-cat" hidden>Categoría<select class="input" name="categoria_id">${cats.map(c => `<option value="${c.id}">${esc(c.nombre)}</option>`).join('')}</select></label>
-    <label id="a-prov" hidden>Proveedor<select class="input" name="proveedor_id">${provs.map(p => `<option value="${p.id}">${esc(p.nombre)}</option>`).join('')}</select></label>
-    <div class="fila"><label class="crece">Aumento<input class="input" name="valor" inputmode="decimal" placeholder="ej: 8 (o -5 para rebajar)" autofocus></label>
-      <label class="crece">En<select class="input" name="modo"><option value="pct">% (porcentaje)</option><option value="monto">$ (monto fijo)</option></select></label></div>
-    <label class="check"><input type="checkbox" name="costo" checked> Aumentar también el costo (si el proveedor subió la lista)</label>
-    <label class="check"><input type="checkbox" name="redondear" ${redondeo > 0 ? 'checked' : 'disabled'}> ${redondeo > 0
-      ? `Redondear los precios hacia arriba a múltiplos de ${plata(redondeo)}` : 'Redondear los precios (el redondeo está apagado)'} <span class="muted chico">(se cambia en Ajustes)</span></label>
-    <p class="muted" id="a-prev"></p>
-    <div class="fila fin"><button type="button" class="btn" data-cerrar>Cancelar</button><button class="btn primario">Aplicar aumento</button></div>
-    <h3>Aumentos anteriores</h3><div id="a-hist"></div></form>`, { ancho: true });
-  const f = $('#f-aum', m.el), campo = n => f.elements[n];
-  const datos = () => {
-    const alcance = campo('alcance').value, modo = campo('modo').value, valor = numero(campo('valor').value);
-    const d = { alcance, modo, valor, costo: campo('costo').checked, redondear: campo('redondear').checked };
-    if (alcance === 'ids') d.ids = visibles.map(p => p.id);
-    if (alcance === 'categoria') d.categoria_id = +campo('categoria_id').value || null;
-    if (alcance === 'proveedor') d.proveedor_id = +campo('proveedor_id').value || null;
-    const a = alcance === 'ids' ? `${visibles.length} productos buscados` : alcance === 'categoria' ? `categoría ${cats.find(c => c.id === d.categoria_id)?.nombre || ''}`
-      : alcance === 'proveedor' ? `proveedor ${provs.find(p => p.id === d.proveedor_id)?.nombre || ''}` : 'todos los productos';
-    d.descripcion = `${valor > 0 ? '+' : ''}${modo === 'pct' ? `${String(valor).replace('.', ',')}%` : plata(valor)} a ${a}${d.costo ? ' (con costo)' : ''}`;
-    return d;
-  };
-  let pedido = 0;
-  const previa = async () => {
-    $('#a-cat', m.el).hidden = campo('alcance').value !== 'categoria';
-    $('#a-prov', m.el).hidden = campo('alcance').value !== 'proveedor';
-    const d = datos(), n = ++pedido;
-    if (!d.valor || (d.alcance === 'categoria' && !d.categoria_id) || (d.alcance === 'proveedor' && !d.proveedor_id)) { $('#a-prev', m.el).textContent = ''; return; }
-    try {
-      const r = await llamar('aumento_masivo', { p: { ...d, simular: true } });
-      if (n !== pedido) return;   // llegó una respuesta vieja
-      $('#a-prev', m.el).innerHTML = `<b>${r.cantidad}</b> producto${r.cantidad === 1 ? '' : 's'}.${r.ejemplos.length ? ' Ejemplos: '
-        + r.ejemplos.map(x => `${esc(x.nombre)} ${plata(x.precio)} → <b>${plata(x.precio_nuevo)}</b>`).join(' · ') : ''}`;
-    } catch (e) { if (n === pedido) $('#a-prev', m.el).textContent = e.message; }
-  };
-  f.querySelectorAll('select, input').forEach(i => { i.oninput = previa; i.onchange = previa; });
-  previa();
-  const pintarHist = lista => {
-    $('#a-hist', m.el).innerHTML = lista.length ? `<table class="tabla"><tbody>${lista.map(a => `<tr><td>${fecha(a.fecha)}<div class="muted chico">${esc(a.usuario)}</div></td>
-        <td>${esc(a.descripcion)}</td><td class="num">${a.cantidad} prod.</td>
-        <td class="num">${a.deshecho ? '<span class="etiqueta">deshecho</span>' : `<button type="button" class="btn chico" data-desh="${a.id}">Deshacer</button>`}</td></tr>`).join('')}</tbody></table>`
-      : '<p class="muted">Todavía no hubo aumentos.</p>';
-    $$('[data-desh]', m.el).forEach(b => b.onclick = async () => {
-      if (!await confirmar('Deshacer aumento', 'Los productos vuelven al precio y costo que tenían antes de ese aumento, salvo los que se cambiaron después.', 'Deshacer')) return;
-      correr(async () => {
-        const r = await llamar('deshacer_aumento', { p_id: +b.dataset.desh });
-        aviso(`Volvieron ${r.revertidos} producto${r.revertidos === 1 ? '' : 's'}${r.saltados ? ` · ${r.saltados} no se tocaron porque cambiaron después` : ''}`, 'ok');
-        pintarHist(await llamar('aumentos')); await cat.actualizar(); ctx.recargar();
-      });
-    });
-  };
-  pintarHist(previos);
-  f.onsubmit = async e => {
-    e.preventDefault();
-    const d = datos();
-    if (!d.valor) return aviso('Poné el aumento');
-    if (!await confirmar('Aplicar aumento', `${d.descripcion}. Se puede deshacer después.`, 'Aplicar')) return;
-    correr(async () => {
-      const r = await llamar('aumento_masivo', { p: d });
-      m.cerrar(); aviso(`Precios actualizados: ${r.cantidad} producto${r.cantidad === 1 ? '' : 's'}`, 'ok');
-      await cat.actualizar(); ctx.recargar();
-    });
-  };
-}
