@@ -239,7 +239,7 @@ async function nuevaCompra(vista, ctx) {
         return `<tr><td>${esc(p.nombre || '?')}<div class="muted chico">stock ${cant(p.stock)} · costo actual ${plata(p.costo)} · precio ${plata(p.precio)}</div></td>
         <td class="num"><input class="input cant" data-c="cantidad" data-k="${k}" value="${esc(i.cantidad)}" inputmode="decimal"></td>
         <td class="num"><input class="input corto" data-c="costo" data-k="${k}" value="${esc(i.costo)}" inputmode="decimal"></td>
-        <td class="num"><input class="input corto" data-c="precio_nuevo" data-k="${k}" value="${esc(i.precio_nuevo)}" inputmode="decimal" placeholder="${auto ? 'auto: ' + plata(precioAuto) : 'no cambia'}">
+        <td class="num"><input class="input corto" data-c="precio_nuevo" data-k="${k}" value="${esc(i.precio_nuevo)}" inputmode="decimal" placeholder="${auto ? 'auto' : 'no cambia'}" title="${auto ? 'Con margen automático el precio se calcula solo; escribí uno solo si querés otro' : 'Vacío: el precio no cambia'}">
           ${auto ? `<div class="muted chico">margen ${String(+p.margen).replace('.', ',')}% auto: queda en <b>${plata(precioAuto)}</b></div>`
             : margen != null ? `<div class="muted chico ${margen < 0 ? 'mal' : ''}">margen ${margen}%</div>` : ''}</td>
         <td class="num">${plata(numero(i.cantidad) * (costo || 0))}</td><td><button class="link" data-quitar="${k}">✕</button></td></tr>`; }).join('')}</tbody>`
