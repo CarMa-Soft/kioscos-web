@@ -242,3 +242,10 @@ p.muted { margin: 0 0 1.25rem; }
 .opciones-alta .btn { text-align: left; }
 .otros-codigos { display: grid; gap: .45rem; padding: .75rem; border: 1px dashed #cbd2d9; border-radius: 10px; }
 .otros-codigos .chip { cursor: default; display: inline-flex; align-items: center; gap: .35rem; }
+
+/* Lista de precios (listaprecios.js) */
+.lp-filtros .chips { margin-top: -.3rem; }
+.lp-formato { align-items: center; gap: 1.2rem; }
+.lp-opc { display: inline-flex; gap: 1rem; flex-wrap: wrap; }
+.tabla tr.lp-fuera td { color: var(--suave); text-decoration: line-through; }
+.tabla tr.lp-fuera td:first-child { text-decoration: none; }

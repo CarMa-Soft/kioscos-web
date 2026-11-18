@@ -3,9 +3,11 @@ import { llamar } from './base.js';
 import * as cat from './catalogo.js';
 import { $, $$, esc, plata, cant, fecha, numero, aviso, correr, modal, confirmar } from './ui.js';
 import { botonCamara } from './escaner.js';
+import { pantallaListaPrecios } from './listaprecios.js';
 
 // Lo que se eligió en la lista se mantiene al ir y volver de la sección
 let filtro = '', grupo = 'todos', categoria = '', orden = { col: 'nombre', asc: true };
+let enLista = false;   // mostrando la lista de precios para imprimir
 
 // Botones de filtro: cada uno con su condición. "Desactivados" muestra los dados de baja (los demás, solo activos).
 const GRUPOS = [
@@ -22,13 +24,14 @@ const margen = p => +p.costo > 0 ? (p.precio - p.costo) / p.costo * 100 : null;
 const sinAcentos = s => String(s ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 
 export async function pantallaProductos(vista, ctx) {
+  if (enLista) return pantallaListaPrecios(vista, ctx, () => { enLista = false; ctx.recargar(); });
   // el catálogo trae solo los activos (con costos: solo el dueño los recibe); los dados de baja vienen aparte
   const [r, bajas] = await Promise.all([llamar('catalogo'), llamar('productos_de_baja')]);
   const activos = r.productos;
   const cats = r.categorias, catNombre = id => cats.find(c => c.id === id)?.nombre || '';
   if (categoria && !cats.some(c => String(c.id) === categoria)) categoria = '';
   vista.innerHTML = `<div class="cabecera"><h2>Productos <span class="muted">(${activos.length})</span></h2>
-      <div class="acciones"><button class="btn" id="aumento">Aumento de precios</button><button class="btn" id="categorias">Categorías</button><button class="btn primario" id="nuevo">＋ Nuevo producto</button></div></div>
+      <div class="acciones"><button class="btn" id="lista-precios">🏷️ Lista de precios</button><button class="btn" id="aumento">Aumento de precios</button><button class="btn" id="categorias">Categorías</button><button class="btn primario" id="nuevo">＋ Nuevo producto</button></div></div>
     <div class="p-filtros">
       <div class="p-busqueda">
         <label class="p-buscar"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg>
@@ -98,6 +101,7 @@ export async function pantallaProductos(vista, ctx) {
   $('#nuevo').onclick = () => ficha(null);
   $('#categorias').onclick = () => categorias(cats);
   $('#aumento').onclick = () => correr(() => aumento(hayFiltros() ? visibles() : null, cats, ctx));
+  $('#lista-precios').onclick = () => { enLista = true; ctx.recargar(); };
   pintar();
 
   function ficha(p) {
