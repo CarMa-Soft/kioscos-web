@@ -209,3 +209,18 @@ p.muted { margin: 0 0 1.25rem; }
 .pedido .tabla td { vertical-align: middle; }
 .pedido .tabla select { min-width: 12rem; }
 .pedido .tabla .link, .pedido .tabla .etiqueta { white-space: nowrap; }
+
+/* Celular: formularios a una columna (cada campo a lo ancho) y la tilde con su texto corrido */
+@media (max-width: 800px) {
+  .form .fila > label { flex-basis: 100%; }
+  .form label.check { display: block; }
+  .form label.check input { margin: 0 .45rem 0 0; vertical-align: middle; }
+  .recuadro-blanco { padding: 1rem; }
+  /* Vencimientos de proveedores: cada deuda en dos renglones (comprobante e importe; fecha y cuánto falta) */
+  .tabla.deudas tr { display: grid; grid-template-columns: 1fr auto; column-gap: .75rem; padding: .55rem 0; border-bottom: 1px solid var(--borde); }
+  .tabla.deudas td { padding: 0; border: 0; }
+  .tabla.deudas td:nth-child(1) { grid-row: 1; grid-column: 1; font-weight: 600; }
+  .tabla.deudas td:nth-child(4) { grid-row: 1; grid-column: 2; font-weight: 600; }
+  .tabla.deudas td:nth-child(2) { grid-row: 2; grid-column: 1; color: var(--suave); font-size: .9rem; }
+  .tabla.deudas td:nth-child(3) { grid-row: 2; grid-column: 2; text-align: right; font-size: .9rem; }
+}
