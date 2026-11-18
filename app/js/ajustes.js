@@ -55,12 +55,24 @@ export async function pantallaAjustes(vista, ctx) {
         <label class="crece">Salidas<textarea class="input" name="egreso" rows="6">${esc((motivos.egreso || []).join('\n'))}</textarea></label></div>
       <div class="fila"><button class="btn primario">Guardar</button></div>
     </form>
+    <form class="form ancho recuadro-blanco" id="f-plazo">
+      <h3>Fiado a clientes</h3>
+      <label>Plazo para pagar (días)<input class="input corto" name="plazo" inputmode="numeric" value="${esc(ctx.config.plazo_clientes ?? 30)}"></label>
+      <p class="muted chico">Cada compra fiada vence a los días que diga el cliente en su ficha; si no tiene, a estos. Cambiarlo cambia el vencimiento de lo que está pendiente.</p>
+      <div class="fila"><button class="btn primario">Guardar</button></div>
+    </form>
     <div class="form ancho recuadro-blanco"><h3>Lectura de facturas con IA</h3><div id="uso-ia" class="muted">…</div></div>`;
   llamar('uso_ia').then(u => {
     $('#uso-ia').innerHTML = `Este mes: <b>${u.mes.lecturas}</b> lectura${+u.mes.lecturas === 1 ? '' : 's'} · US$ ${(+u.mes.costo_usd).toFixed(2)}
       · En total: ${u.total.lecturas} · US$ ${(+u.total.costo_usd).toFixed(2)}
       <p class="chico">El costo es estimado; el detalle oficial está en la consola de Anthropic. Hasta 60 lecturas por día.</p>`;
   }).catch(() => { $('#uso-ia').textContent = 'No se pudo consultar el consumo.'; });
+  $('#f-plazo').onsubmit = e => {
+    e.preventDefault();
+    const dias = numero(new FormData(e.target).get('plazo'));
+    if (!(dias >= 0 && dias <= 365 && Number.isInteger(dias))) return aviso('El plazo tiene que ser de 0 a 365 días');
+    correr(async () => { ctx.config.plazo_clientes = await llamar('guardar_plazo_clientes', { p_dias: dias }); aviso('Plazo guardado', 'ok'); });
+  };
   $('#f-motivos').onsubmit = e => {
     e.preventDefault();
     const f = new FormData(e.target);

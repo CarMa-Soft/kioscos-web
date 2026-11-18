@@ -187,6 +187,15 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
 - Cualquier usuario crea clientes y cobra (`cobrar_cliente`, entra a la caja del turno); el límite, los ajustes
   (`ajuste_cliente`, deuda anterior o corrección, sin plata) y las bajas los hace el dueño. Un cliente con saldo no se borra.
 - Anular una venta fiada descuenta lo fiado de la cuenta; el turno hace falta solo si hubo pagos que pasaron por la caja.
+- **Aplicación de pagos** (como en proveedores; `aplicaciones_cli`): las deudas son cada venta fiada (su importe = suma de sus
+  movimientos en `cc`: el cargo menos lo que restaron su anulación o sus devoluciones a la cuenta) y cada ajuste que suma sin venta;
+  los créditos, los pagos y los ajustes que restan (y el exceso de una venta si se devolvió a la cuenta más de lo fiado).
+  `deudas_cliente` / `creditos_cliente` calculan pendiente y libre: **siempre pendiente − a favor = saldo** (`pruebas.cuadra_cli`).
+  `cobrar_cliente(..., p_aplicaciones)` (`[{venta_id | deuda_id, monto}]`; sin él, a lo que vence primero; lo que sobra queda a favor)
+  y `aplicar_cliente` (lo que está a favor, sin plata). El disparador `cc_aplicar` (cada movimiento de `cc` que no es un pago)
+  recorta lo aplicado de más y aplica lo que está a favor, así `registrar_venta`, `anular_venta` y `devolver_venta` no saben nada de esto.
+- **Vencimiento:** fecha de la venta + `clientes.plazo` (solo el dueño lo cambia; null = config `plazo_clientes`, 30 de fábrica,
+  `guardar_plazo_clientes`). Se calcula al mostrarlo. `cuenta_cliente` trae `pendientes`, `pagadas` (con `pagada`, las últimas 100) y `a_favor`.
 
 ## Forma de trabajo
 - **Nunca commitear ni hacer push directo a `main`** (GitHub lo impide). Todo va en una rama y entra por pull request.
