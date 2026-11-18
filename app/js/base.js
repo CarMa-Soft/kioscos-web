@@ -12,18 +12,42 @@ export function guardarToken(t) {
 }
 let tokenEnMemoria = leerToken();
 
+// Ningún pedido espera para siempre: si internet se colgó (o la PC estuvo suspendida), a los 30 segundos se corta y la
+// pantalla avisa en vez de quedar en "Cargando…". Las funciones (lectura de facturas con IA) tienen 2 minutos.
+const ESPERA_MS = 30 * 1000, ESPERA_FUNCIONES_MS = 120 * 1000;
+function conTiempo(signal, ms) {
+  if (typeof AbortSignal.timeout !== 'function') return signal;
+  const t = AbortSignal.timeout(ms);
+  return signal && typeof AbortSignal.any === 'function' ? AbortSignal.any([signal, t]) : (signal || t);
+}
+
 // Solo los pedidos a la base (/rest/v1/) y a sus funciones (/functions/v1/) llevan el token; los de inicio de sesión no
 function fetchConUsuario(input, init = {}) {
   const url = typeof input === 'string' ? input : input.url;
-  if (tokenEnMemoria && (url.startsWith(SUPABASE_URL + '/rest/v1/') || url.startsWith(SUPABASE_URL + '/functions/v1/'))) {
+  const esFuncion = url.startsWith(SUPABASE_URL + '/functions/v1/');
+  if (tokenEnMemoria && (url.startsWith(SUPABASE_URL + '/rest/v1/') || esFuncion)) {
     const headers = new Headers(init.headers || (typeof input === 'string' ? undefined : input.headers));
     headers.set('x-usuario-kiosco', tokenEnMemoria);
     init = { ...init, headers };
   }
-  return fetch(input, init);
+  return fetch(input, { ...init, signal: conTiempo(init.signal, esFuncion ? ESPERA_FUNCIONES_MS : ESPERA_MS) });
 }
 
-export const sb = createClient(SUPABASE_URL, SUPABASE_KEY, { global: { fetch: fetchConUsuario } });
+// lock: la renovación de la sesión no usa el bloqueo entre pestañas del navegador (navigator.locks). Con la pestaña un rato
+// sin usar, ese bloqueo puede quedar tomado y toda la app queda esperando ("Cargando…" sin fin). La app se usa en una
+// pestaña por PC, así que alcanza con hacerlo directo.
+export const sb = createClient(SUPABASE_URL, SUPABASE_KEY, {
+  global: { fetch: fetchConUsuario },
+  auth: { lock: async (_nombre, _espera, fn) => fn() },
+});
+
+// Corta una espera que no termina (por ejemplo, la sesión renovándose con internet colgado)
+const DEMORA = 'La base tardó demasiado en responder: revisá internet y probá de nuevo';
+export function conLimite(promesa, ms = ESPERA_MS + 5000) {
+  let t;
+  return Promise.race([promesa, new Promise((_, mal) => { t = setTimeout(() => mal(new ErrorBase(DEMORA, 'red')), ms); })])
+    .finally(() => clearTimeout(t));
+}
 
 // Error con un mensaje para mostrar en pantalla; 'codigo' conserva el de Postgres o PostgREST.
 // codigo 'sesion' = venció la sesión del usuario con PIN (hay que volver a elegir usuario).
@@ -34,6 +58,8 @@ export class ErrorBase extends Error {
 // Traduce los errores de la base a mensajes entendibles
 export function traducir(error) {
   const msg = error?.message || String(error);
+  if (error instanceof ErrorBase) return error;
+  if (error?.name === 'TimeoutError' || error?.name === 'AbortError' || /aborted|timed? ?out/i.test(msg)) return new ErrorBase(DEMORA, 'red');
   if (/Failed to fetch|NetworkError|Load failed/i.test(msg)) return new ErrorBase('Sin conexión a internet', 'red');
   if (error?.hint === 'sesion') return new ErrorBase(msg, 'sesion');
   if (error?.hint === 'limite') return new ErrorBase(msg, 'limite');   // fiado por encima del límite del cliente
@@ -47,7 +73,7 @@ export function traducir(error) {
 // Llama a una función de Supabase (supabase/functions), como la lectura de facturas con IA. Responde { error, hint } si falla.
 export async function funcion(nombre, cuerpo) {
   let r;
-  try { r = await sb.functions.invoke(nombre, { body: cuerpo }); } catch (e) { throw traducir(e); }
+  try { r = await conLimite(sb.functions.invoke(nombre, { body: cuerpo }), ESPERA_FUNCIONES_MS + 5000); } catch (e) { throw traducir(e); }
   if (r.error) {
     let d = null;
     try { d = await r.error.context?.json(); } catch { /* sin cuerpo */ }
@@ -60,7 +86,7 @@ export async function funcion(nombre, cuerpo) {
 // Llama a una función de la base (las operaciones que tocan varias tablas son funciones SQL atómicas)
 export async function llamar(funcion, args = {}) {
   let r;
-  try { r = await sb.rpc(funcion, args); } catch (e) { throw traducir(e); }
+  try { r = await conLimite(sb.rpc(funcion, args)); } catch (e) { throw traducir(e); }
   if (r.error) throw traducir(r.error);
   return r.data;
 }

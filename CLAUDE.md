@@ -309,3 +309,11 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   (`entregar_pendiente`, cualquier usuario, con stock suficiente) lo saca del stock sin plata.
 - `devolver_venta` descuenta primero de lo pendiente (`descontar_pendiente`: eso no vuelve al stock); `anular_venta` cancela
   lo pendiente y devuelve al stock solo lo entregado. `venta_json` trae `pendientes`, y el ticket los imprime.
+
+## Que nada quede "Cargando…" para siempre
+- `base.js`: cada pedido a Supabase se corta a los 30 s (las funciones, a los 2 min) y `llamar`/`funcion` además usan
+  `conLimite` (por si la espera es antes del pedido). El error es "La base tardó demasiado en responder" (código `red`).
+  Una venta cortada así se puede volver a cobrar: la clave de la venta evita registrarla dos veces.
+- `createClient` con `auth.lock` directo (sin `navigator.locks`): con la pestaña un rato sin usar, ese bloqueo podía quedar
+  tomado y la app quedaba esperando sin fin.
+- `mostrarSeccion`: si la sección no se pudo cargar, muestra "No se pudo cargar" con Reintentar y Recargar la página.
