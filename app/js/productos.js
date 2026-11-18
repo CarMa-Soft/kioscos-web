@@ -109,7 +109,7 @@ export async function pantallaProductos(vista, ctx) {
   pintar();
 
   function ficha(p) {
-    const v = p || { por_peso: false, favorito: false, activo: true };
+    const v = p || { por_peso: false, favorito: false, activo: true, margen: +(ctx.config.margen ?? 40) > 0 ? +(ctx.config.margen ?? 40) : null };
     const m = modal(p ? 'Editar producto' : 'Nuevo producto', `<form class="form ancho" id="f-prod">
       <label>Nombre<input class="input" name="nombre" maxlength="120" required value="${esc(v.nombre || '')}" autofocus></label>
       <div class="fila"><label class="crece">Código de barras<input class="input mono" name="codigo" maxlength="40" value="${esc(v.codigo || '')}" autocomplete="off"></label>
@@ -187,12 +187,15 @@ export async function pantallaProductos(vista, ctx) {
         favorito: f.get('favorito') === 'on', ...(p ? { activo: f.get('activo') === 'on' } : {}) };
       if (!(datos.precio >= 0)) return aviso('Revisá el precio');
       if (datos.costo > datos.precio && !confirm('El costo es mayor que el precio de venta. ¿Guardar igual?')) return;
-      const auto = f.get('margen_auto') === 'on', mg = numero(f.get('margen'));
-      if (auto && !(mg >= 0 && datos.costo > 0)) return aviso('Para el margen automático hacen falta el costo y el margen');
+      // margen automático: hace falta el costo; sin costo, se guarda con precio fijo (y se avisa)
+      const tilde = f.get('margen_auto') === 'on', mg = numero(f.get('margen'));
+      const auto = tilde && mg >= 0 && datos.costo > 0;
       correr(async () => {
         const r = await llamar('guardar_producto', { p: datos });
         if (auto || p?.margen != null) await llamar('margen_producto', { p_id: r.id, p_margen: auto ? mg : null });
-        m.cerrar(); aviso('Producto guardado', 'ok'); await cat.actualizar(); ctx.recargar();
+        m.cerrar();
+        aviso(tilde && !auto ? 'Producto guardado con precio fijo: para el margen automático hacen falta el costo y el margen' : 'Producto guardado', tilde && !auto ? 'info' : 'ok');
+        await cat.actualizar(); ctx.recargar();
       });
     };
     if (p) $('#eliminar', m.el).onclick = async () => {

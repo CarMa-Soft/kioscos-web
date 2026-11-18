@@ -3,6 +3,7 @@
 //   (los de margen recalculan su precio; los fijos lo mantienen). Con el redondeo que se elija.
 // - Asignar margen: calcular el precio con un margen, que queda automático (sigue al costo), o quitarlo (precio fijo).
 // A qué productos: los que coinciden con una búsqueda, los que se ven en la lista, todos, una categoría o un proveedor.
+// - Configuración: el redondeo de los precios y el margen automático para productos nuevos (antes estaba en Ajustes).
 // La lista de cómo queda cada uno se ve antes de aplicar (y se pueden destildar). Lo aplica ajustar_precios() en la base,
 // que hace la misma cuenta; los cambios anteriores se pueden deshacer.
 import { llamar } from './base.js';
@@ -17,13 +18,20 @@ const margenDe = p => +p.costo > 0 ? (p.precio - p.costo) / p.costo * 100 : null
 
 export async function preciosModal({ productos, categorias, visibles, ctx, alTerminar }) {
   const [provs, previos] = await Promise.all([llamar('proveedores'), llamar('aumentos')]);
-  const redAjustes = +(ctx.config.redondeo ?? 10);
+  let redAjustes = +(ctx.config.redondeo ?? 10);
   const catNombre = id => categorias.find(c => c.id === id)?.nombre || '';
   let tab = 'precios';
+  // qué se hace en cada pestaña (la leyenda abajo de las pestañas)
+  const LEYENDAS = {
+    config: 'El redondeo de los precios y el margen automático con el que arrancan los productos nuevos.',
+    margen: 'Poné un margen a varios productos a la vez: su precio pasa a calcularse solo (costo + margen) y sigue al costo en cada compra. O quitáselo y queda con precio fijo.',
+    precios: 'Subí o bajá de una vez el precio de venta de los productos de precio fijo, o el costo cuando el proveedor cambia su lista (los de margen automático recalculan su precio solos).',
+  };
   const excluidos = new Set();
   const m = modal('Precios y márgenes', `<div class="form ancho">
-    <div class="chips" id="pm-tabs"><button type="button" class="chip elegido" data-tab="precios">Actualizar precios</button><button type="button" class="chip" data-tab="margen">Asignar margen</button></div>
-    <div class="fila">
+    <div class="chips" id="pm-tabs"><button type="button" class="chip" data-tab="config">Configuración</button><button type="button" class="chip" data-tab="margen">Asignar margen</button><button type="button" class="chip elegido" data-tab="precios">Actualizar precios</button></div>
+    <p class="pm-leyenda" id="pm-leyenda"></p>
+    <div class="fila" id="pm-ambito-f">
       <label class="crece">¿A qué productos?<select class="input" id="pm-ambito">
         <option value="buscar">Los que coinciden con una búsqueda (ej: yerba)</option>
         ${visibles ? `<option value="vista">Los que estás viendo en la lista (${visibles.length})</option>` : ''}
@@ -44,8 +52,17 @@ export async function preciosModal({ productos, categorias, visibles, ctx, alTer
         <label class="crece">¿Qué hacer?<select class="input" id="pm-accion"><option value="poner">Calcular el precio con un margen</option><option value="quitar">Quitar el margen automático (precio fijo)</option></select></label>
         <label class="crece" id="pm-mg-l">Margen %<input class="input" id="pm-mg" inputmode="decimal" placeholder="ej: 35"></label></div>
       <p class="muted chico" id="pm-mg-ayuda"></p></div>
+    <form id="pm-tab-config" hidden>
+      <div class="fila">
+        <label class="crece">Redondear los precios hacia arriba a múltiplos de<input class="input" name="redondeo" inputmode="decimal" value="${esc(String(ctx.config.redondeo ?? 10))}"></label>
+        <label class="crece">Margen automático para productos nuevos (%)<input class="input" name="margen" inputmode="decimal" value="${esc(String(ctx.config.margen ?? 40))}"></label></div>
+      <p class="muted chico">El <b>redondeo</b> se usa cada vez que un margen automático recalcula un precio, y viene elegido al actualizar precios
+        (ej.: con 10, $1.234 queda en $1.240; con 0 no se redondea).<br>
+        El <b>margen para productos nuevos</b> lo toman los productos que se crean al cargar una compra (desde la factura o con el alta rápida)
+        y con "Nuevo producto": su precio sigue al costo desde el primer día. Con 0, los nuevos quedan con precio fijo.</p>
+      <div class="fila"><button class="btn primario">Guardar configuración</button></div></form>
     <div id="pm-prev"></div>
-    <div class="fila fin"><button type="button" class="btn" data-cerrar>Cancelar</button><button type="button" class="btn primario" id="pm-ok" disabled>Aplicar</button></div>
+    <div class="fila fin" id="pm-acciones"><button type="button" class="btn" data-cerrar>Cancelar</button><button type="button" class="btn primario" id="pm-ok" disabled>Aplicar</button></div>
     <details class="pm-hist"><summary>Cambios anteriores (para deshacer)</summary><div id="pm-hist"></div></details></div>`, { ancho: true });
   $('.modal', m.el).classList.add('pm-modal');   // más ancha que las demás ventanas: tiene una tabla de antes y después
   const v = id => $(id, m.el).value;
@@ -90,13 +107,18 @@ export async function preciosModal({ productos, categorias, visibles, ctx, alTer
   const pintar = () => {
     const p0 = plan();
     $$('#pm-tabs .chip', m.el).forEach(c => c.classList.toggle('elegido', c.dataset.tab === tab));
+    $('#pm-leyenda', m.el).textContent = LEYENDAS[tab];
     $('#pm-tab-precios', m.el).hidden = tab !== 'precios'; $('#pm-tab-margen', m.el).hidden = tab !== 'margen';
+    const config = tab === 'config';
+    $('#pm-tab-config', m.el).hidden = !config;
+    ['#pm-ambito-f', '#pm-prev', '#pm-acciones'].forEach(s => { $(s, m.el).hidden = config; });
+    if (config) return;
     $('#pm-q-l', m.el).hidden = v('#pm-ambito') !== 'buscar';
     let nota = '';
     if (tab === 'margen') {
       $('#pm-mg-l', m.el).hidden = p0.quitar;
       $('#pm-mg-ayuda', m.el).innerHTML = p0.quitar ? 'Dejan de calcularse solos: quedan con su precio actual, como precio fijo.'
-        : `El precio de venta se calcula: costo + margen, redondeado ${redAjustes ? `hacia arriba a múltiplos de ${plata(redAjustes)}` : 'sin redondeo'} (se cambia en Ajustes → Precios).
+        : `El precio de venta se calcula: costo + margen, redondeado ${redAjustes ? `hacia arriba a múltiplos de ${plata(redAjustes)}` : 'sin redondeo'} (se cambia en Configuración).
           Después <b>se actualiza solo cada vez que cambia el costo</b> (por ejemplo, al cargar una compra).`;
       const sinCosto = p0.quitar ? 0 : p0.l.length - p0.afectados.length;
       if (sinCosto) nota = `<p class="muted chico">${sinCosto} producto${sinCosto === 1 ? '' : 's'} sin costo cargado: no se les puede calcular el precio y quedan igual.</p>`;
@@ -131,7 +153,19 @@ export async function preciosModal({ productos, categorias, visibles, ctx, alTer
     if ($('#pm-todos', m.el)) $('#pm-todos', m.el).onchange = e => { p0.afectados.forEach(p => marcar(p.id, e.target.checked)); pintarConteo(); };
     pintarConteo();
   };
-  $$('#pm-tabs .chip', m.el).forEach(c => c.onclick = () => { tab = c.dataset.tab; pintar(); $(tab === 'margen' ? '#pm-mg' : '#pm-val', m.el).focus(); });
+  $$('#pm-tabs .chip', m.el).forEach(c => c.onclick = () => { tab = c.dataset.tab; pintar(); $(tab === 'margen' ? '#pm-mg' : tab === 'config' ? '[name=redondeo]' : '#pm-val', m.el).focus(); });
+  $('#pm-tab-config', m.el).onsubmit = e => {
+    e.preventDefault();
+    const f = new FormData(e.target), red = numero(f.get('redondeo')), mg = numero(f.get('margen'));
+    if (!(red >= 0)) return aviso('Revisá el redondeo');
+    if (!(mg >= 0 && mg <= 1000)) return aviso('El margen tiene que ser entre 0 y 1000');
+    correr(async () => {
+      ctx.config.redondeo = await llamar('guardar_redondeo', { p_valor: red });
+      ctx.config.margen = await llamar('guardar_margen', { p_valor: mg });
+      redAjustes = +ctx.config.redondeo;
+      aviso('Configuración guardada', 'ok');
+    });
+  };
   ['#pm-ambito', '#pm-campo', '#pm-modo', '#pm-red', '#pm-accion'].forEach(s => { $(s, m.el).onchange = pintar; });
   let t; $('#pm-q', m.el).oninput = () => { clearTimeout(t); t = setTimeout(pintar, 150); };
   $('#pm-val', m.el).oninput = pintar; $('#pm-mg', m.el).oninput = pintar;

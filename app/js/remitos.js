@@ -117,7 +117,7 @@ async function nuevoRemito(vista, ctx, tipo) {
     const t = escaner.value.trim();
     const p = porCodigo.get(t.toLowerCase()) || (!res.hidden && sugeridos[marcado]);
     if (p) agregar(p);
-    else if (t) productoNoEncontrado(t, { productos: cata.productos, categorias: cata.categorias, alElegir: incorporar });   // crearlo o agregarle el código a uno
+    else if (t) productoNoEncontrado(t, { productos: cata.productos, categorias: cata.categorias, alElegir: incorporar, config: ctx.config });   // crearlo o agregarle el código a uno
   };
   escaner.onblur = () => setTimeout(() => { res.hidden = true; }, 150);
   // Un producto recién creado (o al que se le agregó un código): entra a la lista de esta pantalla y se suma
