@@ -259,3 +259,17 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   (`verify_jwt = false`), que con la clave de servicio usa `revisar_subida_celular`, `tomar_subida_celular` (pasa a leyendo,
   controla el límite de 60 por día) y `terminar_subida_celular` (lista, o error para volver a mandar). No hace falta el mismo WiFi.
 - `funciones.yml` publica todas las funciones; `pages.yml` marca la versión en todas las páginas (`app/*.html`).
+
+## Pedidos a proveedores
+- Sección "Pedidos" (después de Compras, solo dueño, `pedidos.js`). `pedidos()` arma un pedido por proveedor con los
+  productos activos con `stock <= greatest(stock_min, 0)`: el proveedor es el habitual del producto o, si no tiene, el de su
+  última compra (`producto_proveedores`); si no, "Sin proveedor". Trae la cantidad propuesta (`cantidad_propuesta`: hasta el
+  doble del mínimo; sin mínimo, lo que falta para tener 1; enteras salvo por kilo), el último costo de ese proveedor y su código.
+- `pedido_items` guarda solo lo que se cambió: `cantidad` (`pedido_cantidad`, null = la propuesta) y `pendiente`
+  (`pedido_pendiente`: quitado del pedido → "Pendientes de pedir", de donde vuelve con un botón). `pedido_proveedor` deja al
+  proveedor elegido como habitual del producto. Al cargar una compra, un trigger en `compra_items` borra lo guardado de esos
+  productos; `pedidos()` limpia lo de productos que ya no hace falta pedir. No hay "recibido".
+- Exportar cada pedido: PDF (jsPDF + jspdf-autotable de jsDelivr), Excel (.xlsx armado a mano y comprimido con fflate: la
+  librería write-excel-file usa workers, que la política de seguridad bloquearía) y WhatsApp (`wa.me` con el teléfono del
+  proveedor pasado a 549…; si no tiene, se elige el contacto). Los precios de referencia van en el PDF y el Excel solo si se tilda.
+- `pages.yml` marca la versión en todas las hojas de estilo (`css/*.css`), no solo en app.css.
