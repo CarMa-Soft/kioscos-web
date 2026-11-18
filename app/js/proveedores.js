@@ -209,7 +209,7 @@ export function vencimientosModal(alPagar) {
         <div class="tarjeta"><div class="etq">Ya vencido</div><div class="valor ${vencido > 0.004 ? 'mal' : ''}">${plata(vencido)}</div></div></div>
       ${r.proveedores.map(x => `<div class="recuadro-blanco"><div class="fila entre"><h3>${esc(x.nombre)} · ${plata(x.total)}</h3><button class="btn chico" data-pagar="${x.id}">Registrar pago</button></div>
         ${+x.sin_aplicar > 0.004 ? `<p class="ok chico">Tiene ${plata(x.sin_aplicar)} a cuenta sin aplicar</p>` : ''}
-        <table class="tabla"><tbody>${x.deudas.map(d => `<tr><td>${esc(nombreDeuda(d))}</td><td>${dia(d.vencimiento)}</td><td>${textoVence(d.vencimiento)}</td><td class="num">${plata(d.pendiente)}</td></tr>`).join('')}</tbody></table></div>`).join('')}`;
+        <table class="tabla deudas"><tbody>${x.deudas.map(d => `<tr><td>${esc(nombreDeuda(d))}</td><td>${dia(d.vencimiento)}</td><td>${textoVence(d.vencimiento)}</td><td class="num">${plata(d.pendiente)}</td></tr>`).join('')}</tbody></table></div>`).join('')}`;
     $$('[data-pagar]', m.el).forEach(b => b.onclick = () => { m.cerrar(); alPagar(+b.dataset.pagar); });
   });
   $('#v-hasta', m.el).onchange = e => { vencHasta = e.target.value || hoyDia(); cargar(); };
