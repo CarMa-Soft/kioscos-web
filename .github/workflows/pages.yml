@@ -23,7 +23,7 @@ jobs:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # Marca la versión: ?v=<commit> en el CSS y en cada import de JS (así el navegador no usa archivos viejos guardados)
       # y version.json, que la app consulta para avisar que hay una versión nueva.
       - name: Marcar la versión
