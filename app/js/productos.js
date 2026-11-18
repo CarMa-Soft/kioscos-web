@@ -57,7 +57,7 @@ export async function pantallaProductos(vista, ctx) {
     const dir = orden.asc ? 1 : -1;
     const valor = {
       nombre: p => sinAcentos(p.nombre), categoria: p => sinAcentos(catNombre(p.categoria_id)) || '￿',
-      stock: p => +p.stock, costo: p => +p.costo, precio: p => +p.precio, margen: margen,
+      stock: p => +p.stock, costo: p => +p.costo, precio: p => +p.precio, margen: p => p.margen != null ? +p.margen : margen(p),
     }[orden.col];
     return delGrupo(grupo).sort((a, b) => {
       const x = valor(a), y = valor(b);
@@ -85,7 +85,10 @@ export async function pantallaProductos(vista, ctx) {
           <td class="num"><span class="${claseStock}">${cant(s)}${p.por_peso ? ' kg' : ''}</span>${min > 0 ? `<div class="p-sub">mín. ${cant(min)}</div>` : ''}</td>
           <td class="num">${plata(p.costo)}</td>
           <td class="num"><b>${plata(p.precio)}</b>${p.por_peso ? '<span class="muted">/kg</span>' : ''}</td>
-          <td class="num">${m == null ? '<span class="muted">—</span>' : `${Math.round(m)}%`}${p.margen != null ? ' <span class="etiqueta info" title="Margen automático: el precio sigue al costo">auto</span>' : ''}</td></tr>`; }).join('')
+          <td class="num">${p.margen != null
+            // margen automático: el configurado; el real puede dar un poco más por el redondeo del precio
+            ? `<span title="Margen automático: el precio sigue al costo${m != null && Math.round(m) !== Math.round(+p.margen) ? `. Real: ${Math.round(m)}%, por el redondeo del precio` : ''}">${String(+p.margen).replace('.', ',')}% <span class="etiqueta info">auto</span></span>`
+            : m == null ? '<span class="muted">—</span>' : `${Math.round(m)}%`}</td></tr>`; }).join('')
         : `<tr><td class="muted vacio" colspan="6">${!(grupo === 'desactivados' ? bajas : activos).length
             ? (grupo === 'desactivados' ? 'No hay productos desactivados.' : 'Todavía no hay productos: cargá el primero con "Nuevo producto".')
             : 'Ningún producto coincide con los filtros.'}</td></tr>`}</tbody>
