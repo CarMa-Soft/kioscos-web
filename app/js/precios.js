@@ -47,6 +47,7 @@ export async function preciosModal({ productos, categorias, visibles, ctx, alTer
     <div id="pm-prev"></div>
     <div class="fila fin"><button type="button" class="btn" data-cerrar>Cancelar</button><button type="button" class="btn primario" id="pm-ok" disabled>Aplicar</button></div>
     <details class="pm-hist"><summary>Cambios anteriores (para deshacer)</summary><div id="pm-hist"></div></details></div>`, { ancho: true });
+  $('.modal', m.el).classList.add('pm-modal');   // más ancha que las demás ventanas: tiene una tabla de antes y después
   const v = id => $(id, m.el).value;
   if (visibles) $('#pm-ambito', m.el).value = 'vista';
 
