@@ -60,7 +60,7 @@ const r3 = n => Math.round((+n || 0) * 1000) / 1000;
 
 // La venta en curso sobrevive a cambiar de sección. 'clave' identifica el intento de cobro: si se corta internet
 // y se vuelve a cobrar, la base reconoce la misma venta y no la registra dos veces.
-const vacia = () => ({ items: [], clave: crypto.randomUUID(), cliente: null, forma: 'Efectivo', dos: null, desc: '', descPct: false, pagaCon: '' });
+const vacia = () => ({ items: [], clave: crypto.randomUUID(), cliente: null, forma: 'Efectivo', dos: null, desc: '', descPct: true, pagaCon: '' });   // el descuento arranca en %
 let venta = vacia();
 
 export async function pantallaVender(vista, ctx) {
@@ -259,16 +259,22 @@ export async function pantallaVender(vista, ctx) {
   function pintar() {
     pintarAccesos();
     const t = $('#renglones');
-    t.innerHTML = venta.items.length ? `<div class="v-fila v-enc"><span>Producto</span><span class="v-der-txt">Cantidad</span><span class="v-der-txt v-precio">Precio</span><span class="v-der-txt">Importe</span><span></span></div>
-      ${venta.items.map((i, k) => { const p = i.producto_id && cat.producto(i.producto_id); return `<div class="v-fila v-item">
+    // cuánto se lleva de cada producto en toda la venta, para avisar en el renglón si es más de lo que hay en stock
+    const lleva = {};
+    venta.items.forEach(i => { if (i.producto_id) lleva[i.producto_id] = (lleva[i.producto_id] || 0) + +i.cantidad; });
+    t.innerHTML = venta.items.length ? `<div class="v-lista"><div class="v-fila v-enc"><span>Producto</span><span class="v-der-txt">Cantidad</span><span class="v-der-txt v-precio">Precio</span><span class="v-der-txt">Importe</span><span></span></div>
+      ${venta.items.map((i, k) => { const p = i.producto_id && cat.producto(i.producto_id);
+        const falta = p && lleva[p.id] > +p.stock + 0.0005;
+        return `<div class="v-fila v-item">
         <div class="v-nom"><b title="${esc(i.nombre)}">${esc(i.nombre)}</b><small>${i.producto_id && !p ? '<span class="mal">ya no está en el catálogo</span>'
-          : !i.producto_id ? 'Varios · precio libre' : i.por_peso ? (i.etiqueta != null ? 'Etiqueta de balanza' : 'Por kilo') : esc(p?.codigo || '')}</small></div>
+          : !i.producto_id ? 'Varios · precio libre' : i.por_peso ? (i.etiqueta != null ? 'Etiqueta de balanza' : 'Por kilo') : esc(p?.codigo || '')}</small>${falta
+          ? `<span class="v-sin-stock" title="Se lleva más de lo que hay: al cobrar se puede dejar para entregar después">Stock en sistema: ${cant(Math.max(0, +p.stock))}${p.por_peso ? ' kg' : ''}</span>` : ''}</div>
         ${!i.producto_id ? '<span class="v-der-txt">1</span>' : i.por_peso
           ? `<input class="v-kg" data-cant="${k}" value="${cant(i.cantidad)}" inputmode="decimal" title="Kilos">`
           : `<span class="v-paso"><button data-menos="${k}" title="Uno menos" tabindex="-1">−</button><input data-cant="${k}" value="${cant(i.cantidad)}" inputmode="decimal" title="Cantidad"><button data-mas="${k}" title="Uno más" tabindex="-1">+</button></span>`}
         <div class="v-der-txt v-precio">${i.producto_id ? `<button class="link" data-precio="${k}" title="Cambiar el precio para esta venta">${plata(precioDe(i))}${i.por_peso ? '/kg' : ''}</button>${i.precio != null && p ? `<s>${plata(p.precio)}</s>` : ''}` : ''}</div>
         <div class="v-der-txt v-imp">${plata(importe(i))}</div>
-        <button class="v-quitar" data-quitar="${k}" title="Quitar">×</button></div>`; }).reverse().join('')}`   /* el último que se agrega va arriba (en la venta y el ticket quedan en el orden en que se cargaron) */
+        <button class="v-quitar" data-quitar="${k}" title="Quitar">×</button></div>`; }).reverse().join('')}</div>`   /* el último que se agrega va arriba (en la venta y el ticket quedan en el orden en que se cargaron) */
       : `<div class="v-vacio">${DIBUJO_VACIO}<b>Escaneá un producto para empezar</b><span>o buscalo por nombre en la barra de arriba</span></div>`;
     $$('[data-quitar]', t).forEach(b => b.onclick = () => { venta.items.splice(+b.dataset.quitar, 1); pintar(); escaner.focus(); });
     $$('[data-precio]', t).forEach(b => b.onclick = () => cambiarPrecio(venta.items[+b.dataset.precio]));

@@ -1,6 +1,7 @@
 /* Vender: diseño de la pantalla de ventas. Clases con prefijo v- para no tocar las que usan otras secciones. */
 .vista:has(> .v) { max-width: 1500px; }   /* Vender usa más ancho que las otras secciones */
-.v { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 1.25rem; align-items: start; }
+/* --v-oscuro: el fondo de "Total a cobrar" y del encabezado de la venta (verde más oscuro que el de los botones elegidos) */
+.v { --v-oscuro: #0a3b24; display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 1.25rem; align-items: start; }
 .v kbd { font: 600 .72rem/1 ui-monospace, Consolas, monospace; padding: .2rem .35rem; border: 1px solid #d5dbe1; border-bottom-width: 2px;
   border-radius: 5px; background: #f8fafc; color: #475467; white-space: nowrap; }
 .v svg { width: 1.1em; height: 1.1em; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
@@ -9,8 +10,8 @@
 .v-izq { background: #fff; border: 1px solid var(--borde); border-radius: 16px; padding: 1.5rem; min-height: calc(100vh - 7rem);
   box-shadow: 0 1px 2px rgba(16, 24, 40, .04); display: flex; flex-direction: column; }
 .v-busca { display: flex; align-items: center; gap: .8rem; padding: .35rem .5rem .35rem 1.1rem; border: 1.5px solid #d6ece6; border-radius: 14px;
-  background: #fbfefd; cursor: text; transition: border-color .15s, box-shadow .15s; }
-.v-busca:focus-within { border-color: var(--primario); box-shadow: 0 0 0 4px rgba(15, 123, 69, .12); background: #fff; }
+  background: linear-gradient(90deg, #e6f4ec, #f3faf6 60%); cursor: text; transition: border-color .15s, box-shadow .15s; }   /* el mismo tono del último renglón agregado */
+.v-busca:focus-within { border-color: var(--primario); box-shadow: 0 0 0 4px rgba(15, 123, 69, .12); }
 .v-busca > svg { color: var(--primario); width: 1.3rem; height: 1.3rem; }
 .v-busca-input { flex: 1; min-width: 0; font: inherit; font-size: 1.35rem; padding: .75rem 0; border: 0; background: transparent; color: var(--texto); outline: none; }
 .v-busca-input::placeholder { color: #8a94a3; }
@@ -53,15 +54,18 @@
 .v-laser { animation: v-laser 2.2s ease-in-out infinite alternate; filter: drop-shadow(0 0 2px rgba(15, 123, 69, .7)); }
 @keyframes v-laser { from { transform: translateY(0); } to { transform: translateY(-56px); } }
 @media (prefers-reduced-motion: reduce) { .v-laser { animation: none; } }
-.v-fila { display: grid; grid-template-columns: minmax(0, 1fr) 8.5rem 7.5rem 7.5rem 2.2rem; gap: .75rem; align-items: center; padding: .7rem .75rem; }
-.v-enc { color: var(--suave); font-size: .8rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; padding-top: 0; padding-bottom: .5rem;
-  border-bottom: 1px solid var(--borde); }
-.v-item { border-bottom: 1px solid #f0f2f5; border-radius: 10px; }
+/* El recuadro de la venta: borde y encabezado oscuro (el mismo color de "Total a cobrar") */
+.v-lista { flex: 1; min-height: 260px; border: 1px solid #d5dbe1; border-radius: 14px; overflow: hidden; background: #fff;
+  box-shadow: 0 1px 3px rgba(16, 24, 40, .06); }
+.v-fila { display: grid; grid-template-columns: minmax(0, 1fr) 8.5rem 7.5rem 7.5rem 2.2rem; gap: .75rem; align-items: center; padding: .75rem 1rem; }
+.v-enc { background: var(--v-oscuro); color: #fff; font-size: .78rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; padding-top: .7rem; padding-bottom: .7rem; }
+.v-item { border-bottom: 1px solid #edf0f3; box-shadow: inset 4px 0 0 transparent; }
 .v-item:hover { background: #f9fafb; }
-.v-enc + .v-item { background: #f3faf6; }   /* el último que se agregó (va arriba) */
+.v-enc + .v-item { background: linear-gradient(90deg, #e6f4ec, #f3faf6 60%); box-shadow: inset 4px 0 0 var(--primario); }   /* el último que se agregó (va arriba) */
 .v-nom { min-width: 0; }
-.v-nom b { display: block; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.v-nom small { color: var(--suave); }
+.v-nom b { display: block; font-weight: 600; font-size: 1.18rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.v-nom small { color: var(--suave); font-size: .9rem; }
+.v-sin-stock { display: inline-block; margin-left: .5rem; padding: .05rem .55rem; border-radius: 999px; background: #fef0c7; color: #93370d; font-size: .78rem; font-weight: 600; }
 .v-der-txt { text-align: right; white-space: nowrap; }
 .v-imp { font-weight: 700; font-size: 1.05rem; }
 .v-precio .link { text-decoration: none; color: var(--texto); border-bottom: 1px dashed #98a2b3; }
@@ -71,7 +75,7 @@
 .v-paso button { font: inherit; font-size: 1.1rem; width: 2rem; height: 2.1rem; border: 0; background: #fff; color: var(--suave); cursor: pointer; }
 .v-paso button:hover { background: #f2f4f7; color: var(--texto); }
 .v-paso input, .v-kg { font: inherit; font-weight: 600; width: 3.2rem; height: 2.1rem; border: 0; text-align: center; background: transparent; }
-.v-kg { width: 5.5rem; border: 1px solid var(--borde); border-radius: 10px; text-align: right; padding: 0 .5rem; justify-self: end; }
+.v-kg { width: 6rem; border: 1px solid #f5d9a8; border-radius: 999px; background: #fef6e7; color: #93370d; text-align: center; padding: 0 .6rem; justify-self: end; }
 .v-paso input:focus, .v-kg:focus { outline: 2px solid var(--primario); outline-offset: -2px; }
 .v-quitar { font: inherit; font-size: 1.2rem; width: 2rem; height: 2rem; border: 0; border-radius: 8px; background: none; color: #98a2b3; cursor: pointer; }
 .v-quitar:hover { background: #fef3f2; color: var(--mal); }
@@ -79,11 +83,11 @@
 /* Derecha: total y cobro */
 .v-der { background: #fff; border: 1px solid var(--borde); border-radius: 16px; overflow: hidden; position: sticky; top: 1rem;
   box-shadow: 0 10px 30px rgba(16, 24, 40, .08); }
-.v-total { background: #0b0f0e; color: #fff; padding: 1.25rem 1.4rem 1.1rem; border-bottom: 4px solid var(--primario); }
-.v-total-top { display: flex; justify-content: space-between; gap: 1rem; font-size: .85rem; color: #aab4bf; }
+.v-total { background: var(--v-oscuro); color: #fff; padding: 1.1rem 1.4rem 1rem; border-bottom: 4px solid #34c27a; }
+.v-total-top { display: flex; justify-content: space-between; gap: 1rem; font-size: .85rem; color: #fff; }
 .v-total-top span:first-child { letter-spacing: .12em; text-transform: uppercase; }
-.v-total-num { font-size: 2.9rem; font-weight: 800; line-height: 1.1; margin-top: .35rem; letter-spacing: -.02em; }
-.v-cuenta { display: grid; gap: .15rem; margin-top: .6rem; padding-top: .6rem; border-top: 1px solid #27302e; font-size: .9rem; color: #cfd6dd; }
+.v-total-num { font-size: 2.3rem; font-weight: 800; line-height: 1.1; margin-top: .35rem; letter-spacing: -.02em; }
+.v-cuenta { display: grid; gap: .15rem; margin-top: .6rem; padding-top: .6rem; border-top: 1px solid rgba(255, 255, 255, .16); font-size: .9rem; color: #d6ebdf; }
 .v-cuenta div { display: flex; justify-content: space-between; }
 .v-cuenta .ok { color: #6ce9a6; }
 .v-cuerpo { padding: 1.1rem 1.4rem 1.25rem; display: grid; gap: 1rem; }
@@ -114,9 +118,9 @@ button.v-campo small.mal { color: var(--mal); }
 .v-icono:hover { background: #f2f4f7; }
 .v-seg { display: inline-flex; height: 2.6rem; border: 1px solid var(--borde); border-radius: 10px; overflow: hidden; background: #fff; }
 .v-seg button { font: inherit; font-weight: 600; width: 2.6rem; border: 0; background: #fff; cursor: pointer; color: var(--texto); }
-.v-seg button.elegido { background: #0b0f0e; color: #fff; }
+.v-seg button.elegido { background: var(--primario); color: #fff; }   /* el mismo verde que Efectivo elegido */
 .v-paga { display: grid; gap: .45rem; }
-.v-paga .billetes { gap: .4rem; }
+.v-paga .billetes { gap: .4rem; display: none; }   /* los botones de billetes están ocultos (el código sigue: borrar display: none para volver a mostrarlos) */
 .v-paga .billetes .btn { border-radius: 999px; }
 .v-vuelto { font-size: 1.3rem; font-weight: 700; margin: 0; min-height: 1.5rem; color: var(--primario); }
 .v-cobrar { font: inherit; font-size: 1.35rem; font-weight: 700; display: flex; align-items: center; justify-content: space-between; gap: 1rem; width: 100%;
@@ -151,7 +155,7 @@ button.v-campo small.mal { color: var(--mal); }
 }
 @media (max-width: 600px) {
   /* en el celular el nombre va en su propia línea, arriba de la cantidad y el importe */
-  .v-fila { grid-template-columns: minmax(0, 1fr) auto 2rem; row-gap: .4rem; }
+  .v-fila { grid-template-columns: minmax(0, 1fr) auto 2rem; row-gap: .4rem; padding: .7rem .75rem; }
   .v-nom { grid-column: 1 / -1; }
   .v-enc { display: none; }
   .v-fila > :nth-child(2) { justify-self: start; }
