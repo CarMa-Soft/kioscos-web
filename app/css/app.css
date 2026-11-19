@@ -315,3 +315,11 @@ details.pagadas summary h3 { display: inline-block; }
 .lista-entregas { margin: .25rem 0 .75rem; padding-left: 1.2rem; line-height: 1.6; }
 .enc-elegido { margin: -.25rem 0 .25rem; padding: .45rem .7rem; border-radius: 8px; background: #ecfdf3; color: #067647; }
 .nowrap { white-space: nowrap; }
+.ay-buscar { display: flex; max-width: 640px; margin-bottom: 1rem; }
+.ay-seccion { margin-bottom: 1rem; }
+.ay-seccion h3 { margin: 0 0 .5rem; }
+.ay-tema { border-top: 1px solid var(--borde, #e4e7ec); padding: .55rem 0; }
+.ay-tema summary { cursor: pointer; font-weight: 600; }
+.ay-texto { margin-top: .45rem; line-height: 1.55; }
+.ay-texto ol, .ay-texto ul { margin: .25rem 0; padding-left: 1.3rem; }
+.barra .quien .boton-ayuda { text-decoration: none; }
