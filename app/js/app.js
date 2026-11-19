@@ -24,8 +24,8 @@ let refresco = null;         // actualización periódica del catálogo
 
 // La primera es la que se abre al entrar
 const SECCIONES = [
+  { ruta: '#/inicio', nombre: 'Hoy', fn: pantallaInicio },   // la primera es la que se abre al entrar
   { ruta: '#/vender', nombre: 'Vender', fn: pantallaVender },
-  { ruta: '#/inicio', nombre: 'Hoy', fn: pantallaInicio },
   { ruta: '#/caja', nombre: 'Caja', fn: pantallaCaja },
   { ruta: '#/clientes', nombre: 'Clientes', fn: pantallaClientes },
   { ruta: '#/productos', nombre: 'Productos', fn: pantallaProductos, admin: true },
