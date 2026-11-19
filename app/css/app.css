@@ -263,3 +263,7 @@ p.muted { margin: 0 0 1.25rem; }
 details.pagadas summary { cursor: pointer; list-style-position: outside; }
 details.pagadas summary h3 { display: inline-block; }
 .fila-aviso { display: flex; gap: .75rem; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-bottom: 1rem; }
+.para-entregar { margin-top: .3rem; padding: .2rem .5rem; border-radius: 6px; background: #fef0c7; color: #93370d; font-size: .85rem; display: inline-block; }
+.cabecera-chica { display: flex; align-items: center; justify-content: space-between; gap: .75rem; margin-top: 1.25rem; }
+.cabecera-chica h3 { margin: 0; }
+.lista-entregas { margin: .25rem 0 .75rem; padding-left: 1.2rem; line-height: 1.6; }

@@ -56,3 +56,4 @@
   .p-tabla .tabla tbody td.vacio { grid-column: 1 / -1; }
   .p-tabla .tabla tbody td.vacio::before { content: none; }
 }
+.p-entregar { margin-top: .15rem; font-size: .8rem; color: #93370d; white-space: nowrap; }

@@ -4,6 +4,7 @@ import { llamar } from './base.js';
 import * as cat from './catalogo.js';
 import { $, $$, esc, plata, cant, fecha, dia, hoyDia, sumarDias, numero, aviso, correr, modal, confirmar } from './ui.js';
 import { botonCamara } from './escaner.js';
+import { avisarListas } from './entregas.js';
 import { productoNoEncontrado } from './alta-producto.js';
 import { formProveedor } from './proveedores.js';
 import { pantallaFactura, hayCargaFactura } from './facturas.js';
@@ -331,6 +332,7 @@ async function nuevaCompra(vista, ctx) {
         factura_pendiente: d.sin_factura, fecha_factura: d.sin_factura ? null : d.fecha_factura || null, vencimiento: d.vencimiento || null } });
       borrador = null; aviso(d.sin_factura ? 'Compra guardada con factura pendiente: stock actualizado' : 'Compra guardada: stock y costos actualizados', 'ok');
       await cat.actualizar(); ctx.recargar();
+      avisarListas(items.map(i => i.producto_id)).catch(() => {});
     });
   };
   pintar();

@@ -75,7 +75,8 @@ const estadoStock = i => `${cant(i.stock)}${i.por_peso ? ' kg' : ''}${+i.stock_m
 function tabla(items, provs, k) {
   return `<div class="tabla-caja"><table class="tabla"><thead><tr><th>Producto</th><th class="num">Stock</th><th class="num">A pedir</th>
       <th class="num">Último precio</th><th class="num">Subtotal</th><th>Proveedor</th><th></th></tr></thead><tbody>
-    ${items.map((i, n) => `<tr><td><b>${esc(i.nombre)}</b>${i.codigo_proveedor || i.codigo ? `<div class="muted chico mono">${i.codigo_proveedor ? `cód. prov. ${esc(i.codigo_proveedor)}` : esc(i.codigo)}</div>` : ''}</td>
+    ${items.map((i, n) => `<tr><td><b>${esc(i.nombre)}</b>${i.codigo_proveedor || i.codigo ? `<div class="muted chico mono">${i.codigo_proveedor ? `cód. prov. ${esc(i.codigo_proveedor)}` : esc(i.codigo)}</div>` : ''}
+      ${+i.para_entregar > 0 ? `<div class="para-entregar">📦 Para entregar: ${esc(i.entregas || cant(i.para_entregar))}</div>` : ''}</td>
       <td class="num">${estadoStock(i)}</td>
       <td class="num"><input class="input cant" data-cant="${k}-${n}" value="${cant(i.cantidad)}" inputmode="decimal" title="Vacío = la propuesta (${cant(i.propuesta)})">
         <div class="muted chico">${unidad(i)}</div></td>
