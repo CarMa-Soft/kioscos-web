@@ -29,13 +29,13 @@ const TEMAS = [
   { s: 'Fiado, entregas y encargos', t: 'Fiar una venta', x: 'Elegí el <b>Cliente</b> (o crealo con <b>+</b>) y la forma de pago <b>Fiado</b> (<kbd>F3</kbd>). Va a la cuenta del cliente, no a la caja. Si el cliente tiene límite y lo pasaría, la app pregunta si fiar igual.' },
   { s: 'Fiado, entregas y encargos', t: 'Cobrarle a un cliente lo que debe', x: 'En <b>Clientes</b>, abrí el cliente y <b>Cobrar</b>: el pago entra a la caja del turno y se aplica a lo que vence primero (o elegís qué compras paga). Lo que sobra queda a favor.' },
   { s: 'Fiado, entregas y encargos', t: 'Vender más de lo que hay en stock (entrega pendiente)', x: `Si se lleva más de lo que hay, al cobrar la app pregunta: se lleva lo que hay y el resto queda <b>para entregar</b> a su nombre (ya cobrado), o se lleva todo (el stock estaba mal).
-    Lo pendiente aparece en Vender, Hoy, Pedidos y Productos. Cuando llega la mercadería: en la barra de Vender, el botón <b>📦 entregas → Entregar</b> (se pone verde cuando ya se puede).` },
+    Lo pendiente aparece en Vender, Hoy, Pedidos y Productos. Cuando llega la mercadería: en Vender, el aviso de arriba <b>📦 entregas pendientes → Ver → Entregar</b> (se pone verde cuando ya se puede).` },
   { s: 'Fiado, entregas y encargos', t: 'Un cliente encarga algo sin pagarlo (o con seña)', x: `<ol><li>En Vender, botón <b>📋 Encargo</b>: producto, cantidad, a nombre de quién, teléfono y, si deja, la <b>seña</b> y su forma de pago.</li>
     <li>No es una venta: no toca el stock. La seña entra a la caja en ese momento (Caja → Movimientos, "Seña encargo #N").</li>
     <li>Aparece en Pedidos para pedirlo al proveedor, y en Hoy.</li></ol>` },
-  { s: 'Fiado, entregas y encargos', t: 'Entregar un encargo cuando llega', x: `En la barra de Vender, el botón <b>📋 encargos → Pasar a la venta</b> (se pone verde cuando llegó). Al cobrar, la seña se descuenta del total.
+  { s: 'Fiado, entregas y encargos', t: 'Entregar un encargo cuando llega', x: `En Vender, el aviso de arriba <b>📋 encargos → Ver → Pasar a la venta</b> (se pone verde cuando llegó). Al cobrar, la seña se descuenta del total.
     Si llegó una parte, el botón dice "Pasar 10 a la venta": se cobran esos y el resto sigue pendiente. Sin mercadería dice "todavía no llegó".` },
-  { s: 'Fiado, entregas y encargos', t: 'Cancelar un encargo', x: 'En la barra de Vender, botón <b>📋 encargos → Cancelar</b>. Si dejó seña, elegís devolverla (sale de la caja) o que quede para el negocio.' },
+  { s: 'Fiado, entregas y encargos', t: 'Cancelar un encargo', x: 'En Vender, aviso de arriba <b>📋 encargos → Ver → Cancelar</b>. Si dejó seña, elegís devolverla (sale de la caja) o que quede para el negocio.' },
   { s: 'Fiado, entregas y encargos', t: 'Dónde veo las señas', x: 'En <b>Caja → Movimientos</b> (al final de la página), como "Seña encargo #N", y en <b>Hoy</b>, al lado de cada encargo. No aparecen en "Ventas del turno" porque no son ventas.' },
 
   // ---------- Caja

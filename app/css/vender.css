@@ -7,7 +7,7 @@
 .v svg { width: 1.1em; height: 1.1em; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
 /* Izquierda: buscador, acciones y renglones */
-.v-izq { background: #fff; border: 1px solid var(--borde); border-radius: 16px; padding: 1.5rem; min-height: calc(100vh - 7rem);
+.v-izq { background: #fff; border: 1px solid var(--borde); border-radius: 16px; padding: 1.5rem; min-height: calc(100vh - 12rem);
   box-shadow: 0 1px 2px rgba(16, 24, 40, .04); display: flex; flex-direction: column; }
 .v-busca { display: flex; align-items: center; gap: .8rem; padding: .35rem .5rem .35rem 1.1rem; border: 1.5px solid #d6ece6; border-radius: 14px;
   background: linear-gradient(90deg, #e6f4ec, #f3faf6 60%); cursor: text; transition: border-color .15s, box-shadow .15s; }   /* el mismo tono del último renglón agregado */
@@ -46,7 +46,7 @@
 .v-atajos kbd:first-child { margin-left: 0; }
 
 .v-renglones { margin-top: 1rem; flex: 1; display: flex; flex-direction: column; }
-.v-vacio { flex: 1; min-height: 260px; display: grid; place-content: center; justify-items: center; gap: .35rem; text-align: center;
+.v-vacio { flex: 1; min-height: 180px; display: grid; place-content: center; justify-items: center; gap: .35rem; text-align: center;
   border: 2px dashed var(--borde); border-radius: 14px; color: var(--suave); padding: 2rem 1rem; }
 .v-vacio svg { width: 120px; height: 70px; stroke: none; margin-bottom: 1rem; }
 .v-vacio b { color: var(--texto); font-size: 1.2rem; }
@@ -55,7 +55,7 @@
 @keyframes v-laser { from { transform: translateY(0); } to { transform: translateY(-56px); } }
 @media (prefers-reduced-motion: reduce) { .v-laser { animation: none; } }
 /* El recuadro de la venta: borde y encabezado oscuro (el mismo color de "Total a cobrar") */
-.v-lista { flex: 1; min-height: 260px; border: 1px solid #d5dbe1; border-radius: 14px; overflow: hidden; background: #fff;
+.v-lista { flex: 1; min-height: 200px; border: 1px solid #d5dbe1; border-radius: 14px; overflow: hidden; background: #fff;
   box-shadow: 0 1px 3px rgba(16, 24, 40, .06); }
 .v-fila { display: grid; grid-template-columns: minmax(0, 1fr) 8.5rem 7.5rem 7.5rem 2.2rem; gap: .75rem; align-items: center; padding: .75rem 1rem; }
 .v-enc { background: var(--v-oscuro); color: #fff; font-size: .78rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; padding-top: .7rem; padding-bottom: .7rem; }
@@ -172,9 +172,8 @@ button.v-campo small.mal { color: var(--mal); }
   border-radius: 12px; background: #f2f4f7; border: 1px solid var(--borde); }
 .v-entregas.listas { background: #ecfdf3; border-color: #abefc6; color: #067647; }
 .faltante { display: grid; gap: .35rem; padding: .75rem; border: 1px solid var(--borde); border-radius: 10px; }
-/* Entregas pendientes y encargos: botones chicos en la barra de Vender */
-.v-avisos { display: contents; }
-.v-aviso { font: inherit; font-size: .9rem; display: inline-flex; align-items: center; gap: .3rem; padding: .5rem .8rem; border-radius: 999px;
-  border: 1px solid var(--borde); background: #f2f4f7; color: var(--texto); cursor: pointer; white-space: nowrap; }
-.v-aviso:hover { border-color: #98a2b3; }
-.v-aviso.listas { background: #ecfdf3; border-color: #abefc6; color: #067647; }
+/* Entregas pendientes y encargos: arriba, en una sola fila (uno al lado del otro) y finos */
+#entregas { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: .6rem; }
+#entregas:not(:empty) { margin-bottom: .75rem; }
+#entregas .v-entregas { margin-bottom: 0; padding: .4rem .5rem .4rem .9rem; font-size: .95rem; }
+#entregas .v-entregas .btn { padding: .25rem .7rem; }
