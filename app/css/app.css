@@ -262,3 +262,4 @@ p.muted { margin: 0 0 1.25rem; }
 /* Cuenta del cliente: las compras pagadas, plegadas */
 details.pagadas summary { cursor: pointer; list-style-position: outside; }
 details.pagadas summary h3 { display: inline-block; }
+.fila-aviso { display: flex; gap: .75rem; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-bottom: 1rem; }

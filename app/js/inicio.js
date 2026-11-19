@@ -1,12 +1,17 @@
 // Inicio: lo de hoy (el empleado ve solo sus ventas; la ganancia, solo el dueño)
 import { llamar } from './base.js';
 import { esc, plata, hora, fecha } from './ui.js';
+import * as cat from './catalogo.js';
+import { verARevisar } from './productos.js';
 
 export async function pantallaInicio(vista, ctx) {
   const r = await llamar('inicio');
   const admin = ctx.yo.rol === 'admin';
+  const aRevisar = admin ? cat.productos().filter(p => p.a_revisar).length : 0;   // creados en la caja con lo mínimo
   vista.innerHTML = `<div class="cabecera"><div><h2>Hoy</h2><p class="muted">${new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}</p></div>
       <div class="acciones"><a class="btn primario" href="#/vender">Vender</a>${admin ? '<a class="btn" href="#/reportes">Reportes</a>' : ''}</div></div>
+    ${aRevisar ? `<div class="p-aviso fila-aviso"><span>Hay <b>${aRevisar}</b> producto${aRevisar === 1 ? '' : 's'} creado${aRevisar === 1 ? '' : 's'} en la caja para revisar (costo, categoría y stock).</span>
+      <button class="btn chico" id="ir-revisar">Revisarlos</button></div>` : ''}
     <div class="tarjetas">
       <div class="tarjeta"><div class="etq">Ventas de hoy${r.propias ? ' (tuyas)' : ''}</div><div class="valor">${plata(r.total)}</div>
         <div class="muted chico">${r.tickets} venta${r.tickets === 1 ? '' : 's'}${+r.devuelto ? ` · devuelto ${plata(r.devuelto)}` : ''}</div></div>
@@ -23,4 +28,6 @@ export async function pantallaInicio(vista, ctx) {
         <td class="num">${+v.devuelto ? `${plata(v.total - v.devuelto)}<div class="aviso-chico"><s>${plata(v.total)}</s> · devuelto ${plata(v.devuelto)}</div>` : plata(v.total)}</td></tr>`).join('')}</tbody>`
       : '<tbody><tr><td class="muted vacio">Todavía no hay ventas hoy.</td></tr></tbody>'}</table></div>
     <p class="muted chico">Actualizado ${fecha(new Date().toISOString())}</p>`;
+  const ir = vista.querySelector('#ir-revisar');
+  if (ir) ir.onclick = () => { verARevisar(); ctx.ir('#/productos'); };
 }

@@ -82,7 +82,7 @@ export async function pantallaVender(vista, ctx) {
         <p class="v-tip">Tip: escribí <kbd>3*</kbd> antes del código para cargar 3 unidades · <kbd>↑</kbd><kbd>↓</kbd> para elegir · clic en el precio para cambiarlo</p>
         <div id="accesos"></div>
         <div class="v-barra">
-          <button class="v-btn" id="varios">${ICO.mas} Varios / precio libre</button>
+          ${ctx.config.varios === false ? '' : `<button class="v-btn" id="varios">${ICO.mas} Varios / precio libre</button>`}
           <button class="v-btn peligro" id="vaciar">${ICO.tacho} Vaciar</button>
           <span class="v-atajos"><kbd>F2</kbd> cobrar <kbd>F1</kbd> efectivo <kbd>F3</kbd> fiado <kbd>Esc</kbd> limpiar</span>
         </div>
@@ -140,9 +140,9 @@ export async function pantallaVender(vista, ctx) {
     }
     const p = cat.porCodigoDeBarras(texto) || (!res.hidden && sugeridos[marcado]) || (cat.buscar(texto, 2).length === 1 ? cat.buscar(texto, 1)[0] : null);
     if (p) return agregar(p, n > 0 ? n : 1);
-    // no existe: suena y queda seleccionado, así el próximo escaneo lo reemplaza en vez de pegarse atrás
+    // no existe: suena, y se ofrece crearlo con lo mínimo (queda "a revisar" en Productos)
     sonidoError(); escaner.select(); res.hidden = true;
-    aviso(/^\d{6,}$/.test(texto) ? `No hay ningún producto con el código ${texto}` : `No hay productos con "${texto}"`);
+    altaRapida(texto, n > 0 ? n : 1);
   };
   function pintarSugeridos(texto) {
     res.hidden = false;
@@ -159,6 +159,34 @@ export async function pantallaVender(vista, ctx) {
     if (ya) ya.cantidad += n; else venta.items.push({ producto_id: p.id, nombre: p.nombre, cantidad: n, precio: null });
     pintar(); escaner.focus();
   }
+  // Alta rápida desde la caja: nombre (opcional), código y precio. El producto queda "a revisar": el dueño completa
+  // después en Productos el costo, la categoría y el stock real. La puede usar también el empleado.
+  function altaRapida(texto, n = 1, { nombre = '', precio = '' } = {}) {
+    const esCodigo = /^\d{6,}$/.test(texto);
+    const m = modal('No está cargado', `<form class="form" id="f-alta-caja">
+      <p>${texto ? (esCodigo ? `No hay ningún producto con el código <b>${esc(texto)}</b>.` : `No hay productos con "<b>${esc(texto)}</b>".`) : ''}
+        Crealo acá con lo mínimo y se agrega a la venta.</p>
+      <label>Nombre <span class="muted">(si lo dejás vacío, se completa después)</span><input class="input" name="nombre" maxlength="120" value="${esc(nombre || (esCodigo ? '' : texto))}" autocomplete="off"></label>
+      <div class="fila"><label class="crece">Código de barras<input class="input mono" name="codigo" maxlength="40" value="${esCodigo ? esc(texto) : ''}" autocomplete="off"></label>
+        <label class="crece">Precio<input class="input" name="precio" inputmode="decimal" autocomplete="off" required value="${esc(precio)}"></label></div>
+      <p class="muted chico">Queda <b>a revisar</b> en Productos, para completar el costo, la categoría y el stock.</p>
+      <div class="fila fin"><button type="button" class="btn" data-cerrar>Cancelar</button><button class="btn primario">Crear y agregar</button></div></form>`,
+      { alCerrar: () => escaner.focus() });
+    const f = $('#f-alta-caja', m.el);
+    (esCodigo || !texto ? f.elements.nombre : f.elements.precio).focus();
+    f.onsubmit = e => {
+      e.preventDefault();
+      const precioN = numero(f.elements.precio.value);
+      if (!(precioN > 0)) { f.elements.precio.focus(); return aviso('Poné el precio'); }
+      correr(async () => {
+        const p = await llamar('alta_desde_caja', { p: { nombre: f.elements.nombre.value.trim(), codigo: f.elements.codigo.value.trim(), precio: precioN } });
+        await cat.actualizar().catch(() => {});
+        m.cerrar();
+        agregar(cat.producto(p.id) || p, n);
+        aviso(`"${p.nombre}" quedó creado: completalo después en Productos → A revisar`, 'ok');
+      });
+    };
+  }
   function pedirPeso(p) {
     const m = modal(`${p.nombre} — ${plata(p.precio)}/kg`, `<form class="form" id="f-peso"><label>Kilos<input class="input grande" name="kg" inputmode="decimal" autocomplete="off" required autofocus></label>
       <div class="fila fin"><button type="button" class="btn" data-cerrar>Cancelar</button><button class="btn primario">Agregar</button></div></form>`,
@@ -174,6 +202,7 @@ export async function pantallaVender(vista, ctx) {
   function varios() {
     const m = modal('Varios', `<form class="form" id="f-varios"><label>Descripción<input class="input" name="nombre" placeholder="Varios" maxlength="120"></label>
       <label>Importe<input class="input grande" name="importe" inputmode="decimal" autocomplete="off" required></label>
+      <label class="check"><input type="checkbox" name="guardar"> Es un producto que no está cargado: crearlo (queda a revisar)</label>
       <div class="fila fin"><button type="button" class="btn" data-cerrar>Cancelar</button><button class="btn primario">Agregar</button></div></form>`,
       { alCerrar: () => escaner.focus() });
     $('[name=importe]', m.el).focus();
@@ -181,6 +210,10 @@ export async function pantallaVender(vista, ctx) {
       e.preventDefault();
       const f = new FormData(e.target), imp = numero(f.get('importe'));
       if (!(imp > 0)) return aviso('Poné el importe');
+      if (f.get('guardar') === 'on') {   // es un producto que todavía no está cargado: se crea "a revisar"
+        m.cerrar();
+        return altaRapida('', 1, { nombre: f.get('nombre').trim(), precio: String(r2(imp)) });
+      }
       venta.items.push({ producto_id: null, nombre: f.get('nombre').trim() || 'Varios', cantidad: 1, importe: r2(imp) });
       m.cerrar(); pintar();
     };
@@ -427,7 +460,7 @@ export async function pantallaVender(vista, ctx) {
     const cortos = [], usado = {};
     venta.items.forEach((i, k) => {
       if (!i.producto_id) return;
-      const p = cat.producto(i.producto_id); if (!p) return;
+      const p = cat.producto(i.producto_id); if (!p || p.a_revisar) return;   // creado en caja: el stock todavía no se contó
       const disp = Math.max(0, +p.stock - (usado[i.producto_id] || 0)), c = +i.cantidad;
       usado[i.producto_id] = (usado[i.producto_id] || 0) + c;
       if (c > disp + 0.0005) cortos.push({ k, nombre: i.nombre, c, disp, kg: p.por_peso ? ' kg' : '' });
@@ -545,7 +578,7 @@ export async function pantallaVender(vista, ctx) {
     } finally { cobrando = false; }
   }
 
-  $('#varios').onclick = () => varios();
+  if ($('#varios')) $('#varios').onclick = () => varios();
   $('#vaciar').onclick = async () => { if (!venta.items.length || await confirmar('Vaciar', '¿Sacar todos los productos de la venta?', 'Vaciar')) { venta = vacia(); pintar(); escaner.focus(); } };
   escaner.onblur = () => setTimeout(() => { if (document.activeElement !== escaner) res.hidden = true; }, 150);
   ctx.alTeclear(e => {

@@ -9,10 +9,13 @@ import { preciosModal } from './precios.js';
 // Lo que se eligió en la lista se mantiene al ir y volver de la sección
 let filtro = '', grupo = 'todos', categoria = '', orden = { col: 'nombre', asc: true };
 let enLista = false;   // mostrando la lista de precios para imprimir
+// Desde Inicio: abrir la lista con los productos creados en la caja
+export function verARevisar() { grupo = 'revisar'; filtro = ''; categoria = ''; }
 
 // Botones de filtro: cada uno con su condición. "Desactivados" muestra los dados de baja (los demás, solo activos).
 const GRUPOS = [
   ['todos', 'Todos', () => true],
+  ['revisar', 'A revisar', p => p.a_revisar],   // creados en la caja con lo mínimo
   ['reponer', 'Para reponer', p => +p.stock_min > 0 && +p.stock <= +p.stock_min],
   ['sin-stock', 'Sin stock', p => +p.stock <= 0],
   ['peso', 'Por peso', p => p.por_peso],
@@ -42,6 +45,7 @@ export async function pantallaProductos(vista, ctx) {
       </div>
       <div class="chips" id="grupos"></div>
     </div>
+    <div class="p-aviso" id="aviso-revisar" hidden>Se crearon en la caja con lo mínimo. Abrí cada uno, completá el nombre, el costo, la categoría y el stock real (contalo), y guardalo: deja de estar a revisar.</div>
     <div class="p-aviso" id="aviso-bajas" hidden>Los desactivados no aparecen para vender. Abrí uno y tildá "Activo" para que vuelva a aparecer.</div>
     <div class="tabla-caja p-tabla"><table class="tabla" id="tabla"></table></div>`;
 
@@ -72,6 +76,7 @@ export async function pantallaProductos(vista, ctx) {
     $('#grupos').innerHTML = GRUPOS.map(([g, nombre]) => `<button class="chip ${g === grupo ? 'elegido' : ''}" data-grupo="${g}">${esc(nombre)} <span class="p-cuenta">${contar(g)}</span></button>`).join('');
     $$('[data-grupo]').forEach(b => b.onclick = () => { grupo = b.dataset.grupo; pintar(); });
     $('#aviso-bajas').hidden = grupo !== 'desactivados';
+    $('#aviso-revisar').hidden = grupo !== 'revisar';
     const ver = visibles();
     $('#tabla').innerHTML = `<thead><tr>${COLS.map(([c, nombre, cl]) => `<th class="${cl}"><button class="p-orden ${orden.col === c ? 'activo' : ''}" data-orden="${c}">${nombre}
         <span aria-hidden="true">${orden.col === c ? (orden.asc ? '▲' : '▼') : '↕'}</span></button></th>`).join('')}</tr></thead>
@@ -79,7 +84,7 @@ export async function pantallaProductos(vista, ctx) {
         const s = +p.stock, min = +p.stock_min, m = margen(p);
         const claseStock = s < 0 ? 'mal' : (s === 0 || (min > 0 && s <= min)) ? 'p-alerta' : '';
         return `<tr class="clic" data-id="${p.id}">
-          <td><div class="p-nombre">${esc(p.nombre)}${p.favorito ? ' <span class="p-estrella" title="Botón rápido en Vender">★</span>' : ''}</div>
+          <td><div class="p-nombre">${esc(p.nombre)}${p.favorito ? ' <span class="p-estrella" title="Botón rápido en Vender">★</span>' : ''}${p.a_revisar ? ' <span class="etiqueta pendiente" title="Creado en la caja: falta completarlo">a revisar</span>' : ''}</div>
             <div class="p-sub mono">${p.codigo ? esc(p.codigo) : ''}${p.por_peso ? `${p.codigo ? ' ' : ''}· por kilo` : ''}</div></td>
           <td>${esc(catNombre(p.categoria_id))}</td>
           <td class="num"><span class="${claseStock}">${cant(s)}${p.por_peso ? ' kg' : ''}</span>${min > 0 ? `<div class="p-sub">mín. ${cant(min)}</div>` : ''}</td>
@@ -111,6 +116,7 @@ export async function pantallaProductos(vista, ctx) {
   function ficha(p) {
     const v = p || { por_peso: false, favorito: false, activo: true, margen: +(ctx.config.margen ?? 40) > 0 ? +(ctx.config.margen ?? 40) : null };
     const m = modal(p ? 'Editar producto' : 'Nuevo producto', `<form class="form ancho" id="f-prod">
+      ${p?.a_revisar ? '<div class="p-aviso">Se creó en la caja con lo mínimo. Completá el nombre, el costo, la categoría y el stock real (contalo); al guardarlo deja de estar a revisar.</div>' : ''}
       <label>Nombre<input class="input" name="nombre" maxlength="120" required value="${esc(v.nombre || '')}" autofocus></label>
       <div class="fila"><label class="crece">Código de barras<input class="input mono" name="codigo" maxlength="40" value="${esc(v.codigo || '')}" autocomplete="off"></label>
         <label class="crece">Categoría<select class="input" name="categoria_id"><option value="">Sin categoría</option>${cats.map(c => `<option value="${c.id}" ${c.id === v.categoria_id ? 'selected' : ''}>${esc(c.nombre)}</option>`).join('')}</select></label></div>

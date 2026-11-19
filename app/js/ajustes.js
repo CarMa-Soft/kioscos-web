@@ -55,6 +55,12 @@ export async function pantallaAjustes(vista, ctx) {
         <label class="crece">Salidas<textarea class="input" name="egreso" rows="6">${esc((motivos.egreso || []).join('\n'))}</textarea></label></div>
       <div class="fila"><button class="btn primario">Guardar</button></div>
     </form>
+    <form class="form ancho recuadro-blanco" id="f-varios">
+      <h3>Vender como "Varios"</h3>
+      <label class="check"><input type="checkbox" name="varios" ${ctx.config.varios === false ? '' : 'checked'}> Permitir vender como "Varios" (descripción y precio libre, sin producto)</label>
+      <p class="muted chico">Lo vendido como Varios no pasa por el stock ni por las estadísticas de productos. Sin Varios, lo que no está cargado se crea desde la caja con lo mínimo y queda a revisar en Productos.</p>
+      <div class="fila"><button class="btn primario">Guardar</button></div>
+    </form>
     <form class="form ancho recuadro-blanco" id="f-plazo">
       <h3>Fiado a clientes</h3>
       <label>Plazo para pagar (días)<input class="input corto" name="plazo" inputmode="numeric" value="${esc(ctx.config.plazo_clientes ?? 30)}"></label>
@@ -67,6 +73,11 @@ export async function pantallaAjustes(vista, ctx) {
       · En total: ${u.total.lecturas} · US$ ${(+u.total.costo_usd).toFixed(2)}
       <p class="chico">El costo es estimado; el detalle oficial está en la consola de Anthropic. Hasta 60 lecturas por día.</p>`;
   }).catch(() => { $('#uso-ia').textContent = 'No se pudo consultar el consumo.'; });
+  $('#f-varios').onsubmit = e => {
+    e.preventDefault();
+    const si = new FormData(e.target).get('varios') === 'on';
+    correr(async () => { await llamar('guardar_config', { p_clave: 'varios', p_valor: si }); ctx.config.varios = si; aviso('Guardado', 'ok'); });
+  };
   $('#f-plazo').onsubmit = e => {
     e.preventDefault();
     const dias = numero(new FormData(e.target).get('plazo'));
