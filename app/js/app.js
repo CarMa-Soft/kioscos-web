@@ -22,10 +22,10 @@ let datos = null;            // lo que devuelve datos_inicio()
 let teclas = null;           // atajos de teclado de la sección abierta
 let refresco = null;         // actualización periódica del catálogo
 
-// La primera es la que se abre al entrar
+// La primera es la que se abre al entrar (y al abrir la app, aunque la dirección diga otra)
 const SECCIONES = [
-  { ruta: '#/vender', nombre: 'Vender', fn: pantallaVender },
   { ruta: '#/inicio', nombre: 'Hoy', fn: pantallaInicio },
+  { ruta: '#/vender', nombre: 'Vender', fn: pantallaVender },
   { ruta: '#/caja', nombre: 'Caja', fn: pantallaCaja },
   { ruta: '#/clientes', nombre: 'Clientes', fn: pantallaClientes },
   { ruta: '#/productos', nombre: 'Productos', fn: pantallaProductos, admin: true },
@@ -193,7 +193,15 @@ async function iniciar() {
   const ok = await correr(async () => { await cat.cargar(datos.negocio.id); return true; });
   if (!ok) return;
   refresco = setInterval(() => cat.actualizar().catch(() => {}), 60 * 1000);
+  // al abrir la app (o recargar la página) siempre arranca en la primera sección, Hoy, aunque la dirección quedara en otra.
+  // Con location.replace (como el menú), no replaceState: así el manejo del botón "atrás" (ui.js) se entera del cambio;
+  // el cambio de dirección muestra la sección solo (hashchange).
+  if (!abierta) {
+    abierta = true;
+    if (location.hash !== SECCIONES[0].ruta) return location.replace(SECCIONES[0].ruta);
+  }
   await mostrarSeccion();
 }
+let abierta = false;   // ya se mostró la primera pantalla desde que se abrió la app
 
 iniciar();
