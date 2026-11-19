@@ -256,7 +256,7 @@ export async function pantallaVender(vista, ctx) {
     const dv = Math.max(0, numero(venta.desc) || 0);
     const descuento = venta.descPct ? r2(subtotal * Math.min(dv, 100) / 100) : Math.min(r2(dv), subtotal);
     const base = r2(subtotal - descuento);
-    const sena = Math.min(r2(venta.items.reduce((s, i) => s + (i.encargo ? +i.encargo.sena : 0), 0)), base);   // ya pagada al encargar
+    const sena = Math.min(r2(venta.items.reduce((s, i) => s + (i.encargo ? Math.min(+i.encargo.sena, importe(i)) : 0), 0)), base);   // ya pagada al encargar
     const resto = r2(base - sena);
     let pagos;
     if (!venta.dos) pagos = [lineaPago(venta.forma, resto)];
@@ -520,11 +520,19 @@ export async function pantallaVender(vista, ctx) {
     if (encs.length) $('#ver-encargos').onclick = () => verEncargos(encs, { alPasar: pasarEncargo, alCambiar: () => cargarEntregas() });
   }
   // Un encargo a la venta en curso: al cobrar, su seña se descuenta y el encargo queda entregado
+  // Solo lo que llegó: si hay menos que lo encargado, se pasa lo que hay y el resto sigue pendiente en el encargo
   function pasarEncargo(e) {
     if (venta.items.some(i => i.encargo?.id === e.id)) return aviso('Ese encargo ya está en la venta');
-    venta.items.push({ producto_id: e.producto_id, nombre: e.nombre, cantidad: +e.cantidad, precio: null, por_peso: e.por_peso,
-      encargo: { id: e.id, numero: e.numero, sena: +e.sena, a_nombre: e.a_nombre } });
+    const stock = +(cat.producto(e.producto_id)?.stock ?? e.stock);
+    const enVenta = venta.items.filter(i => i.producto_id === e.producto_id).reduce((s, i) => s + +i.cantidad, 0);
+    let disp = Math.max(0, stock - enVenta);
+    if (!e.por_peso) disp = Math.floor(disp);
+    if (!(disp > 0)) return aviso(`Todavía no llegó: de ${e.nombre} hay ${cant(Math.max(0, stock))} en stock. El encargo sigue pendiente.`);
+    const n = Math.min(+e.cantidad, disp);
+    venta.items.push({ producto_id: e.producto_id, nombre: e.nombre, cantidad: n, precio: null, por_peso: e.por_peso,
+      encargo: { id: e.id, numero: e.numero, sena: +e.sena, a_nombre: e.a_nombre, max: n } });
     pintar(); escaner.focus();
+    if (n < +e.cantidad) aviso(`Llegaron ${cant(n)} de ${cant(e.cantidad)}: se pasan ${cant(n)} y quedan ${cant(+e.cantidad - n)} pendientes en el encargo`, 'info');
   }
   function verEntregas(lista) {
     const m = modal('Entregas pendientes', `<div class="tabla-caja"><table class="tabla"><tbody>
@@ -546,6 +554,8 @@ export async function pantallaVender(vista, ctx) {
     if (cobrando) return;
     if (!venta.items.length) return aviso('La venta no tiene productos');
     if (!caja.turno) return aviso('La caja está cerrada: abrí tu turno en Caja');
+    const deMas = venta.items.find(i => i.encargo && +i.cantidad > i.encargo.max + 0.0005);
+    if (deMas) return aviso(`Del encargo #${deMas.encargo.numero} se pueden entregar ${cant(deMas.encargo.max)} (lo que llegó y falta entregar)`);
     const tt = totales();
     if (venta.dos) {
       if (!(numero(venta.dos.monto1) > 0)) { $('#m1')?.focus(); return aviso('Poné cuánto paga con el primer medio'); }
@@ -559,7 +569,7 @@ export async function pantallaVender(vista, ctx) {
       p_items: venta.items.map(i => i.producto_id ? { producto_id: i.producto_id, cantidad: i.cantidad, ...(i.precio != null ? { precio: i.precio } : {}),
         ...(i.etiqueta != null ? { importe: i.etiqueta } : {}) } : { nombre: i.nombre, importe: i.importe }),
       p_pagos: [...(tt.sena ? [{ forma: 'Seña', base: tt.sena }] : []), ...tt.pagos.filter(p => p.base > 0).map(p => ({ forma: p.forma, base: p.base }))],
-      p_encargos: venta.items.filter(i => i.encargo).map(i => i.encargo.id),
+      p_encargos: venta.items.filter(i => i.encargo).map(i => ({ id: i.encargo.id, cantidad: i.cantidad })),
       p_paga_con: pc > 0 ? pc : null, p_cliente_id: venta.cliente?.id ?? null, p_forzar_limite: false,
       p_descuento: tt.descuento, p_autorizacion: null,
     };
