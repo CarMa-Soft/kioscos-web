@@ -8,19 +8,19 @@
 .p-buscar input { font: inherit; flex: 1; min-width: 0; padding: .65rem 0; border: 0; background: transparent; outline: none; color: var(--texto); }
 .p-select { height: 100%; }
 .p-filtros .chip { display: inline-flex; align-items: center; gap: .35rem; }
-.p-filtros .chip.elegido { background: #111827; border-color: #111827; }
 .p-cuenta { color: var(--suave); font-size: .85em; }
-.chip.elegido .p-cuenta { color: #cbd2d9; }
+.chip.elegido .p-cuenta { color: rgba(255, 255, 255, .8); }   /* el filtro elegido es verde, como en las demás pantallas */
 .p-aviso { margin-top: .75rem; padding: .6rem .9rem; border-radius: 10px; background: #fef6e7; color: #93370d; font-size: .92rem; }
 
 .p-tabla { border-radius: 14px; margin-top: 1rem; box-shadow: 0 1px 2px rgba(16, 24, 40, .04); }
-.p-tabla .tabla th { background: #f9fafb; padding: .7rem 1rem; }
+/* encabezado un tono más oscuro (verde grisáceo), el mismo que c-tabla en las demás pantallas */
+.p-tabla .tabla th { background: #e4ece7; padding: .7rem 1rem; border-bottom: 1px solid #cfdad3; }
 .p-tabla .tabla td { padding: .7rem 1rem; }
 .p-tabla tbody tr:last-child td { border-bottom: 0; }
-.p-orden { font: inherit; font-size: .8rem; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--suave); background: none; border: 0;
+.p-orden { font: inherit; font-size: .8rem; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: #344054; background: none; border: 0;
   padding: 0; cursor: pointer; display: inline-flex; align-items: center; gap: .3rem; }
 .p-orden span { font-size: .75rem; opacity: .45; }
-.p-orden:hover, .p-orden.activo { color: var(--texto); }
+.p-orden:hover, .p-orden.activo { color: #101828; }
 .p-orden.activo span { opacity: 1; }
 .p-nombre { font-weight: 600; }
 .p-estrella { color: var(--texto); }
@@ -36,7 +36,7 @@
 /* Celular: la lista de productos como tarjetas. Arriba el nombre y el precio; abajo la categoría y, con su título,
    stock, costo y margen. El encabezado queda como fila de botones para ordenar. */
 @media (max-width: 800px) {
-  .p-tabla .tabla thead tr { display: flex; flex-wrap: wrap; gap: .45rem 1rem; padding: .6rem .8rem; background: #f9fafb; }
+  .p-tabla .tabla thead tr { display: flex; flex-wrap: wrap; gap: .45rem 1rem; padding: .6rem .8rem; background: #e4ece7; }
   .p-tabla .tabla thead th { padding: 0; border: 0; background: none; }
   .p-tabla .tabla tbody tr, .p-tabla .tabla tfoot tr { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: .2rem .6rem;
     padding: .75rem .9rem; border-bottom: 1px solid var(--borde); }

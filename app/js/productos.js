@@ -25,6 +25,14 @@ const GRUPOS = [
   ['sin-codigo', 'Sin código de barras', p => !p.codigo && !p.por_peso],   // los por kilo no llevan: se leen con la etiqueta de la balanza
   ['desactivados', 'Desactivados', () => true],
 ];
+// Íconos de las tarjetas (trazos SVG, toman el color del texto). Los estilos son los de Hoy, Caja, Clientes y Proveedores (clases c-).
+const svg = d => `<svg viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
+const ICO = {
+  productos: svg('<path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/>'),
+  plata: svg('<rect x="2.5" y="6" width="19" height="12" rx="2"/><circle cx="12" cy="12" r="2.6"/>'),
+  reponer: svg('<path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 8v6M9 11l3 3 3-3"/>'),
+  sinStock: svg('<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5v.01"/>'),
+};
 // Margen sobre el costo: (precio − costo) / costo. Sin costo no hay margen.
 const margen = p => +p.costo > 0 ? (p.precio - p.costo) / p.costo * 100 : null;
 const sinAcentos = s => String(s ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -37,8 +45,23 @@ export async function pantallaProductos(vista, ctx) {
   const activos = r.productos;
   const cats = r.categorias, catNombre = id => cats.find(c => c.id === id)?.nombre || '';
   if (categoria && !cats.some(c => String(c.id) === categoria)) categoria = '';
+  // tarjetas: de todos los activos (sin filtros). La mercadería se valoriza con el stock positivo.
+  const cuenta = g => activos.filter(GRUPOS.find(x => x[0] === g)[2]).length;
+  const valorCosto = activos.reduce((s, p) => s + Math.max(0, +p.stock) * +p.costo, 0);
+  const valorVenta = activos.reduce((s, p) => s + Math.max(0, +p.stock) * +p.precio, 0);
+  const nReponer = cuenta('reponer'), nSinStock = cuenta('sin-stock');
   vista.innerHTML = `<div class="cabecera"><h2>Productos <span class="muted">(${activos.length})</span></h2>
       <div class="acciones"><button class="btn" id="lista-precios">🏷️ Lista de precios</button><button class="btn" id="aumento">Precios y márgenes</button><button class="btn" id="categorias">Categorías</button><button class="btn primario" id="nuevo">＋ Nuevo producto</button></div></div>
+    <div class="c-tarjetas">
+      <div class="c-tarjeta verde"><span class="c-ico">${ICO.productos}</span><div><div class="etq">Productos activos</div><div class="valor">${activos.length}</div>
+        <div class="c-sub">${bajas.length ? `${bajas.length} desactivado${bajas.length === 1 ? '' : 's'}` : 'ninguno desactivado'}</div></div></div>
+      <div class="c-tarjeta azul"><span class="c-ico">${ICO.plata}</span><div><div class="etq">Mercadería valorizada (al costo)</div><div class="valor">${plata(valorCosto)}</div>
+        <div class="c-sub">a precio de venta: ${plata(valorVenta)}</div></div></div>
+      <div class="c-tarjeta ${nReponer ? 'naranja' : 'gris'}"><span class="c-ico">${ICO.reponer}</span><div><div class="etq">Para reponer</div><div class="valor">${nReponer}</div>
+        <div class="c-sub">${nReponer ? '<button class="link" data-ir-grupo="reponer">ver cuáles</button>' : 'ninguno debajo del stock mínimo'}</div></div></div>
+      <div class="c-tarjeta ${nSinStock ? 'rojo' : 'gris'}"><span class="c-ico">${ICO.sinStock}</span><div><div class="etq">Sin stock</div><div class="valor">${nSinStock}</div>
+        <div class="c-sub">${nSinStock ? '<button class="link" data-ir-grupo="sin-stock">ver cuáles</button>' : 'todos tienen stock'}</div></div></div>
+    </div>
     <div class="p-filtros">
       <div class="p-busqueda">
         <label class="p-buscar"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg>
@@ -110,6 +133,11 @@ export async function pantallaProductos(vista, ctx) {
   };
   $('#filtro').oninput = e => { filtro = e.target.value; pintar(); };
   $('#categoria').onchange = e => { categoria = e.target.value; pintar(); };
+  // "ver cuáles" de las tarjetas: pone ese filtro (sin búsqueda ni categoría, para que se vean todos)
+  $$('[data-ir-grupo]').forEach(b => b.onclick = () => {
+    grupo = b.dataset.irGrupo; filtro = ''; categoria = '';
+    $('#filtro').value = ''; $('#categoria').value = ''; pintar();
+  });
   $('#nuevo').onclick = () => ficha(null);
   $('#categorias').onclick = () => categorias(cats);
   $('#aumento').onclick = () => correr(() => preciosModal({ productos: activos, categorias: cats, visibles: hayFiltros() ? visibles().filter(p => p.activo !== false) : null, ctx, alTerminar: () => ctx.recargar() }));
