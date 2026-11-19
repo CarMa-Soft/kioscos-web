@@ -1,13 +1,14 @@
 /* Vender: diseño de la pantalla de ventas. Clases con prefijo v- para no tocar las que usan otras secciones. */
 .vista:has(> .v) { max-width: 1500px; }   /* Vender usa más ancho que las otras secciones */
 /* --v-oscuro: el fondo de "Total a cobrar" y del encabezado de la venta (verde más oscuro que el de los botones elegidos) */
-.v { --v-oscuro: #0a3b24; display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 1.25rem; align-items: start; }
+.v { --v-oscuro: #0a3b24; display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 1.25rem; align-items: stretch; }
 .v kbd { font: 600 .72rem/1 ui-monospace, Consolas, monospace; padding: .2rem .35rem; border: 1px solid #d5dbe1; border-bottom-width: 2px;
   border-radius: 5px; background: #f8fafc; color: #475467; white-space: nowrap; }
 .v svg { width: 1.1em; height: 1.1em; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
 /* Izquierda: buscador, acciones y renglones */
-.v-izq { background: #fff; border: 1px solid var(--borde); border-radius: 16px; padding: 1.5rem; min-height: calc(100vh - 12rem);
+/* la izquierda llega justo hasta abajo del panel de cobro (la fila del grid toma el alto del panel); si la venta es larga, crece */
+.v-izq { background: #fff; border: 1px solid var(--borde); border-radius: 16px; padding: 1.5rem;
   box-shadow: 0 1px 2px rgba(16, 24, 40, .04); display: flex; flex-direction: column; }
 .v-busca { display: flex; align-items: center; gap: .8rem; padding: .35rem .5rem .35rem 1.1rem; border: 1.5px solid #d6ece6; border-radius: 14px;
   background: linear-gradient(90deg, #e6f4ec, #f3faf6 60%); cursor: text; transition: border-color .15s, box-shadow .15s; }   /* el mismo tono del último renglón agregado */
@@ -81,7 +82,7 @@
 .v-quitar:hover { background: #fef3f2; color: var(--mal); }
 
 /* Derecha: total y cobro */
-.v-der { background: #fff; border: 1px solid var(--borde); border-radius: 16px; overflow: hidden; position: sticky; top: 1rem;
+.v-der { align-self: start; background: #fff; border: 1px solid var(--borde); border-radius: 16px; overflow: hidden; position: sticky; top: 1rem;
   box-shadow: 0 10px 30px rgba(16, 24, 40, .08); }
 .v-total { background: var(--v-oscuro); color: #fff; padding: 1.1rem 1.4rem 1rem; border-bottom: 4px solid #34c27a; }
 .v-total-top { display: flex; justify-content: space-between; gap: 1rem; font-size: .85rem; color: #fff; }
