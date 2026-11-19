@@ -160,10 +160,14 @@ p.muted { margin: 0 0 1.25rem; }
 .chips { display: flex; gap: .35rem; flex-wrap: wrap; }
 .chip { font: inherit; font-size: .9rem; padding: .35rem .75rem; border: 1px solid #cbd2d9; border-radius: 999px; background: #fff; cursor: pointer; }
 .chip.elegido { background: var(--primario); border-color: var(--primario); color: #fff; }
-.grafico { display: grid; gap: .3rem; background: #fff; border: 1px solid var(--borde); border-radius: 10px; padding: .75rem 1rem; }
+.grafico { display: grid; gap: .35rem; background: #fff; border: 1px solid var(--borde); border-radius: 14px; padding: .9rem 1.1rem; box-shadow: 0 1px 2px rgba(16, 24, 40, .04); }
 .grafico-fila { display: grid; grid-template-columns: 5.5rem 1fr 7.5rem; gap: .6rem; align-items: center; font-size: .9rem; }
-.grafico-barra { background: var(--fondo); border-radius: 4px; height: .9rem; overflow: hidden; }
-.grafico-llena { display: block; height: 100%; width: 0; background: var(--primario); border-radius: 4px; }
+.grafico-barra { background: #eef2f0; border-radius: 6px; height: 1rem; overflow: hidden; }
+.grafico-llena { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #34c27a, var(--primario)); border-radius: 6px; }
+/* Reportes: las fechas junto a los botones de período, y lugar entre los grupos de tarjetas */
+.r-fechas { align-items: center; margin: 0; }
+/* las tarjetas de cada grupo se reparten todo el ancho (con montos grandes no quedan angostas) */
+.c-tarjetas.r-tarjetas { margin-top: 1rem; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
 .grafico-valor { text-align: right; }
 .dos-columnas { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 @media (max-width: 800px) { .dos-columnas { grid-template-columns: 1fr; } .grafico-fila { grid-template-columns: 4rem 1fr 6rem; } }
@@ -268,7 +272,8 @@ details.pagadas summary h3 { display: inline-block; }
 .c-tarjeta { display: flex; align-items: center; gap: .9rem; padding: 1rem 1.1rem; background: #fff; border: 1px solid var(--borde); border-radius: 14px;
   box-shadow: 0 1px 2px rgba(16, 24, 40, .04); border-left: 4px solid var(--c-color); }
 .c-tarjeta .etq { color: var(--suave); font-size: .85rem; }
-.c-tarjeta .valor { font-size: 1.45rem; font-weight: 700; color: var(--c-color); }
+.c-tarjeta .valor { font-size: 1.45rem; font-weight: 700; color: var(--c-color); overflow-wrap: anywhere; }
+.c-tarjeta > div { min-width: 0; }   /* un monto muy largo no se sale de la tarjeta */
 .c-ico { flex: none; display: grid; place-items: center; width: 2.8rem; height: 2.8rem; border-radius: 12px; background: var(--c-fondo); color: var(--c-color); }
 .c-ico svg { width: 1.4rem; height: 1.4rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .c-tarjeta.rojo { --c-color: #b42318; --c-fondo: #fef3f2; }
