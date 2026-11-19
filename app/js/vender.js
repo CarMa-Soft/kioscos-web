@@ -72,6 +72,7 @@ export async function pantallaVender(vista, ctx) {
 
   vista.innerHTML = `
     ${caja.turno ? '' : '<p class="aviso mal">La caja está cerrada: <a href="#/caja">abrí tu turno en Caja</a> para poder cobrar.</p>'}
+    <div id="entregas"></div>
     <div class="v">
       <section class="v-izq">
         <div class="buscador">
@@ -84,7 +85,6 @@ export async function pantallaVender(vista, ctx) {
         <div class="v-barra">
           ${ctx.config.varios === false ? '' : `<button class="v-btn" id="varios">${ICO.mas} Varios / precio libre</button>`}
           <button class="v-btn" id="encargo" title="Un cliente encarga algo sin pagarlo (o con seña)">📋 Encargo</button>
-          <span id="entregas" class="v-avisos"></span>
           <button class="v-btn peligro" id="vaciar">${ICO.tacho} Vaciar</button>
           <span class="v-atajos"><kbd>F2</kbd> cobrar <kbd>F1</kbd> efectivo <kbd>F3</kbd> fiado <kbd>Esc</kbd> limpiar</span>
         </div>
@@ -510,9 +510,13 @@ export async function pantallaVender(vista, ctx) {
     try { [lista, encs] = await Promise.all([llamar('entregas_pendientes'), llamar('encargos')]); } catch { return; }
     const cont = $('#entregas'); if (!cont) return;
     const listas = lista.filter(e => e.lista).length, llegaron = encs.filter(e => e.lista).length;
-    // avisos chicos en la barra (no empujan la venta ni el cobro hacia abajo); verdes si ya llegó la mercadería. Clic = ver la lista
-    cont.innerHTML = (lista.length ? `<button class="v-aviso ${listas ? 'listas' : ''}" id="ver-entregas" title="Entregas pendientes (ya cobradas)">📦 <b>${lista.length}</b> entrega${lista.length === 1 ? '' : 's'}${listas ? ` · <b>${listas} lista${listas === 1 ? '' : 's'}</b>` : ''}</button>` : '')
-      + (encs.length ? `<button class="v-aviso ${llegaron ? 'listas' : ''}" id="ver-encargos" title="Encargos de clientes">📋 <b>${encs.length}</b> encargo${encs.length === 1 ? '' : 's'}${llegaron ? ` · <b>llegó ${llegaron}</b>` : ''}</button>` : '');
+    // arriba de la venta, uno al lado del otro y finos (así el cobro sigue entrando en la pantalla); verdes si ya llegó la mercadería
+    cont.innerHTML = (lista.length ? `<div class="v-entregas ${listas ? 'listas' : ''}"><span>📦 <b>${lista.length}</b> entrega${lista.length === 1 ? '' : 's'} pendiente${lista.length === 1 ? '' : 's'}
+        ${listas ? ` · <b>${listas} lista${listas === 1 ? '' : 's'} para entregar</b>` : ''}</span>
+        <button class="btn chico" id="ver-entregas">Ver</button></div>` : '')
+      + (encs.length ? `<div class="v-entregas ${llegaron ? 'listas' : ''}"><span>📋 <b>${encs.length}</b> encargo${encs.length === 1 ? '' : 's'}
+        ${llegaron ? ` · <b>llegó lo de ${llegaron}</b>` : ''}</span>
+        <button class="btn chico" id="ver-encargos">Ver</button></div>` : '');
     if (lista.length) $('#ver-entregas').onclick = () => verEntregas(lista);
     if (encs.length) $('#ver-encargos').onclick = () => verEncargos(encs, { alPasar: pasarEncargo, alCambiar: () => cargarEntregas() });
   }
