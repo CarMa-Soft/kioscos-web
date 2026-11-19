@@ -274,6 +274,12 @@ details.pagadas summary h3 { display: inline-block; }
 .c-tarjeta.rojo { --c-color: #b42318; --c-fondo: #fef3f2; }
 .c-tarjeta.naranja { --c-color: #b54708; --c-fondo: #fffaeb; }
 .c-tarjeta.verde { --c-color: var(--primario); --c-fondo: #ecfdf3; }
+.c-tarjeta.azul { --c-color: #175cd3; --c-fondo: #eff8ff; }
+.c-tarjeta.violeta { --c-color: #6941c6; --c-fondo: #f4f3ff; }
+.c-tarjeta.gris { --c-color: #475467; --c-fondo: #f2f4f7; }
+.c-tarjeta .c-sub { color: var(--suave); font-size: .82rem; margin-top: .1rem; }
+.c-tarjetas.de-a-tres { grid-template-columns: repeat(3, minmax(0, 1fr)); }   /* Hoy: filas de tres, así no quedan angostas */
+@media (max-width: 900px) { .c-tarjetas.de-a-tres { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); } }
 .c-filtros { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; padding: .9rem 1rem; background: #fff; border: 1px solid var(--borde); border-radius: 14px; }
 .c-buscar { flex: 1; min-width: 220px; display: flex; align-items: center; gap: .6rem; padding: 0 .9rem; border: 1px solid #cbd2d9; border-radius: 10px; cursor: text; }
 .c-buscar:focus-within { outline: 2px solid var(--primario); outline-offset: 1px; border-color: transparent; }
@@ -282,7 +288,13 @@ details.pagadas summary h3 { display: inline-block; }
 .c-filtros .chip { display: inline-flex; align-items: center; gap: .35rem; }
 .c-cuenta { opacity: .7; font-size: .85em; }
 .c-tabla { border-radius: 14px; margin-top: 1rem; }
-.c-tabla .tabla th { background: #f9fafb; padding: .7rem 1rem; }
+/* encabezado un tono más oscuro (verde grisáceo), el mismo en todas las tablas con este estilo */
+.c-tabla .tabla th { background: #e4ece7; color: #344054; padding: .7rem 1rem; font-size: .78rem; text-transform: uppercase; letter-spacing: .05em;
+  border-bottom: 1px solid #cfdad3; }
+.c-titulo { display: flex; align-items: center; gap: .5rem; margin: 1.5rem 0 .5rem; }
+.c-titulo h3 { margin: 0; }
+.c-titulo svg { width: 1.15rem; height: 1.15rem; fill: none; stroke: var(--primario); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.c-titulo .btn { margin-left: auto; }
 .c-tabla .tabla td { padding: .65rem 1rem; }
 .c-nombre { display: flex; align-items: center; gap: .7rem; }
 .c-inicial { flex: none; display: grid; place-items: center; width: 2.1rem; height: 2.1rem; border-radius: 50%; background: #ecfdf3; color: var(--primario); font-weight: 700; }

@@ -12,6 +12,7 @@ let filtro = '', grupo = 'todos', categoria = '', orden = { col: 'nombre', asc: 
 let enLista = false;   // mostrando la lista de precios para imprimir
 // Desde Inicio: abrir la lista con los productos creados en la caja
 export function verARevisar() { grupo = 'revisar'; filtro = ''; categoria = ''; }
+export function verParaReponer() { grupo = 'reponer'; filtro = ''; categoria = ''; }   // desde Inicio
 
 // Botones de filtro: cada uno con su condición. "Desactivados" muestra los dados de baja (los demás, solo activos).
 const GRUPOS = [
