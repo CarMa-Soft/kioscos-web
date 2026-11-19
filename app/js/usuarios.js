@@ -1,4 +1,4 @@
-// Usuarios (solo dueño) y cambiar mi PIN
+// Usuarios (solo dueño) y cambiar mi PIN (cambiarMiPin, que también usa el menú de la izquierda para el empleado)
 import { llamar } from './base.js';
 import { $, $$, esc, ROL, aviso, correr, modal } from './ui.js';
 
@@ -10,7 +10,7 @@ export async function pantallaUsuarios(vista, ctx) {
     ${admin ? `<div class="tabla-caja"><table class="tabla"><thead><tr><th>Nombre</th><th>Rol</th><th>Estado</th><th></th></tr></thead><tbody>
       ${lista.map(u => `<tr><td>${esc(u.nombre)}</td><td>${ROL[u.rol]}</td><td>${u.activo ? (u.bloqueado ? 'Bloqueado unos minutos' : 'Activo') : 'Desactivado'}</td>
         <td class="num"><button class="link" data-editar="${u.id}">Editar</button></td></tr>`).join('')}</tbody></table></div>` : ''}`;
-  $('#mi-pin').onclick = () => miPin();
+  $('#mi-pin').onclick = () => cambiarMiPin();
   if (admin) {
     $('#nuevo').onclick = () => formUsuario(null);
     $$('[data-editar]').forEach(b => b.onclick = () => formUsuario(lista.find(u => u.id === +b.dataset.editar)));
@@ -33,15 +33,17 @@ export async function pantallaUsuarios(vista, ctx) {
     };
   }
 
-  function miPin() {
-    const m = modal('Cambiar mi PIN', `<form class="form" id="f-mipin">
-      <label>PIN actual<input class="input pin" name="actual" type="password" inputmode="numeric" autocomplete="off" maxlength="8" required autofocus></label>
-      <label>PIN nuevo <span class="muted">(4 a 8 números)</span><input class="input pin" name="nuevo" type="password" inputmode="numeric" autocomplete="new-password" maxlength="8" pattern="\\d{4,8}" required></label>
-      <div class="fila fin"><button type="button" class="btn" data-cerrar>Cancelar</button><button class="btn primario">Cambiar</button></div></form>`);
-    $('#f-mipin', m.el).onsubmit = e => {
-      e.preventDefault();
-      const f = new FormData(e.target);
-      correr(async () => { await llamar('cambiar_mi_pin', { p_actual: f.get('actual'), p_nuevo: f.get('nuevo') }); m.cerrar(); aviso('PIN cambiado', 'ok'); });
-    };
-  }
+}
+
+// Cambiar mi PIN: desde Usuarios (el dueño) y desde el menú de la izquierda (el empleado)
+export function cambiarMiPin() {
+  const m = modal('Cambiar mi PIN', `<form class="form" id="f-mipin">
+    <label>PIN actual<input class="input pin" name="actual" type="password" inputmode="numeric" autocomplete="off" maxlength="8" required autofocus></label>
+    <label>PIN nuevo <span class="muted">(4 a 8 números)</span><input class="input pin" name="nuevo" type="password" inputmode="numeric" autocomplete="new-password" maxlength="8" pattern="\\d{4,8}" required></label>
+    <div class="fila fin"><button type="button" class="btn" data-cerrar>Cancelar</button><button class="btn primario">Cambiar</button></div></form>`);
+  $('#f-mipin', m.el).onsubmit = e => {
+    e.preventDefault();
+    const f = new FormData(e.target);
+    correr(async () => { await llamar('cambiar_mi_pin', { p_actual: f.get('actual'), p_nuevo: f.get('nuevo') }); m.cerrar(); aviso('PIN cambiado', 'ok'); });
+  };
 }

@@ -21,29 +21,61 @@ p.muted { margin: 0 0 1.25rem; }
 .pie { margin-top: 2rem; font-size: .9rem; }
 
 /* Marco de la app */
-.marco { min-height: 100vh; display: flex; flex-direction: column; }
-/* Barra de arriba: compacta para que las 12 secciones entren en una línea en una pantalla común (desde unos 1300 px);
-   en pantallas más angostas el menú sigue pasando a una segunda línea antes que cortarse */
-.barra { display: flex; align-items: center; gap: 1rem; padding: .45rem .9rem; background: var(--barra); color: #fff; flex-wrap: wrap; }
-.barra .negocio { font-weight: 700; white-space: nowrap; }
-.barra nav { display: flex; gap: .1rem; flex: 1; flex-wrap: wrap; }
-.barra nav a { color: #d1d5db; text-decoration: none; padding: .4rem .55rem; border-radius: 6px; font-size: .92rem; white-space: nowrap; }
-.barra nav a.activa, .barra nav a:hover { background: #374151; color: #fff; }
-.barra .quien { display: flex; align-items: center; gap: .5rem; font-size: .85rem; color: #d1d5db; white-space: nowrap; }
-.barra .quien .btn { padding: .3rem .6rem; font-size: .85rem; }
-/* Botón ☰ del menú: solo en pantallas angostas (ver @media de abajo) */
+/* En la PC: menú a la izquierda (se puede colapsar) y la sección a la derecha. En el celular: barra arriba con ☰.
+   --alto-barra: el alto de la barra fija de arriba en el celular (0px en la PC); lo pone app.js (seguirAltoBarra). */
+html { scroll-padding-top: var(--alto-barra, 0px); }
+.marco { min-height: 100vh; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; }
+.barra { position: sticky; top: 0; z-index: 30; width: 13.5rem; height: 100vh; height: 100dvh; display: flex; flex-direction: column; gap: .5rem;
+  padding: .75rem .55rem; background: var(--barra); color: #fff; overflow-x: hidden; overflow-y: auto;
+  scrollbar-width: thin; scrollbar-color: #4b5563 transparent; }   /* pantalla baja: la barra se desplaza por dentro */
+.barra::-webkit-scrollbar { width: 6px; }
+.barra::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 3px; }
+.barra-cabeza { display: flex; align-items: center; gap: .4rem; padding: 0 .2rem .25rem; }
+.barra .negocio { flex: 1; min-width: 0; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.barra-colapsar { flex: none; font: inherit; font-size: 1.1rem; line-height: 1; width: 2rem; height: 2rem; border: 0; border-radius: 8px;
+  background: #374151; color: #d1d5db; cursor: pointer; }
+.barra-colapsar:hover { background: #4b5563; color: #fff; }
+.barra nav { flex: 1; display: flex; flex-direction: column; }
+.menu-bloques, .menu-pie { display: flex; flex-direction: column; }
+.menu-pie { margin-top: auto; }   /* Usuarios, Ajustes y el bloque del usuario, abajo de todo */
+/* bloques sin título: los separa una línea fina */
+.menu-grupo { display: flex; flex-direction: column; gap: .1rem; margin-top: .5rem; padding-top: .5rem; border-top: 1px solid #374151; }
+.menu-bloques > .menu-grupo:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+.barra nav a, .menu-accion, .menu-quien { display: flex; align-items: center; gap: .6rem; width: 100%; padding: .45rem .55rem; border: 0; border-radius: 8px;
+  background: none; color: #d1d5db; font: inherit; font-size: .92rem; text-align: left; text-decoration: none; white-space: nowrap; cursor: pointer; }
+.menu-quien { color: #9ca3af; font-size: .85rem; cursor: default; }
+.barra nav a:hover, .menu-accion:hover { background: #374151; color: #fff; }
+.barra nav a.activa { background: #374151; color: #fff; font-weight: 600; }
+.menu-ico { flex: none; width: 1.4rem; text-align: center; font-size: 1.05rem; }
+.menu-txt { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* Vender, destacado: siempre verde suave; verde lleno cuando se está ahí */
+.barra nav a.menu-vender { background: rgba(52, 194, 122, .14); color: #fff; }
+.barra nav a.menu-vender:hover { background: rgba(52, 194, 122, .26); }
+.barra nav a.menu-vender.activa { background: var(--primario); }
+/* Botón ☰ del menú: solo en el celular (ver @media de abajo) */
 .menu-boton { display: none; align-items: center; gap: .45rem; font: inherit; font-size: .95rem; color: #fff; background: #374151;
   border: 0; border-radius: 8px; padding: .5rem .8rem; cursor: pointer; }
-@media (max-width: 800px) {
-  .barra { gap: .5rem; padding: .5rem .75rem; }
-  .barra .negocio { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-  .menu-boton { display: inline-flex; }
-  .barra nav, .barra .quien { display: none; flex-basis: 100%; }
-  .barra.abierto nav { display: grid; grid-template-columns: 1fr 1fr; gap: .25rem; padding-top: .4rem; }
-  .barra.abierto nav a { font-size: 1rem; padding: .65rem .75rem; }
-  .barra.abierto .quien { display: flex; justify-content: space-between; padding: .6rem 0 .2rem; border-top: 1px solid #374151; font-size: .95rem; }
+/* Colapsada (solo en la PC): solo los íconos; el nombre sale al pasar el mouse (title) */
+@media (min-width: 801px) {
+  .marco.colapsada .barra { width: 3.9rem; }
+  .marco.colapsada .barra .negocio, .marco.colapsada .menu-txt { display: none; }
+  .marco.colapsada .barra-cabeza { justify-content: center; padding: 0 0 .25rem; }
+  .marco.colapsada .barra nav a, .marco.colapsada .menu-accion, .marco.colapsada .menu-quien { justify-content: center; padding: .5rem 0; }
 }
-.vista { flex: 1; padding: 1.25rem; max-width: 1200px; width: 100%; margin: 0 auto; }
+@media (max-width: 800px) {
+  .marco { display: flex; flex-direction: column; align-items: stretch; }
+  .barra { width: auto; height: auto; max-height: 100dvh; gap: 0; padding: .5rem .75rem; }   /* con el menú abierto no pasa del alto de la pantalla */
+  .barra-cabeza { gap: .5rem; padding: 0; }
+  .barra-colapsar { display: none; }
+  .menu-boton { display: inline-flex; }
+  .barra nav { display: none; }
+  .barra.abierto nav { display: flex; padding-top: .5rem; }
+  .barra.abierto .menu-grupo { display: grid; grid-template-columns: 1fr 1fr; gap: .25rem; }
+  .menu-pie { margin-top: 0; }
+  .menu-quien { grid-column: 1 / -1; }
+  .barra nav a, .menu-accion, .menu-quien { font-size: 1rem; padding: .6rem .7rem; }
+}
+.vista { flex: 1; min-width: 0; padding: 1.25rem; max-width: 1200px; width: 100%; margin: 0 auto; }
 
 /* Avisos */
 .aviso { padding: .7rem 1rem; border-radius: 8px; background: #fff; border: 1px solid var(--borde); margin: 0 0 1rem; }
@@ -96,7 +128,7 @@ p.muted { margin: 0 0 1.25rem; }
 
 /* Vender */
 .vender { display: grid; grid-template-columns: 1fr 300px; gap: 1rem; align-items: start; }
-.vender-der { background: #fff; border: 1px solid var(--borde); border-radius: 12px; padding: 1.25rem; display: grid; gap: .75rem; position: sticky; top: 1rem; }
+.vender-der { background: #fff; border: 1px solid var(--borde); border-radius: 12px; padding: 1.25rem; display: grid; gap: .75rem; position: sticky; top: calc(var(--alto-barra, 0px) + 1rem); }
 .total-etq { color: var(--suave); }
 .total { font-size: 2.4rem; font-weight: 700; }
 .resultados { background: #fff; border: 1px solid var(--borde); border-radius: 10px; margin-top: .4rem; max-height: 340px; overflow: auto; }
@@ -324,4 +356,3 @@ details.pagadas summary h3 { display: inline-block; }
 .ay-tema summary { cursor: pointer; font-weight: 600; }
 .ay-texto { margin-top: .45rem; line-height: 1.55; }
 .ay-texto ol, .ay-texto ul { margin: .25rem 0; padding-left: 1.3rem; }
-.barra .quien .boton-ayuda { text-decoration: none; }

@@ -5,7 +5,7 @@ import { $, $$, esc, ROL, aviso, correr, siVenceLaSesion } from './ui.js';
 import { pantallaVender } from './vender.js';
 import { pantallaCaja } from './caja.js';
 import { pantallaProductos } from './productos.js';
-import { pantallaUsuarios } from './usuarios.js';
+import { pantallaUsuarios, cambiarMiPin } from './usuarios.js';
 import { pantallaClientes } from './clientes.js';
 import { pantallaAjustes } from './ajustes.js';
 import { pantallaAyuda } from './ayuda.js';
@@ -22,22 +22,26 @@ let datos = null;            // lo que devuelve datos_inicio()
 let teclas = null;           // atajos de teclado de la sección abierta
 let refresco = null;         // actualización periódica del catálogo
 
-// La primera es la que se abre al entrar (y al abrir la app, aunque la dirección diga otra)
+// La primera es la que se abre al entrar (y al abrir la app, aunque la dirección diga otra).
+// grupo: el bloque del menú de la izquierda (ver menuPorGrupos). Mercadería va en el orden del circuito:
+// ver stock → pedir → comprar → pagar.
 const SECCIONES = [
-  { ruta: '#/inicio', nombre: 'Hoy', fn: pantallaInicio },
-  { ruta: '#/vender', nombre: 'Vender', fn: pantallaVender },
-  { ruta: '#/caja', nombre: 'Caja', fn: pantallaCaja },
-  { ruta: '#/clientes', nombre: 'Clientes', fn: pantallaClientes },
-  { ruta: '#/productos', nombre: 'Productos', fn: pantallaProductos, admin: true },
-  { ruta: '#/compras', nombre: 'Compras', fn: pantallaCompras, admin: true },
-  { ruta: '#/pedidos', nombre: 'Pedidos', fn: pantallaPedidos, admin: true },
-  { ruta: '#/proveedores', nombre: 'Proveedores', fn: pantallaProveedores, admin: true },
-  { ruta: '#/remitos', nombre: 'Entradas y salidas', fn: pantallaRemitos, admin: true },
-  { ruta: '#/reportes', nombre: 'Reportes', fn: pantallaReportes, admin: true },
-  { ruta: '#/usuarios', nombre: 'Usuarios', fn: pantallaUsuarios },
-  { ruta: '#/ajustes', nombre: 'Ajustes', fn: pantallaAjustes, admin: true },
-  { ruta: '#/ayuda', nombre: 'Ayuda', fn: pantallaAyuda, aparte: true },   // botón ? al lado del usuario (no ocupa lugar en el menú)
+  { ruta: '#/inicio', nombre: 'Hoy', ico: '🏠', grupo: 'dia', fn: pantallaInicio },
+  { ruta: '#/vender', nombre: 'Vender', ico: '🛒', grupo: 'dia', fn: pantallaVender },
+  { ruta: '#/caja', nombre: 'Caja', ico: '💵', grupo: 'dia', fn: pantallaCaja },
+  { ruta: '#/clientes', nombre: 'Clientes', ico: '👥', grupo: 'dia', fn: pantallaClientes },
+  { ruta: '#/productos', nombre: 'Productos', ico: '🏷️', grupo: 'mercaderia', fn: pantallaProductos, admin: true },
+  { ruta: '#/remitos', nombre: 'Entradas y salidas', ico: '🔄', grupo: 'mercaderia', fn: pantallaRemitos, admin: true },
+  { ruta: '#/pedidos', nombre: 'Pedidos', ico: '📝', grupo: 'mercaderia', fn: pantallaPedidos, admin: true },
+  { ruta: '#/compras', nombre: 'Compras', ico: '🧾', grupo: 'mercaderia', fn: pantallaCompras, admin: true },
+  { ruta: '#/proveedores', nombre: 'Proveedores', ico: '🚚', grupo: 'mercaderia', fn: pantallaProveedores, admin: true },
+  { ruta: '#/reportes', nombre: 'Reportes', ico: '📊', grupo: 'numeros', fn: pantallaReportes, admin: true },
+  { ruta: '#/usuarios', nombre: 'Usuarios', ico: '👤', grupo: 'admin', fn: pantallaUsuarios, admin: true },   // el empleado cambia su PIN desde el menú
+  { ruta: '#/ajustes', nombre: 'Ajustes', ico: '⚙️', grupo: 'admin', fn: pantallaAjustes, admin: true },
+  { ruta: '#/ayuda', nombre: 'Ayuda', fn: pantallaAyuda, aparte: true },   // en el bloque del usuario (no es un bloque del menú)
 ];
+const GRUPOS = ['dia', 'mercaderia', 'numeros', 'admin'];   // admin (Usuarios y Ajustes) va abajo, pegado al bloque del usuario
+const CLAVE_COLAPSADO = 'menu-colapsado';                   // cada PC recuerda si el menú de la izquierda está colapsado
 
 siVenceLaSesion(() => iniciar());
 document.addEventListener('keydown', e => teclas?.(e));
@@ -122,17 +126,69 @@ async function salirDeLaCuenta() {
 
 // ---------- Secciones ----------
 
+// Menú de la izquierda: los bloques de secciones (sin títulos, separados por una línea), el de Usuarios y Ajustes abajo,
+// y debajo el bloque del usuario. Los bloques vacíos no se muestran (para el empleado solo queda el del día a día).
+function menuPorGrupos(yo) {
+  const enlace = s => `<a href="${s.ruta}" data-ruta="${s.ruta}" title="${esc(s.nombre)}" class="${s.ruta === '#/vender' ? 'menu-vender' : ''}">
+      <span class="menu-ico" aria-hidden="true">${s.ico}</span><span class="menu-txt">${esc(s.nombre)}</span></a>`;
+  const bloque = g => {
+    const lista = SECCIONES.filter(s => s.grupo === g && !s.aparte && (!s.admin || yo.rol === 'admin'));
+    return lista.length ? `<div class="menu-grupo">${lista.map(enlace).join('')}</div>` : '';
+  };
+  const quien = `${yo.nombre} · ${ROL[yo.rol]}`;
+  return `<div class="menu-bloques">${GRUPOS.filter(g => g !== 'admin').map(bloque).join('')}</div>
+    <div class="menu-pie">${bloque('admin')}
+      <div class="menu-grupo menu-usuario">
+        <a href="#/ayuda" data-ruta="#/ayuda" title="Ayuda: cómo hacer cada cosa"><span class="menu-ico" aria-hidden="true">?</span><span class="menu-txt">Ayuda</span></a>
+        <div class="menu-quien" title="${esc(quien)}"><span class="menu-ico" aria-hidden="true">👤</span><span class="menu-txt">${esc(quien)}</span></div>
+        ${yo.rol === 'admin' ? '' : `<button class="menu-accion" id="mi-pin-menu" title="Cambiar mi PIN"><span class="menu-ico" aria-hidden="true">🔑</span><span class="menu-txt">Cambiar mi PIN</span></button>`}
+        <button class="menu-accion" id="cambiar" title="Cambiar de usuario"><span class="menu-ico" aria-hidden="true">🔁</span><span class="menu-txt">Cambiar de usuario</span></button>
+      </div></div>`;
+}
+
+// Si la PC tiene el menú colapsado (localStorage puede fallar: entonces arranca abierto)
+const leerColapsado = () => { try { return localStorage.getItem(CLAVE_COLAPSADO) === '1'; } catch { return false; } };
+const guardarColapsado = si => { try { localStorage.setItem(CLAVE_COLAPSADO, si ? '1' : '0'); } catch { /* sin almacenamiento: no se recuerda */ } };
+function colapsar(si) {
+  raiz.classList.toggle('colapsada', si);
+  const b = $('#colapsar');
+  if (!b) return;
+  b.textContent = si ? '»' : '«';
+  b.title = si ? 'Mostrar el menú' : 'Achicar el menú';
+  b.setAttribute('aria-label', b.title);
+  b.setAttribute('aria-expanded', String(!si));
+}
+
+// En el celular la barra queda fija arriba y tapa lo de arriba: su alto va a --alto-barra (lo usan el scroll y los
+// paneles fijos, como el de cobro en Vender). En la PC, 0px.
+const celular = matchMedia('(max-width: 800px)');
+let medirBarra = null;
+function seguirAltoBarra() {
+  medirBarra?.disconnect();
+  const barra = $('#barra');
+  const poner = () => document.documentElement.style.setProperty('--alto-barra', celular.matches && barra ? barra.offsetHeight + 'px' : '0px');
+  if (barra && 'ResizeObserver' in window) { medirBarra = new ResizeObserver(poner); medirBarra.observe(barra); }
+  poner();
+}
+celular.addEventListener('change', () => seguirAltoBarra());
+
 function armarMarco() {
   const yo = datos.yo;
   raiz.className = 'marco';
-  // En el celular (pantalla angosta) el menú y el usuario se esconden detrás del botón ☰, que muestra la sección actual
-  raiz.innerHTML = `<header class="barra" id="barra"><div class="negocio">${esc(datos.negocio.nombre)}</div>
-      <button class="menu-boton" id="menu" aria-expanded="false" aria-controls="menu-nav"><span aria-hidden="true">☰</span> <span id="seccion-actual">Menú</span></button>
-      <nav id="menu-nav">${SECCIONES.filter(s => (!s.admin || yo.rol === 'admin') && !s.aparte).map(s => `<a href="${s.ruta}" data-ruta="${s.ruta}">${s.nombre}</a>`).join('')}</nav>
-      <div class="quien"><a class="btn chico boton-ayuda" href="#/ayuda" title="Ayuda: cómo hacer cada cosa">? Ayuda</a> ${esc(yo.nombre)} · ${ROL[yo.rol]} <button class="btn chico" id="cambiar">Cambiar de usuario</button></div></header>
+  // En la PC, barra a la izquierda que se puede colapsar (« »). En el celular, barra arriba: el menú y el usuario se
+  // esconden detrás del botón ☰, que muestra la sección actual.
+  raiz.innerHTML = `<header class="barra" id="barra">
+      <div class="barra-cabeza"><div class="negocio" title="${esc(datos.negocio.nombre)}">${esc(datos.negocio.nombre)}</div>
+        <button class="barra-colapsar" id="colapsar"></button>
+        <button class="menu-boton" id="menu" aria-expanded="false" aria-controls="menu-nav"><span aria-hidden="true">☰</span> <span id="seccion-actual">Menú</span></button></div>
+      <nav id="menu-nav">${menuPorGrupos(yo)}</nav></header>
     <main id="vista" class="vista"></main>`;
+  colapsar(leerColapsado());
+  $('#colapsar').onclick = () => { const si = !raiz.classList.contains('colapsada'); colapsar(si); guardarColapsado(si); };
   $('#cambiar').onclick = () => cambiarDeUsuario();
+  if ($('#mi-pin-menu')) $('#mi-pin-menu').onclick = () => { abrirMenu(false); cambiarMiPin(); };
   $('#menu').onclick = () => abrirMenu(!$('#barra').classList.contains('abierto'));
+  seguirAltoBarra();
 }
 function abrirMenu(abrir) {
   $('#barra')?.classList.toggle('abierto', abrir);
