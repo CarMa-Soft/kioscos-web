@@ -1,9 +1,9 @@
 -- =====================================================================
 -- Pruebas: encargos entregados en partes (solo lo que llegó). Usa el negocio C (07 a 24): Carla (dueña, con el turno abierto).
 -- =====================================================================
-create function pruebas.enc(p_id text) returns jsonb language sql as $
+create function pruebas.enc(p_id text) returns jsonb language sql as $$
   select e from jsonb_array_elements(public.encargos()) e where e ->> 'id' = p_id;
-$;
+$$;
 grant execute on function pruebas.enc(text) to authenticated;
 set local role authenticated;
 select pruebas.como('d0000000-0000-4000-8000-0000000000c3', current_setting('prueba.t_carla'));
