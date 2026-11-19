@@ -12,31 +12,69 @@ const r3 = n => Math.round((+n || 0) * 1000) / 1000;
 const nombreTipo = t => t === 'ingreso' ? 'Entrada' : 'Salida';
 const etiquetaTipo = r => r.anulado ? '<span class="etiqueta">anulada</span>'
   : `<span class="etiqueta ${r.tipo === 'ingreso' ? 'entra' : 'sale'}">${nombreTipo(r.tipo)}</span>`;
-let filtro = '';
+let filtro = '', buscar = '';   // lo elegido se mantiene al ir y volver de la sección
 // Un borrador por tipo: si se sale de la pantalla, no se pierde lo cargado
 const borradores = {};
 let cargando = null;   // 'ingreso' | 'egreso' mientras se carga una
 
+// Íconos (trazos SVG, toman el color del texto). Los estilos son los de las demás pantallas (clases c- en app.css).
+const svg = d => `<svg viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
+const ICO = {
+  entra: svg('<path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 8v6M9 11l3 3 3-3"/>'),
+  sale: svg('<path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 14V8M9 11l3-3 3 3"/>'),
+  balanza: svg('<path d="M12 4v16M7 20h10M5 8h14"/><path d="m5 8-2.5 6a2.5 2.5 0 0 0 5 0zM19 8l-2.5 6a2.5 2.5 0 0 0 5 0z"/>'),
+  lupa: svg('<circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/>'),
+};
+const sinAcentos = s => String(s ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+const diaLocal = iso => { const d = new Date(iso); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+
 export async function pantallaRemitos(vista, ctx) {
   if (cargando) return nuevoRemito(vista, ctx, cargando);
-  const lista = await llamar('remitos', { p_tipo: filtro || null });
+  const todas = await llamar('remitos', { p_tipo: null });   // las últimas 300; el filtro por tipo se hace acá
   const enCurso = t => borradores[t]?.items.length ? ` (${borradores[t].items.length} en curso)` : '';
+  // este mes, sin las anuladas: cuántas y cuánto valen al costo
+  const mes = diaLocal(new Date().toISOString()).slice(0, 7);
+  const delMes = t => todas.filter(r => r.tipo === t && !r.anulado && diaLocal(r.fecha).startsWith(mes));
+  const valor = l => l.reduce((s, r) => s + +r.valor, 0);
+  const ent = delMes('ingreso'), sal = delMes('egreso'), dif = valor(ent) - valor(sal);
+  const cuantas = l => `${l.length} ${l.length === 1 ? 'vez' : 'veces'}`;
   vista.innerHTML = `<div class="cabecera"><h2>Entradas y salidas</h2><div class="acciones">
       <button class="btn" id="n-ingreso">＋ Entrada de mercadería${enCurso('ingreso')}</button>
       <button class="btn primario" id="n-egreso">− Salida de mercadería${enCurso('egreso')}</button></div></div>
     <p class="muted">Para sumar o restar mercadería sin pasar por una compra ni una venta: vencidos, rotos, consumo propio, transferencias,
       diferencias de inventario. Cada una queda numerada (RI entradas, RE salidas), con su motivo y quién la hizo.
       Las devoluciones se hacen desde la venta o la compra.</p>
-    <div class="chips">${[['', 'Todas'], ['ingreso', 'Entradas'], ['egreso', 'Salidas']].map(([k, l]) => `<button class="chip ${filtro === k ? 'elegido' : ''}" data-f="${k}">${l}</button>`).join('')}</div>
-    <div class="tabla-caja"><table class="tabla">${lista.length ? `<thead><tr><th>Nº</th><th>Fecha</th><th>Tipo</th><th>Motivo</th><th>Lo hizo</th><th class="num">Productos</th><th class="num">Valor al costo</th></tr></thead><tbody>
+    <div class="c-tarjetas de-a-tres">
+      <div class="c-tarjeta ${ent.length ? 'verde' : 'gris'}"><span class="c-ico">${ICO.entra}</span><div><div class="etq">Entradas de este mes</div><div class="valor">${plata(valor(ent))}</div>
+        <div class="c-sub">${cuantas(ent)} · valor al costo</div></div></div>
+      <div class="c-tarjeta ${sal.length ? 'rojo' : 'gris'}"><span class="c-ico">${ICO.sale}</span><div><div class="etq">Salidas de este mes</div><div class="valor">${plata(valor(sal))}</div>
+        <div class="c-sub">${cuantas(sal)} · valor al costo</div></div></div>
+      <div class="c-tarjeta ${Math.abs(dif) > 0.004 ? 'azul' : 'gris'}"><span class="c-ico">${ICO.balanza}</span><div><div class="etq">Diferencia del mes</div><div class="valor">${dif < -0.004 ? '−' : ''}${plata(Math.abs(dif))}</div>
+        <div class="c-sub">${dif < -0.004 ? 'salió más de lo que entró' : dif > 0.004 ? 'entró más de lo que salió' : 'entradas y salidas iguales'}</div></div></div>
+    </div>
+    <div class="c-filtros">
+      <label class="c-buscar">${ICO.lupa}<input id="buscar" placeholder="Buscar por número, motivo o nota…" value="${esc(buscar)}" autocomplete="off"></label>
+      <div class="chips" id="grupos"></div>
+    </div>
+    <div class="tabla-caja c-tabla"><table class="tabla" id="tabla"></table></div>`;
+  const coincide = r => { const w = sinAcentos(buscar).split(/\s+/).filter(Boolean), t = sinAcentos(`${r.etiqueta} ${r.motivo} ${r.notas || ''} ${r.usuario}`); return w.every(x => t.includes(x)); };
+  const pintar = () => {
+    const delTipo = k => todas.filter(r => (!k || r.tipo === k) && coincide(r));
+    $('#grupos').innerHTML = [['', 'Todas'], ['ingreso', 'Entradas'], ['egreso', 'Salidas']].map(([k, l]) =>
+      `<button class="chip ${filtro === k ? 'elegido' : ''}" data-f="${k}">${l} <span class="c-cuenta">${delTipo(k).length}</span></button>`).join('');
+    $$('[data-f]').forEach(b => b.onclick = () => { filtro = b.dataset.f; pintar(); });
+    const lista = delTipo(filtro);
+    $('#tabla').innerHTML = lista.length ? `<thead><tr><th>Nº</th><th>Fecha</th><th>Tipo</th><th>Motivo</th><th>Lo hizo</th><th class="num">Productos</th><th class="num">Valor al costo</th></tr></thead><tbody>
       ${lista.map(r => `<tr class="clic ${r.anulado ? 'anulada' : ''}" data-id="${r.id}"><td><b>${esc(r.etiqueta)}</b></td><td>${fecha(r.fecha)}</td><td>${etiquetaTipo(r)}</td>
         <td>${esc(r.motivo)}${r.notas ? `<div class="muted chico">${esc(r.notas)}</div>` : ''}</td><td>${esc(r.usuario)}</td>
         <td class="num">${r.items}</td><td class="num">${plata(r.valor)}</td></tr>`).join('')}</tbody>`
-      : '<tbody><tr><td class="muted vacio">Todavía no hay entradas ni salidas.</td></tr></tbody>'}</table></div>`;
+      : `<tbody><tr><td class="muted vacio">${todas.length ? 'Ninguna coincide con la búsqueda o el filtro.' : 'Todavía no hay entradas ni salidas.'}</td></tr></tbody>`;
+    $$('tr[data-id]').forEach(tr => tr.onclick = () => verRemito(+tr.dataset.id, ctx));
+  };
+  $('#buscar').oninput = e => { buscar = e.target.value; pintar(); };
   $('#n-ingreso').onclick = () => { cargando = 'ingreso'; ctx.recargar(); };
   $('#n-egreso').onclick = () => { cargando = 'egreso'; ctx.recargar(); };
-  $$('[data-f]').forEach(b => b.onclick = () => { filtro = b.dataset.f; ctx.recargar(); });
-  $$('tr[data-id]').forEach(tr => tr.onclick = () => verRemito(+tr.dataset.id, ctx));
+  pintar();
 }
 
 function verRemito(id, ctx) {
