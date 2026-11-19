@@ -5,6 +5,7 @@ import { $, $$, esc, plata, cant, fecha, numero, aviso, correr, modal, confirmar
 import { botonCamara } from './escaner.js';
 import { pantallaListaPrecios } from './listaprecios.js';
 import { preciosModal } from './precios.js';
+import { porProducto, aQuien } from './entregas.js';
 
 // Lo que se eligió en la lista se mantiene al ir y volver de la sección
 let filtro = '', grupo = 'todos', categoria = '', orden = { col: 'nombre', asc: true };
@@ -30,7 +31,8 @@ const sinAcentos = s => String(s ?? '').toLowerCase().normalize('NFD').replace(/
 export async function pantallaProductos(vista, ctx) {
   if (enLista) return pantallaListaPrecios(vista, ctx, () => { enLista = false; ctx.recargar(); });
   // el catálogo trae solo los activos (con costos: solo el dueño los recibe); los dados de baja vienen aparte
-  const [r, bajas] = await Promise.all([llamar('catalogo'), llamar('productos_de_baja')]);
+  const [r, bajas, entregas] = await Promise.all([llamar('catalogo'), llamar('productos_de_baja'), porProducto()]);
+  const aEntregar = id => (entregas[id] || []).reduce((s, e) => s + +e.cantidad, 0);
   const activos = r.productos;
   const cats = r.categorias, catNombre = id => cats.find(c => c.id === id)?.nombre || '';
   if (categoria && !cats.some(c => String(c.id) === categoria)) categoria = '';
@@ -87,7 +89,7 @@ export async function pantallaProductos(vista, ctx) {
           <td><div class="p-nombre">${esc(p.nombre)}${p.favorito ? ' <span class="p-estrella" title="Botón rápido en Vender">★</span>' : ''}${p.a_revisar ? ' <span class="etiqueta pendiente" title="Creado en la caja: falta completarlo">a revisar</span>' : ''}</div>
             <div class="p-sub mono">${p.codigo ? esc(p.codigo) : ''}${p.por_peso ? `${p.codigo ? ' ' : ''}· por kilo` : ''}</div></td>
           <td>${esc(catNombre(p.categoria_id))}</td>
-          <td class="num"><span class="${claseStock}">${cant(s)}${p.por_peso ? ' kg' : ''}</span>${min > 0 ? `<div class="p-sub">mín. ${cant(min)}</div>` : ''}</td>
+          <td class="num"><span class="${claseStock}">${cant(s)}${p.por_peso ? ' kg' : ''}</span>${min > 0 ? `<div class="p-sub">mín. ${cant(min)}</div>` : ''}${aEntregar(p.id) ? `<div class="p-entregar" title="${esc(entregas[p.id].map(e => aQuien(e).replace(/<[^>]+>/g, '')).join(' / '))}">📦 ${cant(aEntregar(p.id))} a entregar</div>` : ''}</td>
           <td class="num">${plata(p.costo)}</td>
           <td class="num"><b>${plata(p.precio)}</b>${p.por_peso ? '<span class="muted">/kg</span>' : ''}</td>
           <td class="num">${p.margen != null
@@ -116,6 +118,7 @@ export async function pantallaProductos(vista, ctx) {
   function ficha(p) {
     const v = p || { por_peso: false, favorito: false, activo: true, margen: +(ctx.config.margen ?? 40) > 0 ? +(ctx.config.margen ?? 40) : null };
     const m = modal(p ? 'Editar producto' : 'Nuevo producto', `<form class="form ancho" id="f-prod">
+      ${p && entregas[p.id] ? `<div class="p-aviso">📦 Pendiente de entrega (ya cobrado): ${entregas[p.id].map(aQuien).join('; ')}</div>` : ''}
       ${p?.a_revisar ? '<div class="p-aviso">Se creó en la caja con lo mínimo. Completá el nombre, el costo, la categoría y el stock real (contalo); al guardarlo deja de estar a revisar.</div>' : ''}
       <label>Nombre<input class="input" name="nombre" maxlength="120" required value="${esc(v.nombre || '')}" autofocus></label>
       <div class="fila"><label class="crece">Código de barras<input class="input mono" name="codigo" maxlength="40" value="${esc(v.codigo || '')}" autocomplete="off"></label>

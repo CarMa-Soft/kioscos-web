@@ -374,3 +374,10 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   (`guardar_producto`) deja de estar a revisar. Inicio le avisa al dueño cuántos hay, con botón a ese filtro.
 - Ajustes → "Vender como Varios": config `varios` (false = sin el botón, y un trigger en `venta_items` rechaza la venta sin
   producto). Reportes muestra lo vendido como Varios (`reporte().varios`).
+
+## Entregas pendientes visibles fuera de Vender
+- `entregas.js`: `aQuien(e)`, `porProducto()` y `avisarListas(ids)` (sobre `entregas_pendientes()`).
+- Inicio lista las entregas pendientes (todos los usuarios), con estado "lista para entregar" / "esperando mercadería".
+- Pedidos muestra en el renglón "📦 Para entregar: 6 a Juan Perez (venta #23)"; Productos, "📦 N a entregar" en el stock
+  (detalle al pasar el mouse) y un aviso en la ficha.
+- Al guardar una compra (a mano o desde la factura), si llegó mercadería para entregas pendientes, avisa a quién entregar.

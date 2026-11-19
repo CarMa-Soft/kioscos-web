@@ -5,6 +5,7 @@
 import { llamar, funcion } from './base.js';
 import * as cat from './catalogo.js';
 import { $, $$, esc, plata, cant, dia, hoyDia, sumarDias, numero, aviso, correr, modal, confirmar } from './ui.js';
+import { avisarListas } from './entregas.js';
 
 const r2 = n => Math.round((+n || 0) * 100) / 100;
 const r3 = n => Math.round((+n || 0) * 1000) / 1000;
@@ -374,5 +375,6 @@ function guardar(ctx, alSalir) {
     aviso(`Compra guardada${r.creados ? ` · ${r.creados} producto${r.creados === 1 ? '' : 's'} nuevo${r.creados === 1 ? '' : 's'}` : ''}`, 'ok');
     await cat.actualizar();
     alSalir();
+    avisarListas(r.productos || []).catch(() => {});
   });
 }
