@@ -6,7 +6,8 @@ import { verARevisar } from './productos.js';
 import { aQuien } from './entregas.js';
 
 export async function pantallaInicio(vista, ctx) {
-  const [r, entregas] = await Promise.all([llamar('inicio'), llamar('entregas_pendientes')]);
+  const [r, ent, encs] = await Promise.all([llamar('inicio'), llamar('entregas_pendientes'), llamar('encargos')]);
+  const entregas = [...ent, ...encs];
   const admin = ctx.yo.rol === 'admin';
   const aRevisar = admin ? cat.productos().filter(p => p.a_revisar).length : 0;   // creados en la caja con lo mínimo
   vista.innerHTML = `<div class="cabecera"><div><h2>Hoy</h2><p class="muted">${new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}</p></div>
@@ -23,11 +24,11 @@ export async function pantallaInicio(vista, ctx) {
       <div class="tarjeta"><div class="etq">Fiado pendiente</div><div class="valor">${plata(r.fiado_pendiente)}</div>
         <div class="muted chico"><a href="#/clientes">ver clientes</a></div></div>
     </div>
-    ${entregas.length ? `<div class="cabecera-chica"><h3>Entregas pendientes</h3><a class="btn chico" href="#/vender">Entregar desde Vender</a></div>
-    <p class="muted chico">Ya está cobrado: se entrega cuando llega la mercadería.</p>
+    ${entregas.length ? `<div class="cabecera-chica"><h3>Entregas pendientes y encargos</h3><a class="btn chico" href="#/vender">Entregar desde Vender</a></div>
+    <p class="muted chico">Las entregas ya están cobradas; los encargos se cobran al venir a buscarlos (se descuenta la seña).</p>
     <div class="tabla-caja"><table class="tabla"><thead><tr><th>Producto</th><th>A quién</th><th>Estado</th></tr></thead><tbody>
       ${entregas.map(e => `<tr><td><b>${esc(e.nombre)}</b></td><td>${aQuien(e)}</td>
-        <td>${e.lista ? '<span class="etiqueta bien">lista para entregar</span>' : '<span class="etiqueta pendiente">esperando mercadería</span>'}</td></tr>`).join('')}</tbody></table></div>` : ''}
+        <td>${e.venta == null ? '<span class="etiqueta info">encargo</span> ' : ''}${e.lista ? '<span class="etiqueta bien">lista para entregar</span>' : '<span class="etiqueta pendiente">esperando mercadería</span>'}</td></tr>`).join('')}</tbody></table></div>` : ''}
     <h3>Últimas ventas${r.propias ? ' tuyas' : ''}</h3>
     <div class="tabla-caja"><table class="tabla">${r.ultimas.length ? `<thead><tr><th>#</th><th>Hora</th><th>Productos</th><th>Vendió</th><th class="num">Total</th></tr></thead><tbody>
       ${r.ultimas.map(v => `<tr><td>${v.numero}</td><td>${hora(v.fecha)}</td><td class="corto">${esc(v.resumen || '')}</td><td>${esc(v.usuario)}</td>

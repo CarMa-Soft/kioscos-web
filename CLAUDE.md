@@ -381,3 +381,14 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
 - Pedidos muestra en el renglón "📦 Para entregar: 6 a Juan Perez (venta #23)"; Productos, "📦 N a entregar" en el stock
   (detalle al pasar el mouse) y un aviso en la ficha.
 - Al guardar una compra (a mano o desde la factura), si llegó mercadería para entregas pendientes, avisa a quién entregar.
+
+## Encargos (sin pagar o con seña)
+- Tabla `encargos` (numero por negocio): producto, cantidad, cliente o nombre/teléfono, notas, seña y su forma. No es una
+  venta y no toca el stock; cuenta en `comprometido()` y Pedidos lo muestra en la nota "(encargo #N)".
+- `registrar_encargo(p)` (cualquier usuario): la seña entra a la caja del turno ("Seña encargo #N"). `encargos()` lista los
+  pendientes (`lista` = hay stock). `cancelar_encargo(id, p_devolver, motivo)`: con seña hay que elegir devolverla (egreso
+  de la caja con su forma) o que quede para el negocio.
+- Vender: botón "📋 Encargo" (alta, `encargos.js`), aviso "📋 N encargos" → "Pasar a la venta". `registrar_venta` recibe
+  `p_encargos` y acepta la forma de pago "Seña" hasta la suma de las señas (no entra a la caja otra vez); los encargos
+  quedan entregados. Anular esa venta los vuelve a pendiente (trigger) y la parte "Seña" no sale de la caja.
+- Inicio, Productos y el aviso al cargar una compra muestran también los encargos.

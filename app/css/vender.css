@@ -172,3 +172,6 @@ button.v-campo small.mal { color: var(--mal); }
   border-radius: 12px; background: #f2f4f7; border: 1px solid var(--borde); }
 .v-entregas.listas { background: #ecfdf3; border-color: #abefc6; color: #067647; }
 .faltante { display: grid; gap: .35rem; padding: .75rem; border: 1px solid var(--borde); border-radius: 10px; }
+#entregas { display: grid; gap: .5rem; }
+#entregas .v-entregas { margin-bottom: 0; }
+#entregas:not(:empty) { margin-bottom: 1rem; }
