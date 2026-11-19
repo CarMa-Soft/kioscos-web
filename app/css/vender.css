@@ -82,7 +82,7 @@
 .v-quitar:hover { background: #fef3f2; color: var(--mal); }
 
 /* Derecha: total y cobro */
-.v-der { align-self: start; background: #fff; border: 1px solid var(--borde); border-radius: 16px; overflow: hidden; position: sticky; top: 1rem;
+.v-der { align-self: start; background: #fff; border: 1px solid var(--borde); border-radius: 16px; overflow: hidden; position: sticky; top: calc(var(--alto-barra, 0px) + 1rem);
   box-shadow: 0 10px 30px rgba(16, 24, 40, .08); }
 .v-total { background: var(--v-oscuro); color: #fff; padding: 1.1rem 1.4rem 1rem; border-bottom: 4px solid #34c27a; }
 .v-total-top { display: flex; justify-content: space-between; gap: 1rem; font-size: .85rem; color: #fff; }
