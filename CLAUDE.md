@@ -392,3 +392,8 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   `p_encargos` y acepta la forma de pago "Seña" hasta la suma de las señas (no entra a la caja otra vez); los encargos
   quedan entregados. Anular esa venta los vuelve a pendiente (trigger) y la parte "Seña" no sale de la caja.
 - Inicio, Productos y el aviso al cargar una compra muestran también los encargos.
+- Encargos en partes (`20261210120000_encargos_parciales`): `encargos.entregado` y `sena_usada`, y `encargo_entregas` (cada
+  entrega con su venta). `p_encargos` acepta `{ id, cantidad }`; no se entrega más de lo que hay en stock ni de lo que falta.
+  La seña se descuenta hasta el importe de lo entregado y el resto queda para la próxima entrega. `encargo_json`: `cantidad`
+  y `sena` son lo que falta entregar y la seña que queda (`encargado`, `entregado`, `sena_dejada` aparte). Vender pasa solo
+  lo que llegó ("Pasar 10 a la venta") y sin stock no deja pasarlo. Anular la venta devuelve al encargo lo de esa venta.

@@ -71,11 +71,13 @@ export const detalleEncargo = e => `${esc(e.a_nombre)}${e.telefono ? ' · ' + es
 // La lista de encargos pendientes, con "Pasar a la venta" (si se pasa alPasar) y "Cancelar"
 export function verEncargos(lista, { alPasar, alCambiar } = {}) {
   const m = modal('Encargos', `<div class="tabla-caja"><table class="tabla"><tbody>
-    ${lista.map(e => `<tr><td><b>${cant(e.cantidad)}${e.por_peso ? ' kg' : ''} ${esc(e.nombre)}</b> ${e.lista ? '<span class="etiqueta bien">llegó</span>' : '<span class="etiqueta pendiente">esperando mercadería</span>'}
+    ${lista.map(e => `<tr><td><b>${cant(e.cantidad)}${e.por_peso ? ' kg' : ''} ${esc(e.nombre)}</b>${+e.entregado ? ` <span class="muted chico">(faltan de ${cant(e.encargado)}; ya se entregaron ${cant(e.entregado)})</span>` : ''}
+        ${e.lista ? '<span class="etiqueta bien">llegó</span>' : +e.stock > 0 ? `<span class="etiqueta pendiente">llegaron ${cant(e.stock)}</span>` : '<span class="etiqueta pendiente">esperando mercadería</span>'}
         <div class="muted chico">${detalleEncargo(e)}</div></td>
-      <td class="num nowrap">${alPasar ? `<button class="btn primario chico" data-pasar="${e.id}">Pasar a la venta</button>` : ''}
+      <td class="num nowrap">${!alPasar ? '' : +e.stock > 0 ? `<button class="btn primario chico" data-pasar="${e.id}">${e.lista ? 'Pasar a la venta' : `Pasar ${cant(e.por_peso ? +e.stock : Math.floor(+e.stock))} a la venta`}</button>`
+        : '<span class="muted chico">todavía no llegó</span>'}
         <button class="btn chico" data-cancelar="${e.id}">Cancelar</button></td></tr>`).join('')}</tbody></table></div>
-    <p class="muted chico">"Pasar a la venta" lo suma a la venta en curso; al cobrar, la seña se descuenta del total.</p>
+    <p class="muted chico">"Pasar a la venta" suma a la venta en curso lo que llegó (si llegó una parte, el resto sigue pendiente); al cobrar, la seña se descuenta.</p>
     <div class="fila fin"><button class="btn" data-cerrar>Cerrar</button></div>`, { ancho: true });
   $$('[data-pasar]', m.el).forEach(b => b.onclick = () => { m.cerrar(); alPasar(lista.find(e => e.id === +b.dataset.pasar)); });
   $$('[data-cancelar]', m.el).forEach(b => b.onclick = () => cancelar(lista.find(e => e.id === +b.dataset.cancelar), () => { m.cerrar(); alCambiar?.(); }));
