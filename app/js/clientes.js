@@ -2,27 +2,53 @@
 // qué compras va el pago, ajustes (solo dueño). Como la cuenta del proveedor.
 import { llamar } from './base.js';
 import { $, $$, esc, plata, fecha, dia, textoVence, numero, aviso, correr, modal, confirmar } from './ui.js';
+import { verVenta } from './caja.js';
 
 const nombreDeuda = d => d.venta_id ? `Compra #${d.numero}` : (d.concepto || 'Deuda');
+// En la ficha, la compra es un enlace al detalle de la venta (el mismo de Caja)
+const linkVenta = (ventaId, texto) => ventaId ? `<button class="link" data-venta="${ventaId}" title="Ver la venta">${esc(texto)}</button>` : esc(texto);
 
-let filtro = '';
+// Lo elegido se mantiene al ir y volver de la sección
+let filtro = '', grupo = 'todos';
+
+// Íconos de las tarjetas (trazos SVG, toman el color del texto)
+const svg = d => `<svg viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
+const ICO = {
+  plata: svg('<rect x="2.5" y="6" width="19" height="12" rx="2"/><circle cx="12" cy="12" r="2.6"/>'),
+  alerta: svg('<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5v.01"/>'),
+  personas: svg('<circle cx="9" cy="8.5" r="3.2"/><path d="M3 19c.6-3.2 3-5 6-5s5.4 1.8 6 5"/><circle cx="17" cy="9.5" r="2.5"/><path d="M16 14.2c2.6.2 4.4 1.8 5 4.8"/>'),
+  lupa: svg('<circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/>'),
+};
 
 export async function pantallaClientes(vista, ctx) {
   const admin = ctx.yo.rol === 'admin';
   const lista = await llamar('clientes');
   const deben = lista.filter(c => +c.saldo > 0.004);
   vista.innerHTML = `<div class="cabecera"><h2>Clientes</h2><div class="acciones"><button class="btn primario" id="nuevo">＋ Nuevo cliente</button></div></div>
-    <div class="tarjetas"><div class="tarjeta"><div class="etq">Te deben (fiado)</div><div class="valor">${plata(deben.reduce((s, c) => s + +c.saldo, 0))}</div></div>
-      <div class="tarjeta"><div class="etq">Clientes que deben</div><div class="valor">${deben.length}</div></div></div>
-    <input class="input" id="filtro" placeholder="Buscar cliente" value="${esc(filtro)}" autocomplete="off">
-    <div class="tabla-caja"><table class="tabla" id="tabla"></table></div>`;
+    <div class="c-tarjetas">
+      <div class="c-tarjeta rojo"><span class="c-ico">${ICO.plata}</span><div><div class="etq">Te deben (fiado)</div><div class="valor">${plata(deben.reduce((s, c) => s + +c.saldo, 0))}</div></div></div>
+      <div class="c-tarjeta naranja"><span class="c-ico">${ICO.alerta}</span><div><div class="etq">Clientes que deben</div><div class="valor">${deben.length}</div></div></div>
+      <div class="c-tarjeta verde"><span class="c-ico">${ICO.personas}</span><div><div class="etq">Total de clientes</div><div class="valor">${lista.length}</div></div></div>
+    </div>
+    <div class="c-filtros">
+      <label class="c-buscar">${ICO.lupa}<input id="filtro" placeholder="Buscar por nombre o teléfono…" value="${esc(filtro)}" autocomplete="off"></label>
+      <div class="chips" id="grupos"></div>
+    </div>
+    <div class="tabla-caja c-tabla"><table class="tabla" id="tabla"></table></div>`;
+  const GRUPOS = [['todos', 'Todos', () => true], ['deben', 'Deben', c => +c.saldo > 0.004]];
   const pintar = () => {
     const f = filtro.trim().toLowerCase();
-    const ver = lista.filter(c => !f || c.nombre.toLowerCase().includes(f) || (c.telefono || '').includes(f));
+    const busca = c => !f || c.nombre.toLowerCase().includes(f) || (c.telefono || '').includes(f);
+    $('#grupos').innerHTML = GRUPOS.map(([g, nombre, cond]) => `<button class="chip ${g === grupo ? 'elegido' : ''}" data-grupo="${g}">${nombre} <span class="c-cuenta">${lista.filter(c => busca(c) && cond(c)).length}</span></button>`).join('');
+    $$('[data-grupo]').forEach(b => b.onclick = () => { grupo = b.dataset.grupo; pintar(); });
+    const cond = GRUPOS.find(x => x[0] === grupo)[2];
+    const ver = lista.filter(c => busca(c) && cond(c));
+    const saldo = s => +s > 0.004 ? `<span class="c-saldo debe">Debe ${plata(s)}</span>` : +s < -0.004 ? `<span class="c-saldo favor">A favor ${plata(-s)}</span>` : '<span class="c-saldo">Al día</span>';
     $('#tabla').innerHTML = ver.length ? `<thead><tr><th>Cliente</th><th>Teléfono</th><th class="num">Límite</th><th class="num">Saldo</th></tr></thead><tbody>
-      ${ver.map(c => `<tr class="clic" data-id="${c.id}"><td>${esc(c.nombre)}${c.activo ? '' : ' <span class="etiqueta">de baja</span>'}</td><td>${esc(c.telefono || '')}</td>
-        <td class="num">${+c.limite ? plata(c.limite) : '—'}</td><td class="num ${+c.saldo > 0.004 ? 'mal' : ''}"><b>${textoSaldo(c.saldo)}</b></td></tr>`).join('')}</tbody>`
-      : `<tbody><tr><td class="muted vacio">${lista.length ? 'Ningún cliente coincide.' : 'Todavía no hay clientes.'}</td></tr></tbody>`;
+      ${ver.map(c => `<tr class="clic" data-id="${c.id}"><td><div class="c-nombre"><span class="c-inicial ${+c.saldo > 0.004 ? 'debe' : ''}">${esc(c.nombre.trim().charAt(0).toUpperCase())}</span>
+          <b>${esc(c.nombre)}</b>${c.activo ? '' : ' <span class="etiqueta">de baja</span>'}</div></td><td>${esc(c.telefono || '')}</td>
+        <td class="num">${+c.limite ? plata(c.limite) : '<span class="muted">—</span>'}</td><td class="num">${saldo(c.saldo)}</td></tr>`).join('')}</tbody>`
+      : `<tbody><tr><td class="muted vacio">${lista.length ? (grupo === 'deben' && !f ? 'Ningún cliente debe.' : 'Ningún cliente coincide.') : 'Todavía no hay clientes.'}</td></tr></tbody>`;
     $$('tr[data-id]').forEach(tr => tr.onclick = () => ficha(+tr.dataset.id));
   };
   $('#filtro').oninput = e => { filtro = e.target.value; pintar(); };
@@ -40,24 +66,25 @@ export async function pantallaClientes(vista, ctx) {
         <div class="fila"><button class="btn primario" id="cobrar">Cobrar</button>
           ${+c.a_favor > 0.004 && c.pendientes.length ? `<button class="btn" id="aplicar">Aplicar lo que está a favor (${plata(c.a_favor)})</button>` : ''}
           ${admin ? '<button class="btn" id="ajuste">Deuda anterior / ajuste</button>' : ''}
-          <button class="btn" id="editar">Editar datos</button>${admin ? '<button class="btn peligro" id="eliminar">Eliminar</button>' : ''}</div>
+          <button class="btn" id="editar">Editar datos</button>${admin ? '<button class="btn peligro" id="eliminar">Eliminar</button>' : ''}
+          <button class="btn" data-cerrar>Cerrar</button></div>
         ${c.pendientes.length ? `<h3>Compras pendientes</h3><div class="tabla-caja"><table class="tabla"><thead><tr><th>Compra</th><th>Fecha</th><th>Vence</th><th class="num">Importe</th><th class="num">Pagado</th><th class="num">Pendiente</th></tr></thead><tbody>
-          ${c.pendientes.map(d => `<tr><td>${esc(nombreDeuda(d))}</td><td>${fecha(d.fecha)}</td><td>${dia(d.vencimiento)}<div class="chico">${textoVence(d.vencimiento)}</div></td>
+          ${c.pendientes.map(d => `<tr><td>${linkVenta(d.venta_id, nombreDeuda(d))}</td><td>${fecha(d.fecha)}</td><td>${dia(d.vencimiento)}<div class="chico">${textoVence(d.vencimiento)}</div></td>
             <td class="num">${plata(d.importe)}</td><td class="num ok">${+d.aplicado ? plata(d.aplicado) : ''}</td><td class="num"><b>${plata(d.pendiente)}</b></td></tr>`).join('')}</tbody></table></div>` : ''}
         ${+c.a_favor > 0.004 ? `<p class="chico">A favor, sin aplicar a ninguna compra: <b class="ok">${plata(c.a_favor)}</b></p>` : ''}
         ${c.pagadas.length ? `<details class="pagadas"><summary><h3>Compras pagadas <span class="muted">(${c.pagadas.length}${c.pagadas.length === 100 ? ', las últimas' : ''})</span></h3></summary>
           <div class="tabla-caja"><table class="tabla"><thead><tr><th>Compra</th><th>Fecha</th><th class="num">Importe</th><th>Pagada el</th></tr></thead><tbody>
-          ${c.pagadas.map(d => `<tr><td>${esc(nombreDeuda(d))}</td><td>${fecha(d.fecha)}</td><td class="num">${plata(d.importe)}</td><td>${fecha(d.pagada)}</td></tr>`).join('')}</tbody></table></div></details>` : ''}
+          ${c.pagadas.map(d => `<tr><td>${linkVenta(d.venta_id, nombreDeuda(d))}</td><td>${fecha(d.fecha)}</td><td class="num">${plata(d.importe)}</td><td>${fecha(d.pagada)}</td></tr>`).join('')}</tbody></table></div></details>` : ''}
         <h3>Movimientos</h3>
         <div class="tabla-caja"><table class="tabla">${movs.length ? `<thead><tr><th>Fecha</th><th>Concepto</th><th class="num">Debe</th><th class="num">Pagó</th><th class="num">Saldo</th></tr></thead><tbody>
-          ${movs.map(x => `<tr><td>${fecha(x.fecha)}</td><td>${esc(x.concepto)}${x.forma ? ` <span class="muted">(${esc(x.forma)})</span>` : ''}<div class="muted chico">${esc(x.usuario)}</div></td>
+          ${movs.map(x => `<tr><td>${fecha(x.fecha)}</td><td>${linkVenta(x.venta_id, x.concepto)}${x.forma ? ` <span class="muted">(${esc(x.forma)})</span>` : ''}<div class="muted chico">${esc(x.usuario)}</div></td>
             <td class="num">${+x.monto > 0 ? plata(x.monto) : ''}</td><td class="num ok">${+x.monto < 0 ? plata(-x.monto) : ''}</td><td class="num">${plata(x.saldo)}</td></tr>`).join('')}</tbody>`
-          : '<tbody><tr><td class="muted vacio">Sin movimientos.</td></tr></tbody>'}</table></div>
-        <div class="fila fin"><button class="btn" data-cerrar>Cerrar</button></div>`, { ancho: true });
+          : '<tbody><tr><td class="muted vacio">Sin movimientos.</td></tr></tbody>'}</table></div>`, { ancho: true });
       const otraVez = () => { m.cerrar(); ctx.recargar(); ficha(id); };
       $('#cobrar', m.el).onclick = () => cobrar(c, otraVez);
       if ($('#aplicar', m.el)) $('#aplicar', m.el).onclick = () => aplicar(c, otraVez);
       $('#editar', m.el).onclick = () => formCliente(c, admin, otraVez);
+      $$('[data-venta]', m.el).forEach(b => b.onclick = () => verVenta(+b.dataset.venta, ctx, otraVez));   // si se anula o devuelve, se vuelve a armar la ficha
       if (admin) {
         $('#ajuste', m.el).onclick = () => ajuste(c, otraVez);
         $('#eliminar', m.el).onclick = async () => {

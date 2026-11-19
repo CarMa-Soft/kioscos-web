@@ -262,4 +262,32 @@ p.muted { margin: 0 0 1.25rem; }
 /* Cuenta del cliente: las compras pagadas, plegadas */
 details.pagadas summary { cursor: pointer; list-style-position: outside; }
 details.pagadas summary h3 { display: inline-block; }
+
+/* Clientes: tarjetas con color, buscador con filtros y tabla (clases c-) */
+.c-tarjetas { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: .8rem; margin-bottom: 1rem; }
+.c-tarjeta { display: flex; align-items: center; gap: .9rem; padding: 1rem 1.1rem; background: #fff; border: 1px solid var(--borde); border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, .04); border-left: 4px solid var(--c-color); }
+.c-tarjeta .etq { color: var(--suave); font-size: .85rem; }
+.c-tarjeta .valor { font-size: 1.45rem; font-weight: 700; color: var(--c-color); }
+.c-ico { flex: none; display: grid; place-items: center; width: 2.8rem; height: 2.8rem; border-radius: 12px; background: var(--c-fondo); color: var(--c-color); }
+.c-ico svg { width: 1.4rem; height: 1.4rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.c-tarjeta.rojo { --c-color: #b42318; --c-fondo: #fef3f2; }
+.c-tarjeta.naranja { --c-color: #b54708; --c-fondo: #fffaeb; }
+.c-tarjeta.verde { --c-color: var(--primario); --c-fondo: #ecfdf3; }
+.c-filtros { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; padding: .9rem 1rem; background: #fff; border: 1px solid var(--borde); border-radius: 14px; }
+.c-buscar { flex: 1; min-width: 220px; display: flex; align-items: center; gap: .6rem; padding: 0 .9rem; border: 1px solid #cbd2d9; border-radius: 10px; cursor: text; }
+.c-buscar:focus-within { outline: 2px solid var(--primario); outline-offset: 1px; border-color: transparent; }
+.c-buscar svg { width: 1.05rem; height: 1.05rem; flex: none; fill: none; stroke: var(--suave); stroke-width: 2; stroke-linecap: round; }
+.c-buscar input { font: inherit; flex: 1; min-width: 0; padding: .6rem 0; border: 0; background: transparent; outline: none; color: var(--texto); }
+.c-filtros .chip { display: inline-flex; align-items: center; gap: .35rem; }
+.c-cuenta { opacity: .7; font-size: .85em; }
+.c-tabla { border-radius: 14px; margin-top: 1rem; }
+.c-tabla .tabla th { background: #f9fafb; padding: .7rem 1rem; }
+.c-tabla .tabla td { padding: .65rem 1rem; }
+.c-nombre { display: flex; align-items: center; gap: .7rem; }
+.c-inicial { flex: none; display: grid; place-items: center; width: 2.1rem; height: 2.1rem; border-radius: 50%; background: #ecfdf3; color: var(--primario); font-weight: 700; }
+.c-inicial.debe { background: #fef3f2; color: #b42318; }
+.c-saldo { display: inline-block; padding: .2rem .65rem; border-radius: 999px; background: #f2f4f7; color: var(--suave); font-weight: 600; font-size: .9rem; white-space: nowrap; }
+.c-saldo.debe { background: #fef3f2; color: #b42318; }
+.c-saldo.favor { background: #ecfdf3; color: #067647; }
 .fila-aviso { display: flex; gap: .75rem; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-bottom: 1rem; }
