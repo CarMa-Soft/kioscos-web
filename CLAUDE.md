@@ -397,3 +397,8 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   La seña se descuenta hasta el importe de lo entregado y el resto queda para la próxima entrega. `encargo_json`: `cantidad`
   y `sena` son lo que falta entregar y la seña que queda (`encargado`, `entregado`, `sena_dejada` aparte). Vender pasa solo
   lo que llegó ("Pasar 10 a la venta") y sin stock no deja pasarlo. Anular la venta devuelve al encargo lo de esa venta.
+
+## Ayuda
+- `ayuda.js`: preguntas frecuentes y cómo hacer cada cosa (array `TEMAS`, por sección; `a: true` = solo el dueño), con
+  buscador sin acentos. Sin IA ni base. Se abre con el botón "? Ayuda" al lado del usuario (sección `#/ayuda`, `aparte`:
+  no ocupa lugar en el menú). **Al agregar o cambiar una función, actualizar su tema acá.**

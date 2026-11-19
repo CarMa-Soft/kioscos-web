@@ -8,6 +8,7 @@ import { pantallaProductos } from './productos.js';
 import { pantallaUsuarios } from './usuarios.js';
 import { pantallaClientes } from './clientes.js';
 import { pantallaAjustes } from './ajustes.js';
+import { pantallaAyuda } from './ayuda.js';
 import { pantallaInicio } from './inicio.js';
 import { pantallaReportes } from './reportes.js';
 import { pantallaCompras } from './compras.js';
@@ -35,6 +36,7 @@ const SECCIONES = [
   { ruta: '#/reportes', nombre: 'Reportes', fn: pantallaReportes, admin: true },
   { ruta: '#/usuarios', nombre: 'Usuarios', fn: pantallaUsuarios },
   { ruta: '#/ajustes', nombre: 'Ajustes', fn: pantallaAjustes, admin: true },
+  { ruta: '#/ayuda', nombre: 'Ayuda', fn: pantallaAyuda, aparte: true },   // botón ? al lado del usuario (no ocupa lugar en el menú)
 ];
 
 siVenceLaSesion(() => iniciar());
@@ -126,8 +128,8 @@ function armarMarco() {
   // En el celular (pantalla angosta) el menú y el usuario se esconden detrás del botón ☰, que muestra la sección actual
   raiz.innerHTML = `<header class="barra" id="barra"><div class="negocio">${esc(datos.negocio.nombre)}</div>
       <button class="menu-boton" id="menu" aria-expanded="false" aria-controls="menu-nav"><span aria-hidden="true">☰</span> <span id="seccion-actual">Menú</span></button>
-      <nav id="menu-nav">${SECCIONES.filter(s => !s.admin || yo.rol === 'admin').map(s => `<a href="${s.ruta}" data-ruta="${s.ruta}">${s.nombre}</a>`).join('')}</nav>
-      <div class="quien">${esc(yo.nombre)} · ${ROL[yo.rol]} <button class="btn chico" id="cambiar">Cambiar de usuario</button></div></header>
+      <nav id="menu-nav">${SECCIONES.filter(s => (!s.admin || yo.rol === 'admin') && !s.aparte).map(s => `<a href="${s.ruta}" data-ruta="${s.ruta}">${s.nombre}</a>`).join('')}</nav>
+      <div class="quien"><a class="btn chico boton-ayuda" href="#/ayuda" title="Ayuda: cómo hacer cada cosa">? Ayuda</a> ${esc(yo.nombre)} · ${ROL[yo.rol]} <button class="btn chico" id="cambiar">Cambiar de usuario</button></div></header>
     <main id="vista" class="vista"></main>`;
   $('#cambiar').onclick = () => cambiarDeUsuario();
   $('#menu').onclick = () => abrirMenu(!$('#barra').classList.contains('abierto'));
