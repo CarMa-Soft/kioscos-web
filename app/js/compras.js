@@ -45,7 +45,8 @@ export async function pantallaCompras(vista, ctx) {
   $$('tr[data-id]').forEach(tr => tr.onclick = () => verCompra(+tr.dataset.id, ctx));
 }
 
-function verCompra(id, ctx) {
+// Detalle de una compra. Lo usan Compras y la ficha del proveedor (que pasa un ctx cuyo recargar vuelve a armar la ficha).
+export function verCompra(id, ctx) {
   correr(async () => {
     const c = await llamar('compra', { p_id: id });
     const pendiente = c.factura_pendiente && !c.anulada;

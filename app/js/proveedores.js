@@ -1,27 +1,50 @@
 // Proveedores (solo dueño): lista con lo que se les debe, ficha con la cuenta, pagos, ajustes y datos
 import { llamar } from './base.js';
 import { $, $$, esc, plata, fecha, dia, hoyDia, sumarDias, textoVence, numero, aviso, correr, modal, confirmar } from './ui.js';
+import { verCompra } from './compras.js';
 
-let filtro = '';
+// Lo elegido se mantiene al ir y volver de la sección
+let filtro = '', grupo = 'todos';
 const textoSaldo = s => +s > 0.004 ? 'Le debés ' + plata(s) : +s < -0.004 ? 'A favor ' + plata(-s) : 'Al día';
+
+// Íconos de las tarjetas (trazos SVG, toman el color del texto). Los estilos son los de Clientes (clases c- en app.css).
+const svg = d => `<svg viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
+const ICO = {
+  plata: svg('<rect x="2.5" y="6" width="19" height="12" rx="2"/><circle cx="12" cy="12" r="2.6"/>'),
+  alerta: svg('<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5v.01"/>'),
+  camion: svg('<path d="M2.5 6.5h11v9h-11zM13.5 9.5h4l3 3v3h-7"/><circle cx="6.5" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/>'),
+  lupa: svg('<circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/>'),
+};
 
 export async function pantallaProveedores(vista, ctx) {
   const lista = await llamar('proveedores');
   const deben = lista.filter(p => +p.saldo > 0.004);
   vista.innerHTML = `<div class="cabecera"><h2>Proveedores</h2><div class="acciones"><a class="btn" href="#/compras">Compras</a><button class="btn" id="vencimientos">📅 Vencimientos</button><button class="btn primario" id="nuevo">＋ Nuevo proveedor</button></div></div>
-    <div class="tarjetas"><div class="tarjeta"><div class="etq">Le debés a proveedores</div><div class="valor">${plata(deben.reduce((s, p) => s + +p.saldo, 0))}</div></div>
-      <div class="tarjeta"><div class="etq">Proveedores a los que les debés</div><div class="valor">${deben.length}</div></div>
-      <div class="tarjeta"><div class="etq">Proveedores</div><div class="valor">${lista.length}</div></div></div>
-    <input class="input" id="filtro" placeholder="Buscar proveedor" value="${esc(filtro)}" autocomplete="off">
-    <div class="tabla-caja"><table class="tabla" id="tabla"></table></div>`;
+    <div class="c-tarjetas">
+      <div class="c-tarjeta rojo"><span class="c-ico">${ICO.plata}</span><div><div class="etq">Le debés a proveedores</div><div class="valor">${plata(deben.reduce((s, p) => s + +p.saldo, 0))}</div></div></div>
+      <div class="c-tarjeta naranja"><span class="c-ico">${ICO.alerta}</span><div><div class="etq">Proveedores a los que les debés</div><div class="valor">${deben.length}</div></div></div>
+      <div class="c-tarjeta verde"><span class="c-ico">${ICO.camion}</span><div><div class="etq">Total de proveedores</div><div class="valor">${lista.length}</div></div></div>
+    </div>
+    <div class="c-filtros">
+      <label class="c-buscar">${ICO.lupa}<input id="filtro" placeholder="Buscar por nombre o CUIT…" value="${esc(filtro)}" autocomplete="off"></label>
+      <div class="chips" id="grupos"></div>
+    </div>
+    <div class="tabla-caja c-tabla"><table class="tabla" id="tabla"></table></div>`;
+  const GRUPOS = [['todos', 'Todos', () => true], ['deben', 'Les debés', p => +p.saldo > 0.004]];
   const pintar = () => {
     const f = filtro.trim().toLowerCase();
-    const ver = lista.filter(p => !f || p.nombre.toLowerCase().includes(f) || (p.cuit || '').includes(f));
+    const busca = p => !f || p.nombre.toLowerCase().includes(f) || (p.cuit || '').includes(f);
+    $('#grupos').innerHTML = GRUPOS.map(([g, nombre, cond]) => `<button class="chip ${g === grupo ? 'elegido' : ''}" data-grupo="${g}">${nombre} <span class="c-cuenta">${lista.filter(p => busca(p) && cond(p)).length}</span></button>`).join('');
+    $$('[data-grupo]').forEach(b => b.onclick = () => { grupo = b.dataset.grupo; pintar(); });
+    const cond = GRUPOS.find(x => x[0] === grupo)[2];
+    const ver = lista.filter(p => busca(p) && cond(p));
+    const saldo = s => +s > 0.004 ? `<span class="c-saldo debe">Le debés ${plata(s)}</span>` : +s < -0.004 ? `<span class="c-saldo favor">A favor ${plata(-s)}</span>` : '<span class="c-saldo">Al día</span>';
     $('#tabla').innerHTML = ver.length ? `<thead><tr><th>Proveedor</th><th>Contacto</th><th>Última compra</th><th class="num">Productos</th><th class="num">Cuenta</th></tr></thead><tbody>
-      ${ver.map(p => `<tr class="clic" data-id="${p.id}"><td>${esc(p.nombre)}${p.cuit ? `<div class="muted chico">CUIT ${esc(p.cuit)}</div>` : ''}</td>
-        <td>${esc([p.contacto, p.telefono].filter(Boolean).join(' · '))}</td><td>${p.ultima_compra ? `${fecha(p.ultima_compra.fecha)} · ${plata(p.ultima_compra.total)}` : '—'}</td>
-        <td class="num">${p.productos}</td><td class="num ${+p.saldo > 0.004 ? 'mal' : ''}"><b>${textoSaldo(p.saldo)}</b></td></tr>`).join('')}</tbody>`
-      : `<tbody><tr><td class="muted vacio">${lista.length ? 'Ningún proveedor coincide.' : 'Todavía no hay proveedores.'}</td></tr></tbody>`;
+      ${ver.map(p => `<tr class="clic" data-id="${p.id}"><td><div class="c-nombre"><span class="c-inicial ${+p.saldo > 0.004 ? 'debe' : ''}">${esc(p.nombre.trim().charAt(0).toUpperCase())}</span>
+          <div><b>${esc(p.nombre)}</b>${p.cuit ? `<div class="muted chico">CUIT ${esc(p.cuit)}</div>` : ''}</div></div></td>
+        <td>${esc([p.contacto, p.telefono].filter(Boolean).join(' · '))}</td><td>${p.ultima_compra ? `${fecha(p.ultima_compra.fecha)} · ${plata(p.ultima_compra.total)}` : '<span class="muted">—</span>'}</td>
+        <td class="num">${p.productos}</td><td class="num">${saldo(p.saldo)}</td></tr>`).join('')}</tbody>`
+      : `<tbody><tr><td class="muted vacio">${lista.length ? (grupo === 'deben' && !f ? 'No le debés nada a ningún proveedor.' : 'Ningún proveedor coincide.') : 'Todavía no hay proveedores.'}</td></tr></tbody>`;
     $$('tr[data-id]').forEach(tr => tr.onclick = () => ficha(+tr.dataset.id, ctx));
   };
   $('#filtro').oninput = e => { filtro = e.target.value; pintar(); };
@@ -41,23 +64,25 @@ function ficha(id, ctx) {
       <div class="fila"><button class="btn primario" id="pagar">Registrar pago</button>
         ${+p.sin_aplicar > 0.004 && p.deudas.length ? `<button class="btn" id="aplicar">Aplicar lo que está a cuenta (${plata(p.sin_aplicar)})</button>` : ''}
         <button class="btn" id="ajuste">Saldo inicial / ajuste</button>
-        <button class="btn" id="editar">Editar datos</button><button class="btn peligro" id="eliminar">Eliminar</button></div>
+        <button class="btn" id="editar">Editar datos</button><button class="btn peligro" id="eliminar">Eliminar</button>
+        <button class="btn" data-cerrar>Cerrar</button></div>
       ${p.deudas.length ? `<h3>Facturas pendientes</h3><div class="tabla-caja"><table class="tabla"><thead><tr><th>Factura</th><th>Fecha</th><th>Vence</th><th class="num">Importe</th><th class="num">Pagado</th><th class="num">Pendiente</th></tr></thead><tbody>
-        ${p.deudas.map(d => `<tr><td>${esc(nombreDeuda(d))}</td><td>${dia(d.fecha_factura)}</td><td>${dia(d.vencimiento)}<div class="chico">${textoVence(d.vencimiento)}</div></td>
+        ${p.deudas.map(d => `<tr><td>${linkCompra(d.compra_id, nombreDeuda(d))}</td><td>${dia(d.fecha_factura)}</td><td>${dia(d.vencimiento)}<div class="chico">${textoVence(d.vencimiento)}</div></td>
           <td class="num">${plata(d.importe)}</td><td class="num ok">${+d.aplicado ? plata(d.aplicado) : ''}</td><td class="num"><b>${plata(d.pendiente)}</b></td></tr>`).join('')}</tbody></table></div>` : ''}
       ${+p.sin_aplicar > 0.004 ? `<p class="chico">A cuenta, sin aplicar a ninguna factura: <b class="ok">${plata(p.sin_aplicar)}</b></p>` : ''}
       <h3>Movimientos</h3>
       <div class="tabla-caja"><table class="tabla">${movs.length ? `<thead><tr><th>Fecha</th><th>Concepto</th><th class="num">Compra / suma</th><th class="num">Pagado / resta</th><th class="num">Saldo</th><th></th></tr></thead><tbody>
-        ${movs.map(x => `<tr class="${x.anulado ? 'anulada' : ''}"><td>${fecha(x.fecha)}</td><td>${esc(x.concepto)}${x.forma ? ` <span class="muted">(${esc(x.forma)}${x.de_caja ? ', de la caja' : ''})</span>` : ''}<div class="muted chico">${esc(x.usuario)}</div></td>
+        ${movs.map(x => `<tr class="${x.anulado ? 'anulada' : ''}"><td>${fecha(x.fecha)}</td><td>${linkCompra(x.compra_id, x.concepto)}${x.forma ? ` <span class="muted">(${esc(x.forma)}${x.de_caja ? ', de la caja' : ''})</span>` : ''}<div class="muted chico">${esc(x.usuario)}</div></td>
           <td class="num">${+x.monto > 0 ? plata(x.monto) : ''}</td><td class="num ok">${+x.monto < 0 ? plata(-x.monto) : ''}</td><td class="num">${plata(x.saldo)}</td>
           <td class="num">${['pago', 'ajuste'].includes(x.tipo) && !x.compra_id && !x.anulado ? `<button class="link" data-anular="${x.id}">Anular</button>` : ''}</td></tr>`).join('')}</tbody>`
-        : '<tbody><tr><td class="muted vacio">Sin movimientos. Si ya le debías algo, cargalo con "Saldo inicial / ajuste".</td></tr></tbody>'}</table></div>
-      <div class="fila fin"><button class="btn" data-cerrar>Cerrar</button></div>`, { ancho: true });
+        : '<tbody><tr><td class="muted vacio">Sin movimientos. Si ya le debías algo, cargalo con "Saldo inicial / ajuste".</td></tr></tbody>'}</table></div>`, { ancho: true });
     const otraVez = () => { m.cerrar(); ctx.recargar(); ficha(id, ctx); };
     $('#pagar', m.el).onclick = () => pagar(p, otraVez);
     if ($('#aplicar', m.el)) $('#aplicar', m.el).onclick = () => aplicar(p, otraVez);
     $('#ajuste', m.el).onclick = () => ajuste(p, movs.length, otraVez);
     $('#editar', m.el).onclick = () => formProveedor(p, otraVez);
+    // la factura abre el detalle de la compra (el mismo de Compras); si se anula, devuelve o carga la factura, se vuelve a armar la ficha
+    $$('[data-compra]', m.el).forEach(b => b.onclick = () => verCompra(+b.dataset.compra, { ...ctx, recargar: otraVez }));
     $('#eliminar', m.el).onclick = async () => {
       if (!await confirmar('Eliminar proveedor', `¿Eliminar a ${p.nombre}? Solo se puede si no tiene compras y su cuenta está en cero.`, 'Eliminar')) return;
       correr(async () => { await llamar('eliminar_proveedor', { p_id: p.id }); m.cerrar(); aviso('Proveedor eliminado', 'ok'); ctx.recargar(); });
@@ -146,6 +171,8 @@ export function formProveedor(p, alGuardar) {
 const nombreDeuda = x => x.compra_id
   ? (x.comprobante || (x.remito ? 'Remito ' + x.remito : 'Compra sin número')) + (x.factura_pendiente ? ' · factura pendiente' : '')
   : (x.comprobante || 'Saldo inicial');
+// En la ficha, la factura es un enlace al detalle de la compra
+const linkCompra = (compraId, texto) => compraId ? `<button class="link" data-compra="${compraId}" title="Ver la compra">${esc(texto)}</button>` : esc(texto);
 
 // Tabla para elegir qué facturas se pagan y cuánto de cada una. Se completa sola con las que vencen primero hasta cubrir
 // el total, y se puede cambiar (destildar, tildar otras, aplicación parcial).
