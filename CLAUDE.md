@@ -364,3 +364,13 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   tilde "Sumar el IVA al costo"), percepciones (con su tilde) e impuestos internos como importes de la factura, repartidos
   según el importe de cada renglón. Se guarda el costo final de cada producto, el total propuesto suma todo y las notas
   dicen cómo se calculó. Las tildes se comparten con Cargar desde factura.
+
+## Alta rápida desde caja (productos "a revisar") y Varios desactivable
+- En Vender, un código o nombre que no está ofrece crearlo ahí (`alta_desde_caja`, también el empleado): nombre opcional
+  (vacío = "Producto <código>"), código y precio. Queda `productos.a_revisar` con costo 0 y precio fijo, y se agrega a la venta.
+  Hasta 500 sin revisar por negocio. Varios con la tilde "Es un producto que no está cargado" lleva al mismo alta.
+- Mientras está a revisar, su stock no cuenta: Pedidos no lo propone y Vender no pregunta por faltantes (queda en negativo).
+- Productos tiene el filtro "A revisar" (con aviso) y la etiqueta en la lista y en la ficha; al guardarlo desde la ficha
+  (`guardar_producto`) deja de estar a revisar. Inicio le avisa al dueño cuántos hay, con botón a ese filtro.
+- Ajustes → "Vender como Varios": config `varios` (false = sin el botón, y un trigger en `venta_items` rechaza la venta sin
+  producto). Reportes muestra lo vendido como Varios (`reporte().varios`).

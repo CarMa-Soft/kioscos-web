@@ -32,6 +32,8 @@ export async function pantallaReportes(vista) {
       <div class="tarjeta"><div class="etq">Ganancia bruta</div><div class="valor">${plata(ganancia)}</div><div class="muted chico">margen ${margen.toFixed(1)}% · costo ${plata(costo)}</div></div>
       <div class="tarjeta"><div class="etq">Devoluciones</div><div class="valor">${plata(r.devoluciones.total)}</div>
         <div class="muted chico">${r.devoluciones.cantidad === 1 ? "1 devolución" : r.devoluciones.cantidad + " devoluciones"}${+r.devoluciones.perdidas ? ` · pérdida ${plata(r.devoluciones.perdidas)} (no volvió al stock)` : ''}</div></div>
+      ${+r.varios?.importe ? `<div class="tarjeta"><div class="etq">Vendido como Varios</div><div class="valor">${plata(r.varios.importe)}</div>
+        <div class="muted chico">${r.varios.renglones} renglón${+r.varios.renglones === 1 ? '' : 'es'} sin producto: no pasan por el stock</div></div>` : ''}
     </div>
     ${r.por_dia.length > 1 ? `<h3>Por día</h3>${barras(r.por_dia.map(x => [fechaCorta(x.dia), +x.total]))}` : ''}
     ${r.por_hora.length ? `<h3>Por hora</h3>${barras(r.por_hora.map(x => [`${x.hora} hs`, +x.total]))}` : ''}
