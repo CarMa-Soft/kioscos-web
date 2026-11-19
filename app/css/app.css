@@ -295,6 +295,7 @@ details.pagadas summary h3 { display: inline-block; }
 .c-titulo h3 { margin: 0; }
 .c-titulo svg { width: 1.15rem; height: 1.15rem; fill: none; stroke: var(--primario); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .c-titulo .btn { margin-left: auto; }
+.c-abrir .c-titulo { margin-top: 0; }   /* Caja cerrada: el recuadro para abrir el turno */
 .c-tabla .tabla td { padding: .65rem 1rem; }
 .c-nombre { display: flex; align-items: center; gap: .7rem; }
 .c-inicial { flex: none; display: grid; place-items: center; width: 2.1rem; height: 2.1rem; border-radius: 50%; background: #ecfdf3; color: var(--primario); font-weight: 700; }

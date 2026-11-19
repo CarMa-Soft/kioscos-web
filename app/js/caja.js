@@ -4,14 +4,29 @@ import * as cat from './catalogo.js';
 import { $, $$, esc, plata, cant, hora, fecha, numero, aviso, correr, modal, confirmar, pedirAutorizacion } from './ui.js';
 import { imprimir, ticketVenta, ticketDevolucion, ticketCierre } from './impresion.js';
 
+// Íconos (trazos SVG, toman el color del texto). Los estilos son los de Hoy, Clientes y Proveedores (clases c- en app.css).
+const svg = d => `<svg viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
+const ICO = {
+  billete: svg('<rect x="2.5" y="6" width="19" height="12" rx="2"/><circle cx="12" cy="12" r="2.6"/><path d="M6 9.5v5M18 9.5v5"/>'),
+  tarjeta: svg('<rect x="2.5" y="5.5" width="19" height="13" rx="2"/><path d="M2.5 10h19M6.5 15h4"/>'),
+  transfer: svg('<path d="M4 8h14l-3.5-3.5M20 16H6l3.5 3.5"/>'),
+  celu: svg('<rect x="6.5" y="2.5" width="11" height="19" rx="2.2"/><path d="M11 18.5h2"/>'),
+  fiado: svg('<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/>'),
+  recibo: svg('<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>'),
+  flechas: svg('<path d="M7 4v16M7 4 3.5 7.5M7 4l3.5 3.5M17 20V4M17 20l-3.5-3.5M17 20l3.5-3.5"/>'),
+  caja: svg('<rect x="3" y="7" width="18" height="12" rx="2"/><path d="M3 11h18M8 7V5h8v2"/>'),
+};
+const icoForma = f => /d[eé]bito|cr[eé]dito|tarjeta/i.test(f) ? ICO.tarjeta : /transf/i.test(f) ? ICO.transfer : /mercado|qr|billetera|modo|ual[aá]/i.test(f) ? ICO.celu : ICO.tarjeta;
+
 export async function pantallaCaja(vista, ctx) {
   const e = await llamar('estado_caja');
   const admin = ctx.yo.rol === 'admin';
   if (!e.turno) {
     vista.innerHTML = `<div class="cabecera"><h2>Caja cerrada</h2><button class="btn" id="anteriores">Turnos anteriores</button></div>
-      <p class="muted">Para vender hay que abrir el turno.</p>
+      <div class="recuadro-blanco c-abrir"><div class="c-titulo">${ICO.caja}<h3>Abrir el turno</h3></div>
+      <p class="muted">Para vender hay que abrir el turno. Contá el efectivo que hay en la caja.</p>
       <form class="form" id="f-abrir"><label>Efectivo inicial en la caja<input class="input grande" name="inicial" inputmode="decimal" value="0" autofocus></label>
-      <div class="fila"><button class="btn primario">Abrir turno</button></div></form>`;
+      <div class="fila"><button class="btn primario">Abrir turno</button></div></form></div>`;
     $('#anteriores').onclick = () => turnosAnteriores();
     $('#f-abrir').onsubmit = ev => {
       ev.preventDefault();
@@ -26,18 +41,20 @@ export async function pantallaCaja(vista, ctx) {
   vista.innerHTML = `<div class="cabecera"><div><h2>Turno de ${esc(t.usuario)}</h2><p class="muted">Abierto ${fecha(t.apertura)} · inicial ${plata(t.inicial)}</p></div>
       <div class="acciones"><button class="btn" id="anteriores">Turnos anteriores</button><button class="btn" id="ingreso">Ingreso</button><button class="btn" id="egreso">Egreso</button>
       ${propio || admin ? '<button class="btn primario" id="cerrar">Cerrar turno</button>' : ''}</div></div>
-    <div class="tarjetas"><div class="tarjeta"><div class="etq">Efectivo que tiene que haber</div><div class="valor">${plata(t.esperado)}</div></div>
-      ${formas.map(([f, v]) => `<div class="tarjeta"><div class="etq">${esc(f)}</div><div class="valor">${plata(v)}</div></div>`).join('')}
-      ${+e.fiado ? `<div class="tarjeta"><div class="etq">Fiado <span class="muted">(no entra a la caja)</span></div><div class="valor">${plata(e.fiado)}</div></div>` : ''}
-      <div class="tarjeta"><div class="etq">Ventas</div><div class="valor">${e.ventas.filter(v => !v.anulada).length}</div></div></div>
-    <h3>Ventas del turno</h3>
-    <div class="tabla-caja"><table class="tabla">${e.ventas.length ? `<thead><tr><th>#</th><th>Hora</th><th>Productos</th><th>Vendió</th><th class="num">Total</th><th></th></tr></thead><tbody>
+    <div class="c-tarjetas">
+      <div class="c-tarjeta verde"><span class="c-ico">${ICO.billete}</span><div><div class="etq">Efectivo que tiene que haber</div><div class="valor">${plata(t.esperado)}</div></div></div>
+      ${formas.map(([f, v]) => `<div class="c-tarjeta azul"><span class="c-ico">${icoForma(f)}</span><div><div class="etq">${esc(f)}</div><div class="valor">${plata(v)}</div></div></div>`).join('')}
+      ${+e.fiado ? `<div class="c-tarjeta rojo"><span class="c-ico">${ICO.fiado}</span><div><div class="etq">Fiado</div><div class="valor">${plata(e.fiado)}</div><div class="c-sub">no entra a la caja</div></div></div>` : ''}
+      <div class="c-tarjeta violeta"><span class="c-ico">${ICO.recibo}</span><div><div class="etq">Ventas</div><div class="valor">${e.ventas.filter(v => !v.anulada).length}</div></div></div></div>
+    <div class="c-titulo">${ICO.recibo}<h3>Ventas del turno</h3></div>
+    <div class="tabla-caja c-tabla"><table class="tabla">${e.ventas.length ? `<thead><tr><th>#</th><th>Hora</th><th>Productos</th><th>Vendió</th><th class="num">Total</th><th></th></tr></thead><tbody>
       ${e.ventas.map(v => `<tr class="${v.anulada ? 'anulada' : ''}"><td>${v.numero}</td><td>${hora(v.fecha)}</td><td class="corto">${esc(v.resumen || '')}${v.cliente ? `<div class="muted chico">${esc(v.cliente)}${v.fiado ? ' · fiado' : ''}</div>` : ''}</td><td>${esc(v.usuario)}</td>
         <td class="num">${+v.devuelto && !v.anulada ? `${plata(v.total - v.devuelto)}<div class="aviso-chico"><s>${plata(v.total)}</s> · devuelto ${plata(v.devuelto)}</div>` : plata(v.total)}${v.anulada ? ' <span class="etiqueta">anulada</span>' : ''}</td><td><button class="link" data-venta="${v.id}">Ver</button></td></tr>`).join('')}</tbody>`
       : '<tbody><tr><td class="muted vacio">Todavía no hay ventas en este turno.</td></tr></tbody>'}</table></div>
-    <h3>Movimientos</h3>
-    <div class="tabla-caja"><table class="tabla"><tbody>${e.movimientos.map(m => `<tr><td>${hora(m.fecha)}</td><td>${esc(m.concepto)}<div class="muted chico">${esc(m.usuario)}</div></td>
-      <td>${esc(m.forma)}</td><td class="num ${m.tipo === 'egreso' ? 'mal' : ''}">${m.tipo === 'egreso' ? '−' : ''}${plata(m.monto)}</td></tr>`).join('') || '<tr><td class="muted vacio">Sin movimientos.</td></tr>'}</tbody></table></div>`;
+    <div class="c-titulo">${ICO.flechas}<h3>Ingresos y egresos</h3></div>
+    <div class="tabla-caja c-tabla"><table class="tabla">${e.movimientos.length ? '<thead><tr><th>Hora</th><th>Concepto</th><th>Forma</th><th class="num">Monto</th></tr></thead>' : ''}
+      <tbody>${e.movimientos.map(m => `<tr><td>${hora(m.fecha)}</td><td>${esc(m.concepto)}<div class="muted chico">${esc(m.usuario)}</div></td>
+      <td>${esc(m.forma)}</td><td class="num ${m.tipo === 'egreso' ? 'mal' : 'ok'}">${m.tipo === 'egreso' ? '−' : '+'}${plata(m.monto)}</td></tr>`).join('') || '<tr><td class="muted vacio">Sin movimientos.</td></tr>'}</tbody></table></div>`;
 
   $('#anteriores').onclick = () => turnosAnteriores();
   $('#ingreso').onclick = () => movimiento('ingreso');
