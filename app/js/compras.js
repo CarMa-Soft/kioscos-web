@@ -6,7 +6,7 @@ import { $, $$, esc, plata, cant, fecha, dia, hoyDia, sumarDias, numero, aviso, 
 import { botonCamara } from './escaner.js';
 import { avisarListas } from './entregas.js';
 import { productoNoEncontrado } from './alta-producto.js';
-import { formProveedor } from './proveedores.js';
+import { formProveedor, vencimientosModal } from './proveedores.js';
 import { pantallaFactura, hayCargaFactura } from './facturas.js';
 
 const r2 = n => Math.round((+n || 0) * 100) / 100;
@@ -20,31 +20,71 @@ let borrador = null;
 const vacio = () => ({ proveedor_id: '', comprobante: '', notas: '', total: '', pagar_caja: false, forma: 'Efectivo', items: [],
   sin_iva: false, percepciones: '', internos: '',
   sin_factura: false, fecha_factura: hoyDia(), vencimiento: '', vence_a_mano: false });
-let soloPendientes = false;
+let soloPendientes = false, buscar = '';   // lo elegido se mantiene al ir y volver de la sección
 let enFactura = false;   // cargando una compra desde la factura
+
+// Íconos (trazos SVG, toman el color del texto). Los estilos son los de Hoy, Caja, Productos, Clientes y Proveedores (clases c-).
+const svg = d => `<svg viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
+const ICO = {
+  carrito: svg('<path d="M4 4h2l2.2 10.2a1.5 1.5 0 0 0 1.5 1.2h7.6a1.5 1.5 0 0 0 1.5-1.1L20.5 8H6.8"/><circle cx="10" cy="19.5" r="1.3"/><circle cx="17" cy="19.5" r="1.3"/>'),
+  factura: svg('<path d="M6 3h9l3 3v15H6z"/><path d="M15 3v3h3M9 11h6M9 15h4"/>'),
+  calendario: svg('<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/>'),
+  lupa: svg('<circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/>'),
+};
+const sinAcentos = s => String(s ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 
 export async function pantallaCompras(vista, ctx) {
   if (enFactura) return pantallaFactura(vista, ctx, () => { enFactura = false; ctx.recargar(); });
-  const todas = await llamar('compras');
+  // las compras (las últimas 300 y todas las de factura pendiente) y lo que vence en los próximos 7 días (si falla, esa tarjeta no aparece)
+  const [todas, venc] = await Promise.all([llamar('compras'), llamar('vencimientos', { p_hasta: sumarDias(hoyDia(), 7) }).catch(() => null)]);
   const pendientes = todas.filter(c => c.factura_pendiente && !c.anulada);
-  const lista = soloPendientes ? pendientes : todas;
+  // compras de este mes: por la fecha de la factura (o cuándo se registró), sin las anuladas y descontando lo devuelto
+  const mes = hoyDia().slice(0, 7), diaDe = c => c.fecha_factura || hoyDiaDe(c.fecha);
+  const delMes = todas.filter(c => !c.anulada && diaDe(c).startsWith(mes));
+  const totalMes = delMes.reduce((s, c) => s + +c.total - +c.devuelto, 0);
+  const aPagar = venc ? venc.proveedores.reduce((s, x) => s + +x.total, 0) : 0;
+  const vencido = venc ? venc.proveedores.reduce((s, x) => s + x.deudas.filter(d => d.vencimiento < venc.hoy).reduce((a, d) => a + +d.pendiente, 0), 0) : 0;
   vista.innerHTML = `<div class="cabecera"><h2>Compras</h2><div class="acciones"><a class="btn" href="#/proveedores">Proveedores</a>
       <button class="btn" id="factura-ia">📄 ${hayCargaFactura() ? 'Seguir con la factura' : 'Cargar desde factura'}</button>
       <button class="btn primario" id="nueva">${borrador ? `Seguir cargando la compra (${borrador.items.length})` : '＋ Cargar compra'}</button></div></div>
-    <div class="chips"><button class="chip ${soloPendientes ? '' : 'elegido'}" data-f="">Todas</button>
-      <button class="chip ${soloPendientes ? 'elegido' : ''}" data-f="p">Factura pendiente${pendientes.length ? ` (${pendientes.length})` : ''}</button></div>
-    <div class="tabla-caja"><table class="tabla">${lista.length ? `<thead><tr><th>Fecha factura</th><th>Proveedor</th><th>Comprobante</th><th class="num">Productos</th><th class="num">Total</th><th>Pago</th></tr></thead><tbody>
+    <div class="c-tarjetas de-a-tres">
+      <div class="c-tarjeta verde"><span class="c-ico">${ICO.carrito}</span><div><div class="etq">Compras de este mes</div><div class="valor">${plata(totalMes)}</div>
+        <div class="c-sub">${delMes.length} compra${delMes.length === 1 ? '' : 's'}</div></div></div>
+      <div class="c-tarjeta ${pendientes.length ? 'naranja' : 'gris'}"><span class="c-ico">${ICO.factura}</span><div><div class="etq">Factura pendiente</div><div class="valor">${pendientes.length}</div>
+        <div class="c-sub">${pendientes.length ? `${plata(pendientes.reduce((s, c) => s + +c.total, 0))} · <button class="link" id="ver-pendientes">ver cuáles</button>` : 'todas tienen su factura'}</div></div></div>
+      ${venc ? `<div class="c-tarjeta ${vencido > 0.004 ? 'rojo' : aPagar > 0.004 ? 'azul' : 'gris'}"><span class="c-ico">${ICO.calendario}</span><div>
+        <div class="etq">A pagar a proveedores (7 días)</div><div class="valor">${plata(aPagar)}</div>
+        <div class="c-sub">${vencido > 0.004 ? `<b class="mal">${plata(vencido)} ya vencido</b> · ` : ''}${venc.proveedores.length ? '<button class="link" id="ver-venc">ver vencimientos</button>' : 'nada que pagar esta semana'}</div></div></div>` : ''}
+    </div>
+    <div class="c-filtros">
+      <label class="c-buscar">${ICO.lupa}<input id="buscar" placeholder="Buscar por proveedor o comprobante…" value="${esc(buscar)}" autocomplete="off"></label>
+      <div class="chips" id="grupos"></div>
+    </div>
+    <div class="tabla-caja c-tabla"><table class="tabla" id="tabla"></table></div>`;
+  const coincide = c => { const w = sinAcentos(buscar).split(/\s+/).filter(Boolean), t = sinAcentos(`${c.proveedor || ''} ${c.comprobante || ''} ${c.remito || ''}`); return w.every(x => t.includes(x)); };
+  const pintar = () => {
+    const lista = (soloPendientes ? pendientes : todas).filter(coincide);
+    $('#grupos').innerHTML = `<button class="chip ${soloPendientes ? '' : 'elegido'}" data-f="">Todas <span class="c-cuenta">${todas.filter(coincide).length}</span></button>
+      <button class="chip ${soloPendientes ? 'elegido' : ''}" data-f="p">Factura pendiente <span class="c-cuenta">${pendientes.filter(coincide).length}</span></button>`;
+    $$('[data-f]').forEach(b => b.onclick = () => { soloPendientes = b.dataset.f === 'p'; pintar(); });
+    $('#tabla').innerHTML = `${lista.length ? `<thead><tr><th>Fecha factura</th><th>Proveedor</th><th>Comprobante</th><th class="num">Productos</th><th class="num">Total</th><th>Pago</th></tr></thead><tbody>
       ${lista.map(c => `<tr class="clic ${c.anulada ? 'anulada' : ''}" data-id="${c.id}"><td>${c.fecha_factura ? dia(c.fecha_factura) : `${fecha(c.fecha)}<div class="muted chico">${c.factura_pendiente ? 'sin factura' : 'registrada'}</div>`}</td>
         <td>${esc(c.proveedor || '—')}</td>
         <td>${c.factura_pendiente && !c.anulada ? `<span class="etiqueta pendiente">Factura pendiente</span>${c.remito ? `<div class="muted chico">Remito ${esc(c.remito)}</div>` : ''}` : esc(c.comprobante)}</td>
         <td class="num">${c.items}</td><td class="num">${+c.devuelto && !c.anulada ? `${plata(c.total - c.devuelto)}<div class="aviso-chico"><s>${plata(c.total)}</s> · devuelto ${plata(c.devuelto)}</div>` : plata(c.total)}</td>
         <td>${c.anulada ? '<span class="etiqueta">anulada</span>' : c.pagada_caja ? `De la caja (${esc(c.forma)})` : c.proveedor ? `<span class="muted">A cuenta</span>${c.vencimiento ? `<div class="muted chico">vence ${dia(c.vencimiento)}</div>` : ''}` : '<span class="muted">Aparte</span>'}</td></tr>`).join('')}</tbody>`
-      : `<tbody><tr><td class="muted vacio">${soloPendientes ? 'No hay compras esperando la factura.' : 'Todavía no hay compras cargadas.'}</td></tr></tbody>`}</table></div>`;
-  $$('[data-f]').forEach(b => b.onclick = () => { soloPendientes = b.dataset.f === 'p'; ctx.recargar(); });
+      : `<tbody><tr><td class="muted vacio">${buscar.trim() ? 'Ninguna compra coincide con la búsqueda.' : soloPendientes ? 'No hay compras esperando la factura.' : 'Todavía no hay compras cargadas.'}</td></tr></tbody>`}`;
+    $$('tr[data-id]').forEach(tr => tr.onclick = () => verCompra(+tr.dataset.id, ctx));
+  };
+  $('#buscar').oninput = e => { buscar = e.target.value; pintar(); };
   $('#nueva').onclick = () => { borrador ??= vacio(); correr(() => nuevaCompra(vista, ctx)); };
   $('#factura-ia').onclick = () => { enFactura = true; ctx.recargar(); };
-  $$('tr[data-id]').forEach(tr => tr.onclick = () => verCompra(+tr.dataset.id, ctx));
+  if ($('#ver-pendientes')) $('#ver-pendientes').onclick = () => { soloPendientes = true; buscar = ''; $('#buscar').value = ''; pintar(); };
+  if ($('#ver-venc')) $('#ver-venc').onclick = () => vencimientosModal(() => ctx.ir('#/proveedores'));   // "Pagar" lleva a Proveedores
+  pintar();
 }
+// Día local (AAAA-MM-DD) de una fecha con hora
+const hoyDiaDe = iso => { const d = new Date(iso); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 
 // Detalle de una compra. Lo usan Compras y la ficha del proveedor (que pasa un ctx cuyo recargar vuelve a armar la ficha).
 export function verCompra(id, ctx) {
