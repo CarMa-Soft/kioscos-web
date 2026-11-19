@@ -6,6 +6,7 @@ import { $, $$, esc, plata, cant, numero, aviso, correr, modal, confirmar, pedir
 import { botonCamara } from './escaner.js';
 import { formCliente, textoSaldo } from './clientes.js';
 import { imprimir, ticketVenta } from './impresion.js';
+import { nuevoEncargo, verEncargos } from './encargos.js';
 
 // Íconos (trazos SVG, toman el color del texto)
 const svg = d => `<svg viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
@@ -83,6 +84,7 @@ export async function pantallaVender(vista, ctx) {
         <div id="accesos"></div>
         <div class="v-barra">
           ${ctx.config.varios === false ? '' : `<button class="v-btn" id="varios">${ICO.mas} Varios / precio libre</button>`}
+          <button class="v-btn" id="encargo" title="Un cliente encarga algo sin pagarlo (o con seña)">📋 Encargo</button>
           <button class="v-btn peligro" id="vaciar">${ICO.tacho} Vaciar</button>
           <span class="v-atajos"><kbd>F2</kbd> cobrar <kbd>F1</kbd> efectivo <kbd>F3</kbd> fiado <kbd>Esc</kbd> limpiar</span>
         </div>
@@ -155,7 +157,7 @@ export async function pantallaVender(vista, ctx) {
     escaner.value = ''; res.hidden = true; sugeridos = [];
     if (p.por_peso) return pedirPeso(p);
     if (!p.por_peso) n = Math.max(1, Math.round(n));
-    const ya = venta.items.find(i => i.producto_id === p.id && i.precio == null);
+    const ya = venta.items.find(i => i.producto_id === p.id && i.precio == null && !i.encargo);
     if (ya) ya.cantidad += n; else venta.items.push({ producto_id: p.id, nombre: p.nombre, cantidad: n, precio: null });
     pintar(); escaner.focus();
   }
@@ -254,16 +256,18 @@ export async function pantallaVender(vista, ctx) {
     const dv = Math.max(0, numero(venta.desc) || 0);
     const descuento = venta.descPct ? r2(subtotal * Math.min(dv, 100) / 100) : Math.min(r2(dv), subtotal);
     const base = r2(subtotal - descuento);
+    const sena = Math.min(r2(venta.items.reduce((s, i) => s + (i.encargo ? +i.encargo.sena : 0), 0)), base);   // ya pagada al encargar
+    const resto = r2(base - sena);
     let pagos;
-    if (!venta.dos) pagos = [lineaPago(venta.forma, base)];
+    if (!venta.dos) pagos = [lineaPago(venta.forma, resto)];
     else {
       // lo que se escribe en el primero es lo que el cliente paga con ese medio (con su recargo); el resto va al segundo
       const m1 = Math.max(0, numero(venta.dos.monto1) || 0);
-      const b1 = Math.min(base, r2(m1 / (1 + pct(venta.dos.forma1) / 100)));
-      pagos = [lineaPago(venta.dos.forma1, b1), lineaPago(venta.dos.forma2, r2(base - b1))];
+      const b1 = Math.min(resto, r2(m1 / (1 + pct(venta.dos.forma1) / 100)));
+      pagos = [lineaPago(venta.dos.forma1, b1), lineaPago(venta.dos.forma2, r2(resto - b1))];
     }
     const recargo = r2(pagos.reduce((s, p) => s + p.recargo, 0));
-    return { subtotal, descuento, base, pagos, recargo, total: r2(base + recargo) };
+    return { subtotal, descuento, base, sena, pagos, recargo, total: r2(resto + recargo) };
   }
 
   // ---------- Accesos rápidos ----------
@@ -300,6 +304,7 @@ export async function pantallaVender(vista, ctx) {
         const falta = p && lleva[p.id] > +p.stock + 0.0005;
         return `<div class="v-fila v-item">
         <div class="v-nom"><b title="${esc(i.nombre)}">${esc(i.nombre)}</b><small>${i.producto_id && !p ? '<span class="mal">ya no está en el catálogo</span>'
+          : i.encargo ? `📋 Encargo #${i.encargo.numero} de ${esc(i.encargo.a_nombre)}${+i.encargo.sena ? ` · seña ${plata(i.encargo.sena)}` : ''}`
           : !i.producto_id ? 'Varios · precio libre' : i.por_peso ? (i.etiqueta != null ? 'Etiqueta de balanza' : 'Por kilo') : esc(p?.codigo || '')}</small>${falta
           ? `<span class="v-sin-stock" title="Se lleva más de lo que hay: al cobrar se puede dejar para entregar después">Stock en sistema: ${cant(Math.max(0, +p.stock))}${p.por_peso ? ' kg' : ''}</span>` : ''}</div>
         ${!i.producto_id ? '<span class="v-der-txt">1</span>' : i.por_peso
@@ -344,8 +349,9 @@ export async function pantallaVender(vista, ctx) {
       <div class="v-total">
         <div class="v-total-top"><span>Total a cobrar</span><span>${unidades ? `${cant(unidades)} artículo${unidades === 1 ? '' : 's'}` : 'Sin artículos'}</span></div>
         <div class="v-total-num">${plata(tt.total)}</div>
-        ${tt.descuento || tt.recargo ? `<div class="v-cuenta"><div><span>Subtotal</span><span>${plata(tt.subtotal)}</span></div>
+        ${tt.descuento || tt.recargo || tt.sena ? `<div class="v-cuenta"><div><span>Subtotal</span><span>${plata(tt.subtotal)}</span></div>
           ${tt.descuento ? `<div class="ok"><span>Descuento</span><span>−${plata(tt.descuento)}</span></div>` : ''}
+          ${tt.sena ? `<div class="ok"><span>Seña ya pagada</span><span>−${plata(tt.sena)}</span></div>` : ''}
           ${tt.pagos.filter(p => p.recargo).map(p => `<div><span>Recargo ${esc(p.forma)} ${pct(p.forma)}%</span><span>+${plata(p.recargo)}</span></div>`).join('')}</div>` : ''}
       </div>
       <div class="v-cuerpo">
@@ -431,7 +437,7 @@ export async function pantallaVender(vista, ctx) {
       let eleccion = null;
       const conTicket = ctx.config.ticket === 'siempre';
       const m = modal(`Cobrar ${plata(tt.total)}`, `
-        <dl class="kv">${tt.pagos.filter(p => p.monto > 0 || tt.pagos.length === 1).map(p => `<dt>${esc(p.forma)}</dt><dd>${plata(p.monto)}</dd>`).join('')}
+        <dl class="kv">${tt.sena ? `<dt>Seña (ya pagada)</dt><dd>${plata(tt.sena)}</dd>` : ''}${tt.pagos.filter(p => p.monto > 0 || (tt.pagos.length === 1 && !tt.sena)).map(p => `<dt>${esc(p.forma)}</dt><dd>${plata(p.monto)}</dd>`).join('')}
           ${pc > 0 && efectivo > 0 ? `<dt>Paga con</dt><dd>${plata(pc)}</dd><dt>Vuelto</dt><dd class="ok">${plata(pc - efectivo)}</dd>` : ''}</dl>
         <div class="fila fin"><button class="btn izq" data-cerrar>Seguir cargando <kbd>Esc</kbd></button>
           <button class="btn ${conTicket ? '' : 'primario'}" id="no-imp">No imprimir <kbd>${conTicket ? 'N' : 'Enter'}</kbd></button>
@@ -500,14 +506,25 @@ export async function pantallaVender(vista, ctx) {
 
   // Aviso de entregas pendientes (arriba de Vender) y la lista para entregar lo que ya llegó
   async function cargarEntregas() {
-    let lista = [];
-    try { lista = await llamar('entregas_pendientes'); } catch { return; }
+    let lista = [], encs = [];
+    try { [lista, encs] = await Promise.all([llamar('entregas_pendientes'), llamar('encargos')]); } catch { return; }
     const cont = $('#entregas'); if (!cont) return;
-    const listas = lista.filter(e => e.lista).length;
-    cont.innerHTML = lista.length ? `<div class="v-entregas ${listas ? 'listas' : ''}"><span>📦 <b>${lista.length}</b> entrega${lista.length === 1 ? '' : 's'} pendiente${lista.length === 1 ? '' : 's'}
+    const listas = lista.filter(e => e.lista).length, llegaron = encs.filter(e => e.lista).length;
+    cont.innerHTML = (lista.length ? `<div class="v-entregas ${listas ? 'listas' : ''}"><span>📦 <b>${lista.length}</b> entrega${lista.length === 1 ? '' : 's'} pendiente${lista.length === 1 ? '' : 's'}
         ${listas ? ` · <b>${listas} lista${listas === 1 ? '' : 's'} para entregar</b> (llegó la mercadería)` : ''}</span>
-        <button class="btn chico" id="ver-entregas">Ver</button></div>` : '';
+        <button class="btn chico" id="ver-entregas">Ver</button></div>` : '')
+      + (encs.length ? `<div class="v-entregas ${llegaron ? 'listas' : ''}"><span>📋 <b>${encs.length}</b> encargo${encs.length === 1 ? '' : 's'}
+        ${llegaron ? ` · <b>llegó lo de ${llegaron}</b>` : ''}</span>
+        <button class="btn chico" id="ver-encargos">Ver</button></div>` : '');
     if (lista.length) $('#ver-entregas').onclick = () => verEntregas(lista);
+    if (encs.length) $('#ver-encargos').onclick = () => verEncargos(encs, { alPasar: pasarEncargo, alCambiar: () => cargarEntregas() });
+  }
+  // Un encargo a la venta en curso: al cobrar, su seña se descuenta y el encargo queda entregado
+  function pasarEncargo(e) {
+    if (venta.items.some(i => i.encargo?.id === e.id)) return aviso('Ese encargo ya está en la venta');
+    venta.items.push({ producto_id: e.producto_id, nombre: e.nombre, cantidad: +e.cantidad, precio: null, por_peso: e.por_peso,
+      encargo: { id: e.id, numero: e.numero, sena: +e.sena, a_nombre: e.a_nombre } });
+    pintar(); escaner.focus();
   }
   function verEntregas(lista) {
     const m = modal('Entregas pendientes', `<div class="tabla-caja"><table class="tabla"><tbody>
@@ -541,7 +558,8 @@ export async function pantallaVender(vista, ctx) {
       p_clave: venta.clave,
       p_items: venta.items.map(i => i.producto_id ? { producto_id: i.producto_id, cantidad: i.cantidad, ...(i.precio != null ? { precio: i.precio } : {}),
         ...(i.etiqueta != null ? { importe: i.etiqueta } : {}) } : { nombre: i.nombre, importe: i.importe }),
-      p_pagos: tt.pagos.filter(p => p.base > 0).map(p => ({ forma: p.forma, base: p.base })),
+      p_pagos: [...(tt.sena ? [{ forma: 'Seña', base: tt.sena }] : []), ...tt.pagos.filter(p => p.base > 0).map(p => ({ forma: p.forma, base: p.base }))],
+      p_encargos: venta.items.filter(i => i.encargo).map(i => i.encargo.id),
       p_paga_con: pc > 0 ? pc : null, p_cliente_id: venta.cliente?.id ?? null, p_forzar_limite: false,
       p_descuento: tt.descuento, p_autorizacion: null,
     };
@@ -579,6 +597,7 @@ export async function pantallaVender(vista, ctx) {
   }
 
   if ($('#varios')) $('#varios').onclick = () => varios();
+  $('#encargo').onclick = () => nuevoEncargo({ formas: caja.formas_pago, alGuardar: () => cargarEntregas() });
   $('#vaciar').onclick = async () => { if (!venta.items.length || await confirmar('Vaciar', '¿Sacar todos los productos de la venta?', 'Vaciar')) { venta = vacia(); pintar(); escaner.focus(); } };
   escaner.onblur = () => setTimeout(() => { if (document.activeElement !== escaner) res.hidden = true; }, 150);
   ctx.alTeclear(e => {

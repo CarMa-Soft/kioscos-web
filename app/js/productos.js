@@ -118,7 +118,7 @@ export async function pantallaProductos(vista, ctx) {
   function ficha(p) {
     const v = p || { por_peso: false, favorito: false, activo: true, margen: +(ctx.config.margen ?? 40) > 0 ? +(ctx.config.margen ?? 40) : null };
     const m = modal(p ? 'Editar producto' : 'Nuevo producto', `<form class="form ancho" id="f-prod">
-      ${p && entregas[p.id] ? `<div class="p-aviso">📦 Pendiente de entrega (ya cobrado): ${entregas[p.id].map(aQuien).join('; ')}</div>` : ''}
+      ${p && entregas[p.id] ? `<div class="p-aviso">📦 Para entregar (ventas ya cobradas y encargos): ${entregas[p.id].map(aQuien).join('; ')}</div>` : ''}
       ${p?.a_revisar ? '<div class="p-aviso">Se creó en la caja con lo mínimo. Completá el nombre, el costo, la categoría y el stock real (contalo); al guardarlo deja de estar a revisar.</div>' : ''}
       <label>Nombre<input class="input" name="nombre" maxlength="120" required value="${esc(v.nombre || '')}" autofocus></label>
       <div class="fila"><label class="crece">Código de barras<input class="input mono" name="codigo" maxlength="40" value="${esc(v.codigo || '')}" autocomplete="off"></label>

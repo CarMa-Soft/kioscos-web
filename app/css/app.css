@@ -295,3 +295,5 @@ details.pagadas summary h3 { display: inline-block; }
 .cabecera-chica { display: flex; align-items: center; justify-content: space-between; gap: .75rem; margin-top: 1.25rem; }
 .cabecera-chica h3 { margin: 0; }
 .lista-entregas { margin: .25rem 0 .75rem; padding-left: 1.2rem; line-height: 1.6; }
+.enc-elegido { margin: -.25rem 0 .25rem; padding: .45rem .7rem; border-radius: 8px; background: #ecfdf3; color: #067647; }
+.nowrap { white-space: nowrap; }
