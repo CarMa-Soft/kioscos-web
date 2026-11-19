@@ -263,7 +263,7 @@ p.muted { margin: 0 0 1.25rem; }
 details.pagadas summary { cursor: pointer; list-style-position: outside; }
 details.pagadas summary h3 { display: inline-block; }
 
-/* Clientes: tarjetas con color, buscador con filtros y tabla (clases c-) */
+/* Clientes y Proveedores: tarjetas con color, buscador con filtros y tabla (clases c-) */
 .c-tarjetas { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: .8rem; margin-bottom: 1rem; }
 .c-tarjeta { display: flex; align-items: center; gap: .9rem; padding: 1rem 1.1rem; background: #fff; border: 1px solid var(--borde); border-radius: 14px;
   box-shadow: 0 1px 2px rgba(16, 24, 40, .04); border-left: 4px solid var(--c-color); }
