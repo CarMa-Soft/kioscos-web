@@ -172,8 +172,8 @@ begin
   if p_encargos is not null and jsonb_typeof(p_encargos) <> 'null' then
     if jsonb_typeof(p_encargos) <> 'array' then raise exception 'Encargos inválidos' using errcode = '22023'; end if;
     -- cada elemento: el id (todo lo pendiente) o { id, cantidad } (una parte: lo que llegó)
-    select coalesce(jsonb_object_agg(k, c), '{}') into v_enc_cant from (
-      select coalesce(x ->> 'id', x #>> '{}') as k, sum(round(coalesce(public.num(case when jsonb_typeof(x) = 'object' then x end, 'cantidad', 'Cantidad'), -1), 3)) as c
+    select coalesce(jsonb_object_agg(q.k, q.cant_enc), '{}') into v_enc_cant from (
+      select coalesce(x ->> 'id', x #>> '{}') as k, sum(round(coalesce(public.num(case when jsonb_typeof(x) = 'object' then x end, 'cantidad', 'Cantidad'), -1), 3)) as cant_enc
       from jsonb_array_elements(p_encargos) x group by 1) q;
     v_enc_ids := array(select k::bigint from jsonb_object_keys(v_enc_cant) k);
     for v_enc in select * from public.encargos where negocio_id = v_neg and id = any (v_enc_ids) order by id for update loop
