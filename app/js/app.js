@@ -16,6 +16,7 @@ import { pantallaPedidos } from './pedidos.js';
 import { pantallaProveedores } from './proveedores.js';
 import { pantallaRemitos } from './remitos.js';
 import { VERSION } from './version.js';
+import { atajoDe, textoAtajo, esAtajo } from './teclado.js';
 
 const raiz = $('#app');
 let datos = null;            // lo que devuelve datos_inicio()
@@ -44,7 +45,7 @@ const GRUPOS = ['dia', 'mercaderia', 'numeros', 'admin'];   // admin (Usuarios y
 const CLAVE_COLAPSADO = 'menu-colapsado';                   // cada PC recuerda si el menú de la izquierda está colapsado
 
 siVenceLaSesion(() => iniciar());
-document.addEventListener('keydown', e => teclas?.(e));
+document.addEventListener('keydown', e => { if (!irAlMenu(e)) teclas?.(e); });
 window.addEventListener('hashchange', () => { if (datos?.yo) mostrarSeccion(); });
 
 // ---------- Cuenta y usuario ----------
@@ -154,8 +155,8 @@ function colapsar(si) {
   const b = $('#colapsar');
   if (!b) return;
   b.textContent = si ? '»' : '«';
-  b.title = si ? 'Mostrar el menú' : 'Achicar el menú';
-  b.setAttribute('aria-label', b.title);
+  b.setAttribute('aria-label', si ? 'Mostrar el menú' : 'Achicar el menú');
+  b.title = `${b.getAttribute('aria-label')} (${textoAtajo(atajoDe(datos?.config))} para ir al menú con el teclado)`;
   b.setAttribute('aria-expanded', String(!si));
 }
 
@@ -188,7 +189,42 @@ function armarMarco() {
   $('#cambiar').onclick = () => cambiarDeUsuario();
   if ($('#mi-pin-menu')) $('#mi-pin-menu').onclick = () => { abrirMenu(false); cambiarMiPin(); };
   $('#menu').onclick = () => abrirMenu(!$('#barra').classList.contains('abierto'));
+  $('#menu-nav').onkeydown = teclasDelMenu;
   seguirAltoBarra();
+}
+
+// Con el foco en el menú: ↑ ↓ pasan a la anterior o la siguiente (dando la vuelta), Inicio y Fin a la primera y la
+// última, → a la pantalla abierta. Enter abre la sección, como un clic: el foco queda en el menú.
+function teclasDelMenu(e) {
+  if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+  const items = $$('#menu-nav a, #menu-nav button').filter(x => x.offsetParent !== null);
+  const k = items.indexOf(document.activeElement);
+  if (k < 0) return;
+  const ir = { ArrowDown: items[(k + 1) % items.length], ArrowUp: items[(k - 1 + items.length) % items.length],
+    Home: items[0], End: items[items.length - 1] }[e.key];
+  if (ir) { e.preventDefault(); ir.focus(); }
+  else if (e.key === 'ArrowRight') { e.preventDefault(); enfocarPantalla(); }
+}
+// El foco a la pantalla abierta: a su primer campo (en Vender, el buscador); si no tiene, a su primer botón o enlace
+function enfocarPantalla() {
+  const vista = $('#vista');
+  if (!vista) return;
+  if (celular.matches) abrirMenu(false);
+  const visible = el => el.offsetParent !== null && !el.disabled;
+  const destino = $$('input:not([type=hidden]):not([type=checkbox]):not([type=radio]), select, textarea', vista).find(visible)
+    || $$('button, a[href], summary', vista).find(visible);
+  if (destino) return destino.focus();
+  vista.tabIndex = -1; vista.focus();
+}
+// El atajo (Ajustes → Teclado, Alt + M de fábrica) lleva el foco al menú, a la sección en la que estás.
+// Con una ventana abierta no hace nada.
+function irAlMenu(e) {
+  if (!datos?.yo || !$('#menu-nav') || !esAtajo(e, atajoDe(datos.config))) return false;
+  e.preventDefault();
+  if (document.querySelector('.modal-fondo')) return true;
+  if (celular.matches) abrirMenu(true);
+  ($('#menu-nav a.activa') || $('#menu-nav a'))?.focus();
+  return true;
 }
 function abrirMenu(abrir) {
   $('#barra')?.classList.toggle('abierto', abrir);

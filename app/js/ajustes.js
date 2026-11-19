@@ -3,6 +3,7 @@
 import { llamar } from './base.js';
 import { $, $$, esc, numero, aviso, correr } from './ui.js';
 import { imprimir, ticketVenta } from './impresion.js';
+import { ATAJO_FABRICA, atajoDe, textoAtajo, atajoApretado, problemaAtajo } from './teclado.js';
 
 export async function pantallaAjustes(vista, ctx) {
   const [c, motivos] = await Promise.all([llamar('estado_caja'), llamar('motivos_remito')]);
@@ -67,6 +68,14 @@ export async function pantallaAjustes(vista, ctx) {
       <p class="muted chico">Cada compra fiada vence a los días que diga el cliente en su ficha; si no tiene, a estos. Cambiarlo cambia el vencimiento de lo que está pendiente.</p>
       <div class="fila"><button class="btn primario">Guardar</button></div>
     </form>
+    <form class="form ancho recuadro-blanco" id="f-teclado">
+      <h3>Teclado</h3>
+      <label>Atajo para ir al menú<input class="input" id="atajo" readonly value="${esc(textoAtajo(atajoDe(ctx.config)))}" aria-describedby="atajo-ayuda"></label>
+      <p class="muted chico" id="atajo-ayuda">Hacé clic en el campo y apretá la combinación (por ejemplo Alt + M). Lleva el cursor al menú de la izquierda;
+        ahí ↑ ↓ cambian de sección, Enter la abre y → pasa a la pantalla. Vale para todas las PC del negocio.</p>
+      <p class="chico mal" id="atajo-problema" hidden></p>
+      <div class="fila"><button class="btn primario">Guardar</button><button type="button" class="btn" id="atajo-fabrica">Volver a ${esc(textoAtajo(ATAJO_FABRICA))}</button></div>
+    </form>
     <div class="form ancho recuadro-blanco"><h3>Lectura de facturas con IA</h3><div id="uso-ia" class="muted">…</div></div>`;
   llamar('uso_ia').then(u => {
     $('#uso-ia').innerHTML = `Este mes: <b>${u.mes.lecturas}</b> lectura${+u.mes.lecturas === 1 ? '' : 's'} · US$ ${(+u.mes.costo_usd).toFixed(2)}
@@ -83,6 +92,26 @@ export async function pantallaAjustes(vista, ctx) {
     const dias = numero(new FormData(e.target).get('plazo'));
     if (!(dias >= 0 && dias <= 365 && Number.isInteger(dias))) return aviso('El plazo tiene que ser de 0 a 365 días');
     correr(async () => { ctx.config.plazo_clientes = await llamar('guardar_plazo_clientes', { p_dias: dias }); aviso('Plazo guardado', 'ok'); });
+  };
+  // Teclado: el campo anota la combinación que se aprieta (no se escribe); se controla que no choque con otra
+  let atajo = atajoDe(ctx.config);
+  const mostrarAtajo = () => {
+    $('#atajo').value = textoAtajo(atajo);
+    const p = problemaAtajo(atajo);
+    $('#atajo-problema').hidden = !p; $('#atajo-problema').textContent = p || '';
+  };
+  $('#atajo').onkeydown = e => {
+    if (e.key === 'Tab' && !e.altKey && !e.ctrlKey) return;   // Tab sigue sirviendo para salir del campo
+    e.preventDefault(); e.stopPropagation();   // que no actúe el atajo de ahora mientras se elige el nuevo
+    const a = atajoApretado(e);
+    if (a) { atajo = a; mostrarAtajo(); }
+  };
+  $('#atajo-fabrica').onclick = () => { atajo = { ...ATAJO_FABRICA }; mostrarAtajo(); };
+  $('#f-teclado').onsubmit = e => {
+    e.preventDefault();
+    const p = problemaAtajo(atajo);
+    if (p) return aviso(p);
+    correr(async () => { await llamar('guardar_config', { p_clave: 'atajo_menu', p_valor: atajo }); ctx.config.atajo_menu = atajo; aviso(`Guardado: ${textoAtajo(atajo)} lleva al menú`, 'ok'); });
   };
   $('#f-motivos').onsubmit = e => {
     e.preventDefault();
