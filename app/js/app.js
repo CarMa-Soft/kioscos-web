@@ -194,8 +194,9 @@ function armarMarco() {
 }
 
 // Con el foco en el menú: ↑ ↓ pasan a la anterior o la siguiente (dando la vuelta), Inicio y Fin a la primera y la
-// última, → a la pantalla abierta. Enter abre la sección, como un clic: el foco queda en el menú.
+// última, Ctrl + → a la pantalla abierta. Enter abre la sección, como un clic: el foco queda en el menú.
 function teclasDelMenu(e) {
+  if (e.key === 'ArrowRight' && e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey) { e.preventDefault(); return enfocarPantalla(); }
   if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
   const items = $$('#menu-nav a, #menu-nav button').filter(x => x.offsetParent !== null);
   const k = items.indexOf(document.activeElement);
@@ -203,7 +204,6 @@ function teclasDelMenu(e) {
   const ir = { ArrowDown: items[(k + 1) % items.length], ArrowUp: items[(k - 1 + items.length) % items.length],
     Home: items[0], End: items[items.length - 1] }[e.key];
   if (ir) { e.preventDefault(); ir.focus(); }
-  else if (e.key === 'ArrowRight') { e.preventDefault(); enfocarPantalla(); }
 }
 // El foco a la pantalla abierta: a su primer campo (en Vender, el buscador); si no tiene, a su primer botón o enlace
 function enfocarPantalla() {
@@ -216,7 +216,7 @@ function enfocarPantalla() {
   if (destino) return destino.focus();
   vista.tabIndex = -1; vista.focus();
 }
-// El atajo (Ajustes → Teclado, Alt + M de fábrica) lleva el foco al menú, a la sección en la que estás.
+// El atajo (Ajustes → Teclado, Ctrl + ← de fábrica) lleva el foco al menú, a la sección en la que estás.
 // Con una ventana abierta no hace nada.
 function irAlMenu(e) {
   if (!datos?.yo || !$('#menu-nav') || !esAtajo(e, atajoDe(datos.config))) return false;
