@@ -116,6 +116,10 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   anula solo lo que quedó: el stock no devuelto y la plata que quedaba, repartida entre los pagos.
 
 ## Inicio y Reportes (etapa 4e)
+- **Primeros pasos** (Hoy, solo el dueño; `primerosPasos` de inicio.js): datos del ticket, productos, probar la impresora, abrir la
+  caja, primera venta e instalar la app. Se tildan solos: `inicio().arranque` (`hubo_turno`, `hubo_venta`), el catálogo, la config
+  `negocio`; lo de cada PC (impresora probada, app instalada) en localStorage `primeros-pasos` (`marcar`; Ajustes marca la impresora
+  al imprimir la prueba). Con todo hecho no aparece; "Ocultar" guarda la config `primeros_pasos = oculto`. tests/30.
 - `inicio()`: ventas de hoy, últimas ventas, caja y fiado pendiente. El empleado ve solo sus ventas y no la ganancia.
 - `reporte(desde, hasta)` (solo dueño, días inclusive, hasta 400): ventas, costo, devoluciones y pérdidas, por día,
   hora, forma, vendedor, categoría y producto, descuentos y recargos, autorizaciones, mercadería valorizada y fiado.

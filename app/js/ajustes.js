@@ -3,6 +3,7 @@
 import { llamar } from './base.js';
 import { $, $$, esc, numero, aviso, correr } from './ui.js';
 import { imprimir, ticketVenta } from './impresion.js';
+import { marcar } from './inicio.js';
 import { ATAJO_FABRICA, atajoDe, textoAtajo, atajoApretado, problemaAtajo } from './teclado.js';
 
 export async function pantallaAjustes(vista, ctx) {
@@ -133,7 +134,8 @@ export async function pantallaAjustes(vista, ctx) {
       aviso('Datos guardados', 'ok');
     });
   };
-  $('#prueba').onclick = () => imprimir(ticketVenta({
+  $('#prueba').onclick = () => { marcar('impresora'); prueba(); };
+  const prueba = () => imprimir(ticketVenta({
     numero: 0, fecha: new Date().toISOString(), cliente: null, subtotal: 1500, descuento: 0, recargo: 0, total: 1500, paga_con: 2000, anulada: false,
     items: [{ nombre: 'Producto de prueba', cantidad: 1, precio: 1000, importe: 1000 }, { nombre: 'Otro producto', cantidad: 2, precio: 250, importe: 500 }],
     pagos: [{ forma: 'Efectivo', monto: 1500, recargo: 0 }],
