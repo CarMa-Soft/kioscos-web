@@ -412,7 +412,7 @@ export async function pantallaVender(vista, ctx) {
       const m = modal('Elegir cliente', `<input class="input" id="buscar-cli" placeholder="Buscar por nombre o teléfono" autocomplete="off" autofocus>
         <div class="resultados" id="lista-cli"></div>
         <div class="fila fin"><button class="btn izq" id="nuevo-cli">＋ Nuevo cliente</button><button class="btn" data-cerrar>Cancelar</button></div>`,
-        { alCerrar: () => $('#escaner')?.focus() });
+        { alCerrar: () => { if (!tactil.matches) $('#escaner')?.focus(); } });   // en el celular no (ver enfocar)
       const elegir = c => { venta.cliente = c; despues?.(); m.cerrar(); pintar(); };
       const pintarLista = () => {
         const f = $('#buscar-cli', m.el).value.trim().toLowerCase();
