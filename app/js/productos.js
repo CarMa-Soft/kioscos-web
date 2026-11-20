@@ -6,6 +6,7 @@ import { botonCamara } from './escaner.js';
 import { pantallaListaPrecios } from './listaprecios.js';
 import { preciosModal } from './precios.js';
 import { porProducto, aQuien } from './entregas.js';
+import { importarProductos } from './importar.js';
 
 // Lo que se eligió en la lista se mantiene al ir y volver de la sección
 let filtro = '', grupo = 'todos', categoria = '', orden = { col: 'nombre', asc: true };
@@ -51,7 +52,7 @@ export async function pantallaProductos(vista, ctx) {
   const valorVenta = activos.reduce((s, p) => s + Math.max(0, +p.stock) * +p.precio, 0);
   const nReponer = cuenta('reponer'), nSinStock = cuenta('sin-stock');
   vista.innerHTML = `<div class="cabecera"><h2>Productos <span class="muted">(${activos.length})</span></h2>
-      <div class="acciones"><button class="btn" id="lista-precios">🏷️ Lista de precios</button><button class="btn" id="aumento">Precios y márgenes</button><button class="btn" id="categorias">Categorías</button><button class="btn primario" id="nuevo">＋ Nuevo producto</button></div></div>
+      <div class="acciones"><button class="btn" id="lista-precios">🏷️ Lista de precios</button><button class="btn" id="aumento">Precios y márgenes</button><button class="btn" id="categorias">Categorías</button><button class="btn" id="importar" title="Cargar o actualizar muchos productos desde una planilla de Excel o CSV">📥 Importar planilla</button><button class="btn primario" id="nuevo">＋ Nuevo producto</button></div></div>
     <div class="c-tarjetas">
       <div class="c-tarjeta verde"><span class="c-ico">${ICO.productos}</span><div><div class="etq">Productos activos</div><div class="valor">${activos.length}</div>
         <div class="c-sub">${bajas.length ? `${bajas.length} desactivado${bajas.length === 1 ? '' : 's'}` : 'ninguno desactivado'}</div></div></div>
@@ -121,7 +122,7 @@ export async function pantallaProductos(vista, ctx) {
             ? `<span title="Margen automático: el precio sigue al costo${m != null && Math.round(m) !== Math.round(+p.margen) ? `. Real: ${Math.round(m)}%, por el redondeo del precio` : ''}">${String(+p.margen).replace('.', ',')}% <span class="etiqueta info">auto</span></span>`
             : m == null ? '<span class="muted">—</span>' : `${Math.round(m)}%`}</td></tr>`; }).join('')
         : `<tr><td class="muted vacio" colspan="6">${!(grupo === 'desactivados' ? bajas : activos).length
-            ? (grupo === 'desactivados' ? 'No hay productos desactivados.' : 'Todavía no hay productos: cargá el primero con "Nuevo producto".')
+            ? (grupo === 'desactivados' ? 'No hay productos desactivados.' : 'Todavía no hay productos: cargá el primero con "Nuevo producto", o muchos juntos con "Importar planilla".')
             : 'Ningún producto coincide con los filtros.'}</td></tr>`}</tbody>
       ${ver.length > 300 ? `<tfoot><tr><td class="muted" colspan="6">Se muestran 300 de ${ver.length}: usá la búsqueda o los filtros para ver los demás.</td></tr></tfoot>` : ''}`;
     $$('[data-orden]').forEach(b => b.onclick = () => {
@@ -139,6 +140,7 @@ export async function pantallaProductos(vista, ctx) {
     $('#filtro').value = ''; $('#categoria').value = ''; pintar();
   });
   $('#nuevo').onclick = () => ficha(null);
+  $('#importar').onclick = () => importarProductos(() => ctx.recargar());
   $('#categorias').onclick = () => categorias(cats);
   $('#aumento').onclick = () => correr(() => preciosModal({ productos: activos, categorias: cats, visibles: hayFiltros() ? visibles().filter(p => p.activo !== false) : null, ctx, alTerminar: () => ctx.recargar() }));
   $('#lista-precios').onclick = () => { enLista = true; ctx.recargar(); };
