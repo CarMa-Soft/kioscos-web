@@ -93,6 +93,10 @@ export async function pantallaVender(vista, ctx) {
       <aside class="v-der" id="panel"></aside>
     </div>`;
   const escaner = $('#escaner'), res = $('#resultados');
+  // Volver al buscador después de tocar algo (forma de pago, quitar, cantidad…). En pantallas táctiles no: abriría el teclado
+  // y subiría la pantalla hasta el buscador. Ahí se toca el buscador cuando se quiere cargar otro producto.
+  const tactil = matchMedia('(pointer: coarse)');
+  const enfocar = () => { if (!tactil.matches) escaner.focus(); };
   botonCamara(escaner, { envolver: false, describir: c => cat.porCodigoDeBarras(c)?.nombre });   // 📷 en el celular: cada código leído se agrega como con el lector
   // "Lector listo" cuando el cursor está en el buscador (ahí entra lo que manda el lector de códigos)
   const lector = listo => { $('#lector').classList.toggle('listo', listo); $('#lector span').textContent = listo ? 'Lector listo' : 'Clic acá para escanear'; };
@@ -173,7 +177,7 @@ export async function pantallaVender(vista, ctx) {
         <label class="crece">Precio<input class="input" name="precio" inputmode="decimal" autocomplete="off" required value="${esc(precio)}"></label></div>
       <p class="muted chico">Queda <b>a revisar</b> en Productos, para completar el costo, la categoría y el stock.</p>
       <div class="fila fin"><button type="button" class="btn" data-cerrar>Cancelar</button><button class="btn primario">Crear y agregar</button></div></form>`,
-      { alCerrar: () => escaner.focus() });
+      { alCerrar: () => enfocar() });
     const f = $('#f-alta-caja', m.el);
     (esCodigo || !texto ? f.elements.nombre : f.elements.precio).focus();
     f.onsubmit = e => {
@@ -192,7 +196,7 @@ export async function pantallaVender(vista, ctx) {
   function pedirPeso(p) {
     const m = modal(`${p.nombre} — ${plata(p.precio)}/kg`, `<form class="form" id="f-peso"><label>Kilos<input class="input grande" name="kg" inputmode="decimal" autocomplete="off" required autofocus></label>
       <div class="fila fin"><button type="button" class="btn" data-cerrar>Cancelar</button><button class="btn primario">Agregar</button></div></form>`,
-      { alCerrar: () => escaner.focus() });
+      { alCerrar: () => enfocar() });
     $('#f-peso', m.el).onsubmit = e => {
       e.preventDefault();
       const kg = numero(new FormData(e.target).get('kg'));
@@ -206,7 +210,7 @@ export async function pantallaVender(vista, ctx) {
       <label>Importe<input class="input grande" name="importe" inputmode="decimal" autocomplete="off" required></label>
       <label class="check"><input type="checkbox" name="guardar"> Es un producto que no está cargado: crearlo (queda a revisar)</label>
       <div class="fila fin"><button type="button" class="btn" data-cerrar>Cancelar</button><button class="btn primario">Agregar</button></div></form>`,
-      { alCerrar: () => escaner.focus() });
+      { alCerrar: () => enfocar() });
     $('[name=importe]', m.el).focus();
     $('#f-varios', m.el).onsubmit = e => {
       e.preventDefault();
@@ -227,7 +231,7 @@ export async function pantallaVender(vista, ctx) {
       <label>Precio${i.por_peso ? ' por kilo' : ''}, o descuento en %<input class="input grande" name="precio" value="${i.precio ?? lista}" autocomplete="off" autofocus></label>
       <p class="muted chico">Ej: <span class="mono">10%</span> = ${plata(lista * 0.9)}</p>
       <div class="fila fin"><button type="button" class="btn izq" id="lista">Volver al de lista</button><button type="button" class="btn" data-cerrar>Cancelar</button><button class="btn primario">Aplicar</button></div></form>`,
-      { alCerrar: () => escaner.focus() });
+      { alCerrar: () => enfocar() });
     setTimeout(() => $('[name=precio]', m.el).select(), 40);
     $('#lista', m.el).onclick = () => { i.precio = null; m.cerrar(); pintar(); };
     $('#f-precio', m.el).onsubmit = e => {
@@ -314,14 +318,14 @@ export async function pantallaVender(vista, ctx) {
         <div class="v-der-txt v-imp">${plata(importe(i))}</div>
         <button class="v-quitar" data-quitar="${k}" title="Quitar">×</button></div>`; }).reverse().join('')}</div>`   /* el último que se agrega va arriba (en la venta y el ticket quedan en el orden en que se cargaron) */
       : `<div class="v-vacio">${DIBUJO_VACIO}<b>Escaneá un producto para empezar</b><span>o buscalo por nombre en la barra de arriba</span></div>`;
-    $$('[data-quitar]', t).forEach(b => b.onclick = () => { venta.items.splice(+b.dataset.quitar, 1); pintar(); escaner.focus(); });
+    $$('[data-quitar]', t).forEach(b => b.onclick = () => { venta.items.splice(+b.dataset.quitar, 1); pintar(); enfocar(); });
     $$('[data-precio]', t).forEach(b => b.onclick = () => cambiarPrecio(venta.items[+b.dataset.precio]));
     // − y +: de a una unidad; en 0 se saca el renglón
     $$('[data-mas],[data-menos]', t).forEach(b => b.onclick = () => {
       const k = +(b.dataset.mas ?? b.dataset.menos), i = venta.items[k];
       i.cantidad += b.dataset.mas != null ? 1 : -1;
       if (i.cantidad <= 0) venta.items.splice(k, 1);
-      pintar(); escaner.focus();
+      pintar(); enfocar();
     });
     $$('[data-cant]', t).forEach(inp => {
       inp.onfocus = () => inp.select();
@@ -332,7 +336,7 @@ export async function pantallaVender(vista, ctx) {
         i.etiqueta = null;   // cambiaron los kilos: el importe sale de kilos × precio
         pintar();
       };
-      inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); inp.blur(); escaner.focus(); } };
+      inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); inp.blur(); enfocar(); } };
     });
     pintarPanel();
   }
@@ -378,11 +382,11 @@ export async function pantallaVender(vista, ctx) {
       </div>`;
     // eventos del panel
     $('#elegir-cliente').onclick = () => elegirCliente();
-    if (c) $('#quitar-cliente').onclick = () => { venta.cliente = null; if (!formas().includes(venta.forma)) venta.forma = 'Efectivo'; if (d && (d.forma1 === 'Fiado' || d.forma2 === 'Fiado')) venta.dos = null; pintar(); escaner.focus(); };
+    if (c) $('#quitar-cliente').onclick = () => { venta.cliente = null; if (!formas().includes(venta.forma)) venta.forma = 'Efectivo'; if (d && (d.forma1 === 'Fiado' || d.forma2 === 'Fiado')) venta.dos = null; pintar(); enfocar(); };
     else $('#nuevo-cliente').onclick = () => formCliente(null, false, nuevo => { venta.cliente = nuevo; pintar(); });
     $$('[data-forma]').forEach(b => b.onclick = () => {
       if (b.dataset.forma === 'Fiado' && !venta.cliente) return elegirCliente(() => { venta.forma = 'Fiado'; });
-      venta.forma = b.dataset.forma; pintarPanel(); escaner.focus();
+      venta.forma = b.dataset.forma; pintarPanel(); enfocar();
     });
     if ($('#dos')) $('#dos').onclick = () => { venta.dos = { forma1: 'Efectivo', monto1: '', forma2: fs.find(f => f !== 'Efectivo') || 'Efectivo' }; pintarPanel(); $('#m1').focus(); };
     if ($('#uno')) $('#uno').onclick = () => { venta.dos = null; pintarPanel(); };
@@ -532,7 +536,7 @@ export async function pantallaVender(vista, ctx) {
     const n = Math.min(+e.cantidad, disp);
     venta.items.push({ producto_id: e.producto_id, nombre: e.nombre, cantidad: n, precio: null, por_peso: e.por_peso,
       encargo: { id: e.id, numero: e.numero, sena: +e.sena, a_nombre: e.a_nombre, max: n } });
-    pintar(); escaner.focus();
+    pintar(); enfocar();
     if (n < +e.cantidad) aviso(`Llegaron ${cant(n)} de ${cant(e.cantidad)}: se pasan ${cant(n)} y quedan ${cant(+e.cantidad - n)} pendientes en el encargo`, 'info');
   }
   function verEntregas(lista) {
@@ -577,11 +581,11 @@ export async function pantallaVender(vista, ctx) {
     cobrando = true;
     try {
       const faltan = await preguntarFaltantes();
-      if (!faltan) return escaner.focus();   // volvió a la venta: no se grabó nada
+      if (!faltan) return enfocar();   // volvió a la venta: no se grabó nada
       args.p_items = args.p_items.map((it, k) => faltan.pend[k] ? { ...it, pendiente: faltan.pend[k] } : it);
       if (faltan.entrega) args.p_entrega = faltan.entrega;
       const eleccion = await confirmarCobro(tt, efectivo, pc);
-      if (!eleccion) return escaner.focus();   // Esc: sigue cargando, no se grabó nada
+      if (!eleccion) return enfocar();   // Esc: sigue cargando, no se grabó nada
       await correr(async () => {
         let r;
         for (;;) {
@@ -596,7 +600,7 @@ export async function pantallaVender(vista, ctx) {
             } else throw err;
           }
         }
-        venta = vacia(); pintar(); escaner.focus();
+        venta = vacia(); pintar(); enfocar();
         if (r.repetida) aviso(`Esta venta ya se había registrado como #${r.numero} (${plata(r.total)}): no se cobró de nuevo`, 'info');
         else aviso(`Venta #${r.numero} registrada${pc > 0 && efectivo ? ' · Vuelto ' + plata(pc - efectivo) : ''}${r.pendientes?.length
           ? ` · Para entregar después: ${r.pendientes.map(e => `${cant(e.cantidad)} ${e.nombre}`).join(', ')} (${r.pendientes[0].a_nombre})` : ''}`, r.pendientes?.length ? 'info' : 'ok');
@@ -609,7 +613,7 @@ export async function pantallaVender(vista, ctx) {
 
   if ($('#varios')) $('#varios').onclick = () => varios();
   $('#encargo').onclick = () => nuevoEncargo({ formas: caja.formas_pago, alGuardar: () => cargarEntregas() });
-  $('#vaciar').onclick = async () => { if (!venta.items.length || await confirmar('Vaciar', '¿Sacar todos los productos de la venta?', 'Vaciar')) { venta = vacia(); pintar(); escaner.focus(); } };
+  $('#vaciar').onclick = async () => { if (!venta.items.length || await confirmar('Vaciar', '¿Sacar todos los productos de la venta?', 'Vaciar')) { venta = vacia(); pintar(); enfocar(); } };
   escaner.onblur = () => setTimeout(() => { if (document.activeElement !== escaner) res.hidden = true; }, 150);
   ctx.alTeclear(e => {
     if (accesoRapido(e)) return;
@@ -620,7 +624,7 @@ export async function pantallaVender(vista, ctx) {
       e.preventDefault();
       if (document.querySelector('.modal-fondo')) return;
       if (!venta.cliente) return elegirCliente(() => { venta.forma = 'Fiado'; venta.dos = null; });
-      venta.forma = 'Fiado'; venta.dos = null; pintarPanel(); escaner.focus();
+      venta.forma = 'Fiado'; venta.dos = null; pintarPanel(); enfocar();
     }
   });
   pintar();
