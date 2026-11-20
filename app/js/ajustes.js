@@ -71,8 +71,8 @@ export async function pantallaAjustes(vista, ctx) {
     <form class="form ancho recuadro-blanco" id="f-teclado">
       <h3>Teclado</h3>
       <label>Atajo para ir al menú<input class="input" id="atajo" readonly value="${esc(textoAtajo(atajoDe(ctx.config)))}" aria-describedby="atajo-ayuda"></label>
-      <p class="muted chico" id="atajo-ayuda">Hacé clic en el campo y apretá la combinación (por ejemplo Alt + M). Lleva el cursor al menú de la izquierda;
-        ahí ↑ ↓ cambian de sección, Enter la abre y → pasa a la pantalla. Vale para todas las PC del negocio.</p>
+      <p class="muted chico" id="atajo-ayuda">Hacé clic en el campo y apretá la combinación (por ejemplo Ctrl + ← o Alt + M). Lleva el cursor al menú de la izquierda;
+        ahí ↑ ↓ cambian de sección, Enter la abre y Ctrl + → pasa a la pantalla. Vale para todas las PC del negocio.</p>
       <p class="chico mal" id="atajo-problema" hidden></p>
       <div class="fila"><button class="btn primario">Guardar</button><button type="button" class="btn" id="atajo-fabrica">Volver a ${esc(textoAtajo(ATAJO_FABRICA))}</button></div>
     </form>

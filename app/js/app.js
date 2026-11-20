@@ -193,17 +193,32 @@ function armarMarco() {
   seguirAltoBarra();
 }
 
-// Con el foco en el menú: ↑ ↓ pasan a la anterior o la siguiente (dando la vuelta), Inicio y Fin a la primera y la
-// última, → a la pantalla abierta. Enter abre la sección, como un clic: el foco queda en el menú.
+// Con el foco en el menú: ↑ ↓ pasan a la anterior o la siguiente (dando la vuelta) y la van mostrando, Inicio y Fin a la
+// primera y la última, Ctrl + → a la pantalla abierta. Enter abre la sección, como un clic: el foco queda en el menú.
 function teclasDelMenu(e) {
+  if (e.key === 'ArrowRight' && e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey) { e.preventDefault(); return enfocarPantalla(); }
   if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
   const items = $$('#menu-nav a, #menu-nav button').filter(x => x.offsetParent !== null);
   const k = items.indexOf(document.activeElement);
   if (k < 0) return;
   const ir = { ArrowDown: items[(k + 1) % items.length], ArrowUp: items[(k - 1 + items.length) % items.length],
     Home: items[0], End: items[items.length - 1] }[e.key];
-  if (ir) { e.preventDefault(); ir.focus(); }
-  else if (e.key === 'ArrowRight') { e.preventDefault(); enfocarPantalla(); }
+  if (ir) { e.preventDefault(); ir.focus(); mostrarAlPasar(ir); }
+}
+// Al pasar por una sección con las flechas se muestra su pantalla (un instante después, así no carga todas si se pasa
+// rápido) y el foco sigue en el menú. Sin sumar al historial. En el celular no: el menú tapa la pantalla.
+let alPasar = null;
+let quedarEnMenu = false;
+function mostrarAlPasar(a) {
+  clearTimeout(alPasar);
+  const ruta = a.dataset.ruta;
+  if (!ruta || celular.matches || ruta === location.hash) return;
+  alPasar = setTimeout(() => { if (document.activeElement === a) { quedarEnMenu = true; location.replace(ruta); } }, 250);
+}
+// Si la pantalla se llevó el foco (por ejemplo, Vender al buscador), vuelve al menú
+function volverAlMenu() {
+  const a = $('#menu-nav a.activa');
+  if (a && !$('#menu-nav').contains(document.activeElement) && !document.querySelector('.modal-fondo')) a.focus();
 }
 // El foco a la pantalla abierta: a su primer campo (en Vender, el buscador); si no tiene, a su primer botón o enlace
 function enfocarPantalla() {
@@ -216,7 +231,7 @@ function enfocarPantalla() {
   if (destino) return destino.focus();
   vista.tabIndex = -1; vista.focus();
 }
-// El atajo (Ajustes → Teclado, Alt + M de fábrica) lleva el foco al menú, a la sección en la que estás.
+// El atajo (Ajustes → Teclado, Ctrl + ← de fábrica) lleva el foco al menú, a la sección en la que estás.
 // Con una ventana abierta no hace nada.
 function irAlMenu(e) {
   if (!datos?.yo || !$('#menu-nav') || !esAtajo(e, atajoDe(datos.config))) return false;
@@ -237,7 +252,9 @@ async function mostrarSeccion() {
   if (!s) { s = SECCIONES[0]; history.replaceState(null, '', s.ruta); }
   $$('nav a').forEach(a => a.classList.toggle('activa', a.dataset.ruta === s.ruta));
   $('#seccion-actual').textContent = s.nombre;
-  abrirMenu(false);
+  const desdeElMenu = quedarEnMenu;
+  quedarEnMenu = false;
+  if (!desdeElMenu) abrirMenu(false);
   teclas = null;
   const vista = $('#vista');
   vista.innerHTML = '<p class="muted">Cargando…</p>';
@@ -250,6 +267,7 @@ async function mostrarSeccion() {
   };
   let ok = false;
   await correr(async () => { await s.fn(vista, ctx); ok = true; });
+  if (desdeElMenu && location.hash === s.ruta) { volverAlMenu(); setTimeout(volverAlMenu, 50); }
   // si no se pudo cargar (sin internet, la base no respondió), no queda en "Cargando…": se ofrece reintentar
   if (!ok && $('#vista') === vista && /Cargando…/.test(vista.textContent)) {
     vista.innerHTML = `<div class="recuadro-blanco"><p><b>No se pudo cargar ${esc(s.nombre)}.</b></p>
