@@ -43,6 +43,7 @@ const TEMAS = [
   { s: 'Caja', t: 'Ingresos y egresos de plata', x: 'En Caja, <b>Ingreso</b> o <b>Egreso</b> (por ejemplo, pago a un repartidor o cambio que se agrega). Quedan en Movimientos y en el efectivo que tiene que haber.' },
   { s: 'Caja', t: 'Cerrar el turno', x: 'En Caja, <b>Cerrar turno</b>: contá los billetes (o poné el total) y la app muestra si sobra o falta; podés registrar la diferencia como ajuste. Se puede imprimir el cierre.' },
   { s: 'Caja', t: 'Ver o anular una venta', x: 'En Caja, en Ventas del turno, <b>Ver</b>: muestra el detalle, permite volver a imprimir el ticket (<b>Imprimir ticket</b>), hacer una devolución y (solo el dueño) anularla. Anular devuelve el stock y saca la plata de la caja.' },
+  { s: 'Caja', t: 'Abrir la caja para empezar el día', x: 'Si la caja está cerrada, en <b>Vender</b> aparece arriba <b>Abrir la caja</b> (también al tocar Cobrar). Contá el efectivo y confirmá: ya viene puesto lo que quedó al cerrar el turno anterior. También se abre desde <b>Caja</b>.' },
   { s: 'Caja', t: 'Devolver productos de una venta', x: 'Caja → Ver la venta → <b>Devolver productos</b>: elegís qué vuelve, si vuelve al stock (si está roto o vencido, no) y cómo se devuelve la plata. El empleado necesita el PIN del dueño.' },
   { s: 'Caja', t: 'Turnos anteriores', x: 'En Caja, <b>Turnos anteriores</b>: el detalle de cada turno cerrado (totales, billetes y movimientos). El empleado ve solo los suyos.' },
 
