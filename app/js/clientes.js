@@ -1,7 +1,8 @@
 // Clientes y su cuenta (fiado): lista con saldo, ficha con lo pendiente (con vencimiento) y lo pagado, cobrar eligiendo a
-// qué compras va el pago, ajustes (solo dueño). Como la cuenta del proveedor.
+// qué compras va el pago, ajustes (solo dueño). Como la cuenta del proveedor. La lista se ordena por nombre, saldo, límite o
+// antigüedad de la deuda; la ficha saca el estado de cuenta en PDF o lo arma para mandar por WhatsApp.
 import { llamar } from './base.js';
-import { $, $$, esc, plata, fecha, dia, textoVence, numero, aviso, correr, modal, confirmar } from './ui.js';
+import { $, $$, esc, plata, cant, fecha, dia, hoyDia, textoVence, numero, aviso, correr, modal, confirmar, telefonoWhatsApp } from './ui.js';
 import { verVenta } from './caja.js';
 
 const nombreDeuda = d => d.venta_id ? `Compra #${d.numero}` : (d.concepto || 'Deuda');
@@ -9,7 +10,7 @@ const nombreDeuda = d => d.venta_id ? `Compra #${d.numero}` : (d.concepto || 'De
 const linkVenta = (ventaId, texto) => ventaId ? `<button class="link" data-venta="${ventaId}" title="Ver la venta">${esc(texto)}</button>` : esc(texto);
 
 // Lo elegido se mantiene al ir y volver de la sección
-let filtro = '', grupo = 'todos';
+let filtro = '', grupo = 'todos', orden = { col: 'nombre', asc: true };
 
 // Íconos de las tarjetas (trazos SVG, toman el color del texto)
 const svg = d => `<svg viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
@@ -42,15 +43,33 @@ export async function pantallaClientes(vista, ctx) {
     $('#grupos').innerHTML = GRUPOS.map(([g, nombre, cond]) => `<button class="chip ${g === grupo ? 'elegido' : ''}" data-grupo="${g}">${nombre} <span class="c-cuenta">${lista.filter(c => busca(c) && cond(c)).length}</span></button>`).join('');
     $$('[data-grupo]').forEach(b => b.onclick = () => { grupo = b.dataset.grupo; pintar(); });
     const cond = GRUPOS.find(x => x[0] === grupo)[2];
-    const ver = lista.filter(c => busca(c) && cond(c));
+    const ver = ordenar(lista.filter(c => busca(c) && cond(c)));
     const saldo = s => +s > 0.004 ? `<span class="c-saldo debe">Debe ${plata(s)}</span>` : +s < -0.004 ? `<span class="c-saldo favor">A favor ${plata(-s)}</span>` : '<span class="c-saldo">Al día</span>';
-    $('#tabla').innerHTML = ver.length ? `<thead><tr><th>Cliente</th><th>Teléfono</th><th class="num">Límite</th><th class="num">Saldo</th></tr></thead><tbody>
+    $('#tabla').innerHTML = ver.length ? `<thead><tr>${COLS.map(([col, nombre, cl]) => `<th class="${cl}">${col ? `<button class="p-orden ${orden.col === col ? 'activo' : ''}" data-orden="${col}">${nombre}
+        <span aria-hidden="true">${orden.col === col ? (orden.asc ? '▲' : '▼') : '↕'}</span></button>` : nombre}</th>`).join('')}</tr></thead><tbody>
       ${ver.map(c => `<tr class="clic" data-id="${c.id}"><td><div class="c-nombre"><span class="c-inicial ${+c.saldo > 0.004 ? 'debe' : ''}">${esc(c.nombre.trim().charAt(0).toUpperCase())}</span>
           <b>${esc(c.nombre)}</b>${c.activo ? '' : ' <span class="etiqueta">de baja</span>'}</div></td><td>${esc(c.telefono || '')}</td>
+        <td>${debeDesde(c)}</td>
         <td class="num">${+c.limite ? plata(c.limite) : '<span class="muted">—</span>'}</td><td class="num">${saldo(c.saldo)}</td></tr>`).join('')}</tbody>`
       : `<tbody><tr><td class="muted vacio">${lista.length ? (grupo === 'deben' && !f ? 'Ningún cliente debe.' : 'Ningún cliente coincide.') : 'Todavía no hay clientes.'}</td></tr></tbody>`;
+    $$('[data-orden]').forEach(b => b.onclick = () => {
+      const col = b.dataset.orden;
+      // lo que más importa primero: más deuda, más vieja, más límite; el nombre de la A a la Z
+      orden = orden.col === col ? { col, asc: !orden.asc } : { col, asc: col === 'nombre' || col === 'desde' };
+      pintar();
+    });
     $$('tr[data-id]').forEach(tr => tr.onclick = () => ficha(+tr.dataset.id));
   };
+  // Columnas (las que tienen clave se ordenan con un clic en el título; otro clic invierte el orden)
+  const COLS = [['nombre', 'Cliente', ''], ['', 'Teléfono', ''], ['desde', 'Debe desde', ''], ['limite', 'Límite', 'num'], ['saldo', 'Saldo', 'num']];
+  const debe = c => +c.saldo > 0.004 && c.deuda_desde;
+  const VALOR = { nombre: c => c.nombre.toLowerCase(), saldo: c => +c.saldo, limite: c => +c.limite || 0, desde: c => debe(c) ? new Date(c.deuda_desde).getTime() : null };
+  function ordenar(xs) {
+    const v = VALOR[orden.col], dir = orden.asc ? 1 : -1;
+    // los que no tienen dato (no deben) van siempre al final
+    return xs.slice().sort((a, b) => { const x = v(a), y = v(b); if (x == null || y == null) return (x == null) - (y == null);
+      return (x < y ? -1 : x > y ? 1 : 0) * dir || a.nombre.localeCompare(b.nombre); });
+  }
   $('#filtro').oninput = e => { filtro = e.target.value; pintar(); };
   $('#nuevo').onclick = () => formCliente(null, admin, () => ctx.recargar());
   pintar();
@@ -64,6 +83,8 @@ export async function pantallaClientes(vista, ctx) {
       const m = modal(c.nombre, `<p class="muted">${[c.telefono, c.direccion].filter(Boolean).map(esc).join(' · ') || 'Sin datos de contacto'}${+c.limite ? ' · límite ' + plata(c.limite) : ''} · ${esc(plazo)}</p>
         <div class="tarjeta"><div class="etq">Cuenta</div><div class="valor ${+c.saldo > 0.004 ? 'mal' : ''}">${textoSaldo(c.saldo)}</div></div>
         <div class="fila"><button class="btn primario" id="cobrar">Cobrar</button>
+          <button class="btn" id="estado-pdf" title="Lo que debe, compra por compra, para imprimir o mandar">📄 Estado de cuenta</button>
+          <button class="btn" id="estado-wa" title="${c.telefono ? 'Arma el mensaje con lo que debe y abre WhatsApp' : 'No tiene teléfono: vas a elegir el contacto en WhatsApp'}">WhatsApp</button>
           ${+c.a_favor > 0.004 && c.pendientes.length ? `<button class="btn" id="aplicar">Aplicar lo que está a favor (${plata(c.a_favor)})</button>` : ''}
           ${admin ? '<button class="btn" id="ajuste">Deuda anterior / ajuste</button>' : ''}
           <button class="btn" id="editar">Editar datos</button>${admin ? '<button class="btn peligro" id="eliminar">Eliminar</button>' : ''}
@@ -82,6 +103,8 @@ export async function pantallaClientes(vista, ctx) {
           : '<tbody><tr><td class="muted vacio">Sin movimientos.</td></tr></tbody>'}</table></div>`, { ancho: true });
       const otraVez = () => { m.cerrar(); ctx.recargar(); ficha(id); };
       $('#cobrar', m.el).onclick = () => cobrar(c, otraVez);
+      $('#estado-pdf', m.el).onclick = () => correr(() => estadoPdf(c, ctx));
+      $('#estado-wa', m.el).onclick = () => estadoWhatsApp(c, ctx);
       if ($('#aplicar', m.el)) $('#aplicar', m.el).onclick = () => aplicar(c, otraVez);
       $('#editar', m.el).onclick = () => formCliente(c, admin, otraVez);
       $$('[data-venta]', m.el).forEach(b => b.onclick = () => verVenta(+b.dataset.venta, ctx, otraVez));   // si se anula o devuelve, se vuelve a armar la ficha
@@ -208,4 +231,66 @@ export function formCliente(c, admin, alGuardar) {
     }
     correr(async () => { const r = await llamar('guardar_cliente', { p: datos }); m.cerrar(); aviso('Cliente guardado', 'ok'); alGuardar(r); });
   };
+}
+
+// "Debe desde" en la lista: la compra pendiente más vieja (hace cuántos días) y si ya venció
+function debeDesde(c) {
+  if (!(+c.saldo > 0.004) || !c.deuda_desde) return '<span class="muted">—</span>';
+  const desde = new Date(c.deuda_desde), dias = Math.max(0, Math.floor((Date.now() - desde) / 864e5));
+  return `${desde.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit' })} <span class="muted chico">(${dias} día${dias === 1 ? '' : 's'})</span>
+    ${c.vence ? `<div class="chico">${textoVence(c.vence)}</div>` : ''}`;
+}
+
+// ---------- Estado de cuenta (para el cliente: lo que debe, compra por compra; sin datos internos) ----------
+const fechaCorta = iso => new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+const detallePagado = d => +d.aplicado > 0.004 ? ` (de ${plata(d.importe)}, pagó ${plata(d.aplicado)})` : '';
+// 'Pérez, Juan' → Juan; 'Juan Pérez' → Juan; una empresa con coma rara, el nombre completo
+const primerNombre = n => (n.includes(',') ? n.split(',')[1] : n).trim().split(/\s+/)[0] || n;
+
+function textoEstado(c, negocio) {
+  const lineas = c.pendientes.slice().sort((a, b) => String(a.fecha).localeCompare(String(b.fecha)))
+    .map(d => `• ${nombreDeuda(d)} del ${fechaCorta(d.fecha)}: ${plata(d.pendiente)}${detallePagado(d)}`);
+  const total = c.pendientes.reduce((s, d) => s + +d.pendiente, 0);
+  return [`Hola ${primerNombre(c.nombre)}! Te paso el estado de tu cuenta en ${negocio} al ${dia(hoyDia())}:`, '',
+    ...(lineas.length ? [...lineas, '', `*Total adeudado: ${plata(total)}*`] : ['No tenés deuda pendiente. ¡Gracias!']),
+    ...(+c.a_favor > 0.004 ? ['', `Además tenés ${plata(c.a_favor)} a favor.`] : []),
+    '', 'Cualquier consulta, avisanos. ¡Gracias!'].join('\n');
+}
+
+function estadoWhatsApp(c, ctx) {
+  const num = telefonoWhatsApp(c.telefono);
+  window.open(`https://wa.me/${num}?text=${encodeURIComponent(textoEstado(c, ctx.negocio.nombre))}`, '_blank', 'noopener');
+  if (!num) aviso('El cliente no tiene un teléfono válido cargado: elegí el contacto en WhatsApp', 'info');
+}
+
+async function estadoPdf(c, ctx) {
+  const [{ jsPDF }, { autoTable }] = await Promise.all([import('https://cdn.jsdelivr.net/npm/jspdf@4.2.1/+esm'),
+    import('https://cdn.jsdelivr.net/npm/jspdf-autotable@5.0.9/+esm')]);
+  const n = { nombre: ctx.negocio.nombre, ...(ctx.config.negocio || {}) };
+  const pend = c.pendientes.slice().sort((a, b) => String(a.fecha).localeCompare(String(b.fecha)));
+  // los productos de cada compra pendiente (la misma consulta que "ver la venta")
+  const ventas = new Map(await Promise.all([...new Set(pend.map(d => d.venta_id).filter(Boolean))]
+    .map(async id => [id, await llamar('venta', { p_id: id }).catch(() => null)])));
+  const productos = d => (ventas.get(d.venta_id)?.items || []).map(i => `${+i.cantidad !== 1 ? cant(i.cantidad) + ' × ' : ''}${i.nombre}`).join(' · ');
+  const total = pend.reduce((s, d) => s + +d.pendiente, 0);
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  doc.setFontSize(11); doc.text([n.nombre, n.direccion, n.telefono && 'Tel. ' + n.telefono].filter(Boolean).join(' · '), 14, 16);
+  doc.setFontSize(18); doc.text('Estado de cuenta', 14, 27);
+  doc.setFontSize(11); doc.text(`Cliente: ${c.nombre} · al ${dia(hoyDia())}`, 14, 34);
+  if (pend.length) {
+    autoTable(doc, {
+      startY: 40, head: [['Fecha', 'Compra', 'Vence', 'Importe', 'Pagado', 'Pendiente']],
+      body: pend.map(d => [fechaCorta(d.fecha), nombreDeuda(d) + (productos(d) ? '\n' + productos(d) : ''), dia(d.vencimiento),
+        plata(d.importe), +d.aplicado > 0.004 ? plata(d.aplicado) : '—', plata(d.pendiente)]),
+      foot: [['', 'TOTAL ADEUDADO', '', '', '', plata(total)]],
+      styles: { fontSize: 9.5 }, headStyles: { fillColor: [31, 41, 51] }, footStyles: { fillColor: [245, 246, 248], textColor: 20, fontSize: 11 },
+      columnStyles: { 1: { cellWidth: 70 }, 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right', fontStyle: 'bold' } },
+    });
+  } else { doc.setFontSize(13); doc.text('No tiene deuda pendiente.', 14, 46); }
+  let y = (doc.lastAutoTable?.finalY || 50) + 8;
+  doc.setFontSize(10);
+  if (+c.a_favor > 0.004) { doc.text(`Además tiene ${plata(c.a_favor)} a favor.`, 14, y); y += 7; }
+  doc.setFontSize(8.5); doc.setTextColor(90);
+  doc.text(`Documento no válido como factura. Ante cualquier diferencia, comunicate con nosotros${n.telefono ? ' al ' + n.telefono : ''}.`, 14, y + 4);
+  doc.save(`Estado de cuenta ${c.nombre} ${hoyDia()}`.replace(/[\\/:*?"<>|]/g, '-') + '.pdf');
 }
