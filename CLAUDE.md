@@ -117,6 +117,9 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
 
 ## Inicio y Reportes (etapa 4e)
 - `inicio()`: ventas de hoy, últimas ventas, caja y fiado pendiente. El empleado ve solo sus ventas y no la ganancia.
+- Hoy (`inicio.js`) suma, solo para el dueño, "A pagar a proveedores (7 días)" (`vencimientos(hoy + 7)`, roja si hay algo
+  vencido; "ver vencimientos" abre `vencimientosModal` de proveedores.js) y "Productos para reponer" (del catálogo del
+  navegador; "ver cuáles" usa `verParaReponer()` de productos.js, que deja puesto ese filtro). Tarjetas en filas de tres.
 - `reporte(desde, hasta)` (solo dueño, días inclusive, hasta 400): ventas, costo, devoluciones y pérdidas, por día,
   hora, forma, vendedor, categoría y producto, descuentos y recargos, autorizaciones, mercadería valorizada y fiado.
 - Mismas cuentas que la app local: las devoluciones se restan **en la fecha de la devolución** (las de ventas anuladas
@@ -225,7 +228,8 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   (tipo `ingreso`/`egreso`, numeradas por negocio y tipo: RI-0001 / RE-0001) y `remito_items` (con costo y stock antes/después).
 - `registrar_remito(p)`: `{tipo, motivo, notas, items[{producto_id, cantidad}]}`; el mismo producto dos veces se suma.
   Mueve el stock (movimiento "Entrada RI-0001 — motivo") y devuelve `stock_negativo` con lo que quedó debajo de cero.
-- `anular_remito(id)`: el movimiento al revés. `remitos(p_tipo)` (últimas 300) y `remito(id)`.
+- `anular_remito(id)`: el movimiento al revés. `remitos(p_tipo)` (últimas 300) y `remito(id)`. La pantalla pide
+  `remitos(null)` (los dos tipos) y filtra Entradas / Salidas y el buscador ahí mismo; las tarjetas cuentan el mes sin las anuladas.
 - Motivos editables en Ajustes: `motivos_remito()` / `guardar_motivos_remito(p)` (config `motivos_remito`, con los de fábrica).
   Las devoluciones no van acá: se hacen desde la venta o la compra.
 
@@ -400,5 +404,35 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
 
 ## Ayuda
 - `ayuda.js`: preguntas frecuentes y cómo hacer cada cosa (array `TEMAS`, por sección; `a: true` = solo el dueño), con
-  buscador sin acentos. Sin IA ni base. Se abre con el botón "? Ayuda" al lado del usuario (sección `#/ayuda`, `aparte`:
-  no ocupa lugar en el menú). **Al agregar o cambiar una función, actualizar su tema acá.**
+  buscador sin acentos. Sin IA ni base. Se abre con "? Ayuda" del bloque del usuario, abajo del menú (sección `#/ayuda`,
+  `aparte`: no está en los bloques de secciones). **Al agregar o cambiar una función, actualizar su tema acá.**
+
+## Vender: pantalla, cobro y teclas
+- Estilos en `vender.css` (clases `v-`). `--v-oscuro` (verde oscuro) es el fondo de "Total a cobrar" y del encabezado de la
+  lista de la venta; el botón elegido ($ / %, forma de pago) usa `--primario`. Arriba, las entregas pendientes y los encargos
+  en una fila fina; la columna de la venta termina a la altura del panel de cobro.
+- **Renglones:** el último agregado se **muestra** arriba (y resaltado), pero `venta.items` sigue en el orden en que se
+  cargaron: la venta y el ticket salen en ese orden, y las entregas pendientes (`preguntarFaltantes`) usan la posición de
+  cada renglón. "Stock en sistema: N" avisa cuando se lleva más de lo que hay.
+- **Cobrar** (F2 o el botón): primero `preguntarFaltantes` y después `confirmarCobro`, **antes de grabar**: Imprimir (P) y
+  No imprimir (N) graban; Seguir cargando (Esc) vuelve sin grabar. Enter es Imprimir si `config.ticket` es `siempre` y No
+  imprimir en los demás casos (la ventana sale siempre).
+- **Teclas** (`ctx.alTeclear`): F1 Efectivo, F2 cobrar, F3 Fiado (sin cliente, primero lo pide; en Vender no abre el buscar
+  del navegador), Alt + 1…9 los accesos rápidos, Esc limpia el buscador. Con una ventana abierta, F3 y Alt + número no actúan.
+- Un código que no existe (lector, teclado, cámara o etiqueta de balanza) suena (`sonidoError`, dos tonos con Web Audio, sin
+  archivos) y queda seleccionado para que el próximo escaneo lo reemplace.
+- El descuento arranca en % (`descPct: true` en `vacia()`). Los botones de billetes de "Paga con" están ocultos con CSS
+  (`.v-paga .billetes`); el código sigue.
+
+## Estilo común de las pantallas
+- Hoy, Caja, Productos, Compras, Reportes, Clientes, Proveedores y Entradas y salidas usan las clases `c-` de `app.css`
+  (Productos además las `p-` de `productos.css`). **Una pantalla nueva usa las mismas:**
+  - `c-tarjetas` / `c-tarjeta` + color (`verde`, `azul`, `violeta`, `rojo`, `naranja`, `gris`) con `c-ico` (un SVG de trazo),
+    `.etq`, `.valor` (el monto en un renglón) y `c-sub`. `de-a-tres` (filas de tres) y `r-tarjetas` (Reportes: cada grupo
+    ocupa todo el ancho). Gris cuando no hay nada que mostrar.
+  - `c-filtros` con `c-buscar` (buscador con lupa) y `.chips` (el elegido en verde) con su cantidad (`c-cuenta`).
+  - `c-tabla` (encabezado verde grisáceo, un tono más oscuro) y `c-titulo` (título de sección con ícono).
+  - `c-nombre` / `c-inicial` (círculo con la inicial) y `c-saldo` (`debe`, `favor`) en las listas de clientes y proveedores.
+- Los íconos son SVG de trazo escritos en cada pantalla (`const ICO = { … }`), que toman el color del texto.
+- Detalles compartidos: `verVenta(id, ctx, alCambiar)` de caja.js (ver, devolver, anular) se abre también desde la cuenta del
+  cliente; `verCompra(id, ctx)` de compras.js, desde la del proveedor (con un `ctx` cuyo `recargar` vuelve a armar la ficha).
