@@ -16,7 +16,7 @@ select pruebas.ok(pruebas.cli(current_setting('prueba.al_dia')) ->> 'deuda_desde
   and pruebas.cli(current_setting('prueba.al_dia')) ->> 'vence' is null
   and pruebas.cli(current_setting('prueba.al_dia')) ->> 'ultimo' is null, 'sin deuda ni movimientos: todo vacío');
 select pruebas.ok(pruebas.cli(current_setting('prueba.deudor')) ->> 'deuda_desde' is not null
-  and (pruebas.cli(current_setting('prueba.deudor')) ->> 'vence')::date = public.hoy_negocio(public.requiere_negocio()) + 10
+  and (pruebas.cli(current_setting('prueba.deudor')) ->> 'vence')::date = current_setting('prueba.hoy')::date + 10
   and pruebas.cli(current_setting('prueba.deudor')) ->> 'ultimo' is not null, 'con deuda: desde cuándo debe, cuándo vence y el último movimiento');
 select pruebas.ok((pruebas.cli(current_setting('prueba.deudor')) ->> 'saldo')::numeric = 1500, 'el saldo sigue viniendo');
 
