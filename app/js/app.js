@@ -78,6 +78,11 @@ function pantallaSinNegocio(mensaje) {
   $('#salir').onclick = () => salirDeLaCuenta();
 }
 
+// Con un solo usuario no hay que elegir: va directo al PIN. Si además el dueño activó "Entrar sin PIN" (Usuarios), entra solo
+// al abrir la app; después de "Cambiar de usuario" muestra el botón Entrar (así se puede salir de la cuenta de la PC).
+let entradaAutomatica = true;
+const soloUno = () => datos.usuarios.length === 1 ? datos.usuarios[0] : null;
+const sinPin = () => soloUno()?.rol === 'admin' && datos.config?.entrar_sin_pin === true;
 function pantallaElegir() {
   raiz.className = 'caja-sola';
   raiz.innerHTML = `<h1>${esc(datos.negocio.nombre)}</h1><p class="muted">¿Quién sos?</p>
@@ -100,7 +105,9 @@ function pantallaElegir() {
     const pin = new FormData(e.target).get('pin');
     correr(async () => {
       const r = await llamar('iniciar_usuario', { p_usuario_id: elegido.id, p_pin: pin });
-      if (r.error) { e.target.reset(); $('#f-pin [name=pin]').focus(); return aviso(r.error); }
+      if (r.error) {   // (si entraba sin PIN y ya no se puede, por ejemplo porque se agregó otro usuario, aparece el campo)
+        e.target.reset(); const pin = $('#f-pin [name=pin]'); pin.required = true; pin.closest('label').hidden = false; pin.focus(); return aviso(r.error);
+      }
       guardarToken(r.token);
       await iniciar();
     });
@@ -108,9 +115,20 @@ function pantallaElegir() {
   $('#salir').onclick = async () => {
     if (confirm('Para volver a entrar en esta PC va a hacer falta el email y la contraseña de la cuenta. ¿Salir?')) await salirDeLaCuenta();
   };
+  if (soloUno()) {
+    $('.usuarios').hidden = true; $('#volver').hidden = true; $('p.muted', raiz).hidden = true;
+    $('.usuario').click();   // el formulario del PIN, ya con su nombre
+    if (sinPin()) {
+      const pin = $('#f-pin [name=pin]');
+      pin.required = false; pin.closest('label').hidden = true;
+      $('#f-pin .btn.primario').textContent = `Entrar como ${soloUno().nombre}`;
+      if (entradaAutomatica) $('#f-pin').requestSubmit();
+    }
+  }
 }
 
 async function cambiarDeUsuario() {
+  entradaAutomatica = false;
   await correr(async () => { try { await llamar('cerrar_usuario'); } catch { /* ya no había sesión */ } });
   guardarToken(null);
   cat.olvidarCostos();
