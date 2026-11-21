@@ -196,6 +196,10 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   recorta lo aplicado de más y aplica lo que está a favor, así `registrar_venta`, `anular_venta` y `devolver_venta` no saben nada de esto.
 - **Vencimiento:** fecha de la venta + `clientes.plazo` (solo el dueño lo cambia; null = config `plazo_clientes`, 30 de fábrica,
   `guardar_plazo_clientes`). Se calcula al mostrarlo. `cuenta_cliente` trae `pendientes`, `pagadas` (con `pagada`, las últimas 100) y `a_favor`.
+- **Lista y estado de cuenta:** `clientes()` trae también `deuda_desde` (la compra pendiente más vieja), `vence` (el vencimiento más
+  próximo) y `ultimo` (último movimiento); la lista se ordena por nombre, "debe desde", límite o saldo (clic en el título).
+  La ficha saca el **estado de cuenta** en PDF (jsPDF, con los productos de cada compra, `llamar('venta')`) o arma el texto para
+  **WhatsApp** (`telefonoWhatsApp` de ui.js, también lo usa Pedidos: saca el 0 y el 15). Como el Fichero de GSCom.
 
 ## Forma de trabajo
 - **Nunca commitear ni hacer push directo a `main`** (GitHub lo impide). Todo va en una rama y entra por pull request.
