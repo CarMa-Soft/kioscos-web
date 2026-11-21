@@ -1,7 +1,7 @@
 // Arranque: entrar con la cuenta (una vez por PC), elegir el usuario y poner el PIN, y después las secciones.
 import { sb, llamar, guardarToken, conLimite } from './base.js';
 import * as cat from './catalogo.js';
-import { $, $$, esc, ROL, aviso, correr, siVenceLaSesion } from './ui.js';
+import { $, $$, esc, ROL, aviso, correr, siVenceLaSesion, hayCargaSinGuardar } from './ui.js';
 import { pantallaVender } from './vender.js';
 import { pantallaCaja } from './caja.js';
 import { pantallaProductos } from './productos.js';
@@ -45,7 +45,19 @@ const GRUPOS = ['dia', 'mercaderia', 'numeros', 'admin'];   // admin (Usuarios y
 const CLAVE_COLAPSADO = 'menu-colapsado';                   // cada PC recuerda si el menú de la izquierda está colapsado
 
 siVenceLaSesion(() => iniciar());
-document.addEventListener('keydown', e => { if (!irAlMenu(e)) teclas?.(e); });
+document.addEventListener('keydown', e => { if (!sinRecargar(e) && !irAlMenu(e)) teclas?.(e); });
+// Con algo cargado sin guardar, si igual se recarga o se cierra la pestaña, el navegador pregunta "¿Salir del sitio?"
+window.addEventListener('beforeunload', e => { if (hayCargaSinGuardar()) { e.preventDefault(); e.returnValue = ''; } });
+
+// F5, Ctrl + F5 y Ctrl + R no recargan en las pantallas de carga ni con algo cargado en otra (la carga vive en memoria)
+const PANTALLAS_DE_CARGA = ['#/vender', '#/compras', '#/remitos'];
+function sinRecargar(e) {
+  const recarga = e.key === 'F5' || ((e.ctrlKey || e.metaKey) && e.code === 'KeyR');
+  if (!recarga || !datos?.yo || !(PANTALLAS_DE_CARGA.includes(location.hash) || hayCargaSinGuardar())) return false;
+  e.preventDefault(); e.stopPropagation();
+  aviso('Para no perder lo que estás cargando, F5 no recarga la página', 'ok');
+  return true;
+}
 window.addEventListener('hashchange', () => { if (datos?.yo) mostrarSeccion(); });
 
 // ---------- Cuenta y usuario ----------

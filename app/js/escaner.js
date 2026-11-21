@@ -7,6 +7,19 @@
 import { $, esc, aviso, modal } from './ui.js';
 
 const FORMATOS = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'code_93', 'itf', 'codabar', 'qr_code'];
+// Campo de escanear con el aspecto del de Vender (clases v- de vender.css): lupa y "Clic acá para escanear" / "Lector listo".
+// Lo usan Cargar compra y Entradas y salidas; después, seguirLector(input) prende "Lector listo" mientras tiene el cursor.
+const LUPA = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg>';
+export const campoEscaner = placeholder => `<label class="v-busca">${LUPA}<input class="v-busca-input" id="escaner"
+  placeholder="${esc(placeholder)}" autocomplete="off" autofocus><span class="v-lector" id="lector"><i></i><span>Clic acá para escanear</span></span></label>`;
+export function seguirLector(input) {
+  const marca = input.parentElement.querySelector('.v-lector');
+  const lector = listo => { marca.classList.toggle('listo', listo); marca.lastElementChild.textContent = listo ? 'Lector listo' : 'Clic acá para escanear'; };
+  input.addEventListener('focus', () => lector(true));
+  input.addEventListener('blur', () => lector(false));
+  lector(document.activeElement === input);
+}
+
 export const camaraDisponible = () => 'BarcodeDetector' in window && !!navigator.mediaDevices?.getUserMedia;
 
 // continuo: la cámara queda abierta para el siguiente (compras, ventas); si no, se cierra al primer código (ficha del producto).

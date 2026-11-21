@@ -2,7 +2,7 @@
 // La cuenta (descuentos, recargos, dos medios de pago) es la misma que hace la base; la que vale es la de la base.
 import { llamar } from './base.js';
 import * as cat from './catalogo.js';
-import { $, $$, esc, plata, cant, numero, aviso, correr, modal, confirmar, pedirAutorizacion } from './ui.js';
+import { $, $$, esc, plata, cant, numero, aviso, correr, modal, confirmar, pedirAutorizacion, cargaSinGuardar } from './ui.js';
 import { botonCamara } from './escaner.js';
 import { formCliente, textoSaldo } from './clientes.js';
 import { imprimir, ticketVenta } from './impresion.js';
@@ -63,6 +63,7 @@ const r3 = n => Math.round((+n || 0) * 1000) / 1000;
 // y se vuelve a cobrar, la base reconoce la misma venta y no la registra dos veces.
 const vacia = () => ({ items: [], clave: crypto.randomUUID(), cliente: null, forma: 'Efectivo', dos: null, desc: '', descPct: true, pagaCon: '' });   // el descuento arranca en %
 let venta = vacia();
+cargaSinGuardar(() => venta.items.length);
 
 export async function pantallaVender(vista, ctx) {
   const caja = await llamar('estado_caja');

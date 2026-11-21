@@ -2,8 +2,8 @@
 // Los costos se piden a la base cada vez (catalogo() con costos, solo para el dueño) y no se guardan en el navegador.
 import { llamar } from './base.js';
 import * as cat from './catalogo.js';
-import { $, $$, esc, plata, cant, fecha, dia, hoyDia, sumarDias, numero, aviso, correr, modal, confirmar } from './ui.js';
-import { botonCamara } from './escaner.js';
+import { $, $$, esc, plata, cant, fecha, dia, hoyDia, sumarDias, numero, aviso, correr, modal, confirmar, cargaSinGuardar } from './ui.js';
+import { botonCamara, campoEscaner, seguirLector } from './escaner.js';
 import { avisarListas } from './entregas.js';
 import { productoNoEncontrado } from './alta-producto.js';
 import { formProveedor, vencimientosModal } from './proveedores.js';
@@ -17,6 +17,7 @@ const recordar = (clave, si) => { try { localStorage.setItem('kioscos.factura.' 
 const ALICUOTAS = [0, 2.5, 5, 10.5, 21, 27];
 // La compra que se está cargando sobrevive a cambiar de sección
 let borrador = null;
+cargaSinGuardar(() => borrador?.items.length);
 const vacio = () => ({ proveedor_id: '', comprobante: '', notas: '', total: '', pagar_caja: false, forma: 'Efectivo', items: [],
   sin_iva: false, percepciones: '', internos: '',
   sin_factura: false, fecha_factura: hoyDia(), vencimiento: '', vence_a_mano: false });
@@ -222,7 +223,7 @@ async function nuevaCompra(vista, ctx) {
           <span class="muted">(el stock se suma ahora y la compra queda como "Factura pendiente")</span></label>
         <label class="crece">Notas<input class="input" id="notas" value="${esc(d.notas)}"></label></div>
     </div>
-    <div class="buscador"><input class="input grande" id="escaner" placeholder="Escaneá o escribí el producto que entra" autocomplete="off" autofocus>
+    <div class="buscador escanear">${campoEscaner('Escaneá o escribí el producto que entra')}
       <div id="resultados" class="resultados flotan" hidden></div></div>
     <div class="tabla-caja"><table class="tabla" id="lineas"></table></div>
     <div class="recuadro-blanco form ancho" id="impuestos">
@@ -247,7 +248,8 @@ async function nuevaCompra(vista, ctx) {
       <div class="fila fin"><button class="btn primario grande" id="guardar">Guardar compra</button></div>
     </div>`;
   const escaner = $('#escaner'), res = $('#resultados');
-  botonCamara(escaner, { describir: c => porCodigo.get(c.toLowerCase())?.nombre });   // 📷 en el celular: cada código leído se agrega como con el lector
+  seguirLector(escaner);
+  botonCamara(escaner, { envolver: false, describir: c => porCodigo.get(c.toLowerCase())?.nombre });   // 📷 en el celular: cada código leído se agrega como con el lector
   let sugeridos = [], marcado = 0;
   const buscar = t => { const w = t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').split(/\s+/).filter(Boolean);
     return cata.productos.filter(p => { const s = (p.nombre + ' ' + cat.codigosDe(p).join(' ')).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); return w.every(x => s.includes(x)); }).slice(0, 12); };
@@ -317,7 +319,7 @@ async function nuevaCompra(vista, ctx) {
         <td class="num"><input class="input corto" data-c="precio_nuevo" data-k="${k}" value="${esc(i.precio_nuevo)}" inputmode="decimal" placeholder="${auto ? 'auto' : 'no cambia'}" title="${auto ? 'Con margen automático el precio se calcula solo; escribí uno solo si querés otro' : 'Vacío: el precio no cambia'}">
           ${auto ? `<div class="muted chico">margen ${String(+p.margen).replace('.', ',')}% auto: queda en <b>${plata(precioAuto)}</b></div>`
             : margen != null ? `<div class="muted chico ${margen < 0 ? 'mal' : ''}">margen ${margen}%</div>` : ''}</td>
-        <td class="num">${plata(neto(i))}</td><td><button class="link" data-quitar="${k}">✕</button></td></tr>`; }).join('')}</tbody>`
+        <td class="num">${plata(neto(i))}</td><td><button class="link" data-quitar="${k}">✕</button></td></tr>`; }).reverse().join('')}</tbody>`   // el último cargado, arriba (d.items queda en el orden de carga)
       : '<tbody><tr><td class="muted vacio">Escaneá o buscá los productos que entran.</td></tr></tbody>';
     $$('[data-c]').forEach(inp => inp.onchange = () => { d.items[+inp.dataset.k][inp.dataset.c] = inp.value; pintar(); });
     $$('[data-quitar]').forEach(b => b.onclick = () => { d.items.splice(+b.dataset.quitar, 1); pintar(); });

@@ -93,6 +93,15 @@ html { scroll-padding-top: var(--alto-barra, 0px); }
 .input { font: inherit; padding: .55rem .7rem; border: 1px solid #cbd2d9; border-radius: 8px; background: #fff; width: 100%; }
 .input:focus { outline: 2px solid var(--primario); outline-offset: 1px; border-color: transparent; }
 .input.grande { font-size: 1.25rem; padding: .7rem .8rem; }
+/* Buscador de producto con el mismo tono que el de Vender (.v-busca en vender.css) */
+.input.como-vender { border: 1.5px solid #d6ece6; border-radius: 14px; background: linear-gradient(90deg, #e6f4ec, #f3faf6 60%);
+  padding: .7rem 1rem; transition: border-color .15s, box-shadow .15s; }
+.input.como-vender::placeholder { color: #8a94a3; }
+/* Campo de escanear de Cargar compra y Entradas y salidas (campoEscaner de escaner.js): en un recuadro blanco, separado, como en Vender */
+.buscador.escanear { background: #fff; border: 1px solid var(--borde); border-radius: 12px; padding: 1rem; margin: 1rem 0; }
+.buscador.escanear .boton-camara { align-self: stretch; }
+.buscador.escanear .v-busca > svg { flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.input.como-vender:focus, .input.como-vender:focus-visible { outline: none; border-color: var(--primario); box-shadow: 0 0 0 4px rgba(15, 123, 69, .12); }
 .input.cant { width: 5.5rem; text-align: right; padding: .3rem .4rem; }
 .pin { font-size: 1.4rem; letter-spacing: .4rem; max-width: 12rem; }
 .btn { font: inherit; padding: .55rem 1rem; border: 1px solid #cbd2d9; border-radius: 8px; background: #fff; color: var(--texto); cursor: pointer; }
