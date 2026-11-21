@@ -310,17 +310,12 @@ html { scroll-padding-top: var(--alto-barra, 0px); }
 /* Cuenta del cliente: las compras pagadas, plegadas */
 details.pagadas summary { cursor: pointer; list-style-position: outside; }
 details.pagadas summary h3 { display: inline-block; }
-/* Ficha del cliente, apaisada: saldo y botones arriba; compras y movimientos en dos columnas (angosta: una abajo de la otra) */
-.modal.cf-modal { width: min(1280px, 100%); }
-.cf-cabeza { display: grid; grid-template-columns: auto 1fr; gap: 1.25rem; align-items: center; margin-bottom: .5rem; }
-/* la tarjeta del saldo, sola (sin la grilla de tarjetas: si no, toma tres filas de alto) */
-.cf-cabeza .tarjeta { margin: 0; display: block; grid-row: auto; padding: .6rem 1.2rem; }
-.cf-cabeza .tarjeta .valor { white-space: nowrap; }
-.cf-cabeza .fila { margin: 0; align-items: center; gap: .5rem; }
-.cf-cabeza .fila .btn { padding: .45rem .8rem; }
-.cf-cols { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 1.5rem; align-items: start; }
+/* Ficha del cliente (pantalla dentro de Clientes): compras y movimientos lado a lado si entran cómodos; si no, uno abajo del otro */
+.cf-volver { font-size: .9rem; margin-bottom: .2rem; padding: 0; }
+.cf-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 640px), 1fr)); column-gap: 1.5rem; align-items: start; }
 .cf-cols > section { min-width: 0; }
-@media (max-width: 1000px) { .cf-cabeza, .cf-cols { grid-template-columns: 1fr; } }
+.cf-cols .c-tabla .tabla th, .cf-cols .c-tabla .tabla td { padding-left: .6rem; padding-right: .6rem; }
+.cf-cols .c-tabla .tabla th:first-child, .cf-cols .c-tabla .tabla td:first-child { padding-left: 1rem; }
 
 /* Clientes y Proveedores: tarjetas con color, buscador con filtros y tabla (clases c-) */
 /* auto-fit: las tarjetas ocupan todo el ancho (con auto-fill quedaban angostas y con lugar vacío al costado) */

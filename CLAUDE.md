@@ -220,6 +220,8 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   `guardar_plazo_clientes`). Se calcula al mostrarlo. `cuenta_cliente` trae `pendientes`, `pagadas` (con `pagada`, las últimas 100) y `a_favor`.
 - **Lista y estado de cuenta:** `clientes()` trae también `deuda_desde` (la compra pendiente más vieja), `vence` (el vencimiento más
   próximo) y `ultimo` (último movimiento); la lista se ordena por nombre, "debe desde", límite o saldo (clic en el título).
+  La **ficha** es una pantalla dentro de Clientes (no una ventana): `subpantalla(volver)` de ui.js hace que "← Clientes", "atrás"
+  y Esc vuelvan a la lista como estaba; las acciones (cobrar, editar, ajuste) siguen en ventanas chicas.
   La ficha saca el **estado de cuenta** en PDF (jsPDF, con los productos de cada compra, `llamar('venta')`) o arma el texto para
   **WhatsApp** (`telefonoWhatsApp` de ui.js, también lo usa Pedidos: saca el 0 y el 15). Como el Fichero de GSCom.
 
