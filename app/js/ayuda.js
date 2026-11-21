@@ -1,5 +1,6 @@
 // Ayuda: preguntas frecuentes y cómo hacer cada cosa, con buscador. Sin IA ni base: todo está acá.
 // El empleado ve solo lo que puede hacer; los temas con admin: true son del dueño.
+import { verRecorrido } from './recorrido.js';
 import { $, $$, esc } from './ui.js';
 
 const TEMAS = [
@@ -97,7 +98,8 @@ const textoPlano = h => h.replace(/<[^>]+>/g, ' ');
 export async function pantallaAyuda(vista, ctx) {
   const admin = ctx.yo.rol === 'admin';
   const temas = TEMAS.filter(x => admin || !x.a);
-  vista.innerHTML = `<div class="cabecera"><div><h2>Ayuda</h2><p class="muted">Cómo hacer cada cosa en la app. Escribí lo que buscás.</p></div></div>
+  vista.innerHTML = `<div class="cabecera"><div><h2>Ayuda</h2><p class="muted">Cómo hacer cada cosa en la app. Escribí lo que buscás.</p></div>
+      ${admin ? '<div class="acciones"><button class="btn primario" id="ver-recorrido">▶ Ver el recorrido de bienvenida</button></div>' : ''}</div>
     <label class="p-buscar ay-buscar"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg>
       <input id="ay-filtro" placeholder="Por ejemplo: seña, fiado, cerrar turno, lector…" autocomplete="off" autofocus></label>
     <div id="ay-lista"></div>
@@ -111,5 +113,6 @@ export async function pantallaAyuda(vista, ctx) {
       : '<div class="recuadro-blanco"><p class="muted vacio">No hay temas con esas palabras. Probá con otra (por ejemplo "caja", "precio", "cliente").</p></div>';
   };
   $('#ay-filtro').oninput = pintar;
+  if ($('#ver-recorrido')) $('#ver-recorrido').onclick = () => verRecorrido(ctx);
   pintar();
 }
