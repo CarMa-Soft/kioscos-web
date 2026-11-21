@@ -206,7 +206,8 @@ function menuPorGrupos(yo) {
         ${yo.rol === 'admin' ? '' : `<button class="menu-accion" id="mi-pin-menu" title="Cambiar mi PIN"><span class="menu-ico" aria-hidden="true">🔑</span><span class="menu-txt">Cambiar mi PIN</span></button>`}
         <button class="menu-accion" id="instalar" title="Instalar la app en esta PC o celular: ícono propio y ventana sin la barra del navegador" ${pedidoInstalar ? '' : 'hidden'}><span class="menu-ico" aria-hidden="true">⬇️</span><span class="menu-txt">Instalar la app</span></button>
         <button class="menu-accion" id="cambiar" title="Cambiar de usuario"><span class="menu-ico" aria-hidden="true">🔁</span><span class="menu-txt">Cambiar de usuario</span></button>
-      </div></div>`;
+      </div>
+      <div class="menu-firma" title="Powered by Car-Ma Soft"><span class="menu-txt">Powered by <b>Car-Ma Soft</b></span><span class="menu-firma-corta" aria-hidden="true">CM</span></div></div>`;
 }
 
 // Si la PC tiene el menú colapsado (localStorage puede fallar: entonces arranca abierto)

@@ -495,3 +495,11 @@ details.pagadas summary h3 { display: inline-block; }
 @keyframes bv-vidriera { 0%, 40% { fill: #d1fadf; } 60% { fill: #fef08a; } 100% { fill: #d1fadf; } }
 @keyframes bv-entrar { from { opacity: 0; transform: scale(.92); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .bv-logo, .bv-raya, .bv-vidriera, .bv-nombre { animation: none; } .bv-raya { opacity: 1; } }
+
+/* La firma: al pie del menú (achicado, solo "CM") y abajo en la bienvenida */
+.menu-firma { padding: .1rem .55rem 0; font-size: .72rem; color: #6b7280; letter-spacing: .02em; white-space: nowrap; }
+.menu-firma b { color: #9ca3af; font-weight: 600; }
+.menu-firma-corta { display: none; }
+@media (min-width: 801px) { .marco.colapsada .menu-firma { text-align: center; padding: 0; } .marco.colapsada .menu-firma .menu-txt { display: none; } .marco.colapsada .menu-firma-corta { display: inline; font-weight: 700; } }
+.bv-firma { position: fixed; left: 0; right: 0; bottom: 1.4rem; text-align: center; font-size: .8rem; color: rgba(255, 255, 255, .7); letter-spacing: .03em; }
+.bv-firma b { color: #fff; }
