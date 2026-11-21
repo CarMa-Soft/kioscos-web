@@ -31,6 +31,12 @@ export function aviso(texto, tipo = 'mal') {
   if (texto) aviso.t = setTimeout(() => { el.hidden = true; }, tipo === 'mal' ? 7000 : 3500);
 }
 
+// Cargas sin guardar (venta, compra, factura, entrada o salida): viven solo en memoria, así que con algo cargado
+// F5 / Ctrl + R no recargan y el navegador pregunta antes de salir (app.js). Cada pantalla anota cómo saberlo.
+const cargas = [];
+export const cargaSinGuardar = fn => { cargas.push(fn); };
+export const hayCargaSinGuardar = () => cargas.some(f => { try { return !!f(); } catch { return false; } });
+
 // Si una acción avisa que venció la sesión del usuario, la app vuelve a pedir usuario y PIN
 let alVencerSesion = () => location.reload();
 export const siVenceLaSesion = fn => { alVencerSesion = fn; };
