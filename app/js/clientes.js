@@ -54,8 +54,9 @@ export async function pantallaClientes(vista, ctx) {
       ${ver.map(c => `<tr class="clic" data-id="${c.id}"><td><div class="c-nombre"><span class="c-inicial ${+c.saldo > 0.004 ? 'debe' : ''}">${esc(c.nombre.trim().charAt(0).toUpperCase())}</span>
           <b>${esc(c.nombre)}</b>${c.activo ? '' : ' <span class="etiqueta">de baja</span>'}</div></td><td>${esc(c.telefono || '')}</td>
         <td>${debeDesde(c)}</td>
-        <td class="num">${+c.limite ? plata(c.limite) : '<span class="muted">—</span>'}</td><td class="num">${saldo(c.saldo)}</td></tr>`).join('')}</tbody>`
+        <td class="num">${+c.limite ? plata(c.limite) + usoLimite(c) : '<span class="muted">—</span>'}</td><td class="num">${saldo(c.saldo)}</td></tr>`).join('')}</tbody>`
       : `<tbody><tr><td class="muted vacio">${lista.length ? (grupo === 'deben' && !f ? 'Ningún cliente debe.' : 'Ningún cliente coincide.') : 'Todavía no hay clientes.'}</td></tr></tbody>`;
+    anchos($('#tabla'));
     $$('[data-orden]').forEach(b => b.onclick = () => {
       const col = b.dataset.orden;
       // lo que más importa primero: más deuda, más vieja, más límite; el nombre de la A a la Z
@@ -111,7 +112,7 @@ export async function pantallaClientes(vista, ctx) {
           <div class="valor">${masVieja ? new Date(masVieja.fecha).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—'}</div>
           <div class="c-sub">${masVieja ? `hace ${dias} día${dias === 1 ? '' : 's'} · ${textoVence(vence)}` : 'sin compras pendientes'}</div></div></div>
         <div class="c-tarjeta azul"><span class="c-ico">${ICO.alerta}</span><div><div class="etq">Límite de fiado</div>
-          <div class="valor">${+c.limite ? plata(c.limite) : 'Sin límite'}</div><div class="c-sub">plazo para pagar: ${esc(plazo)}</div></div></div>
+          <div class="valor">${+c.limite ? plata(c.limite) : 'Sin límite'}</div>${+c.limite ? usoLimite(c, true) : ''}<div class="c-sub">plazo para pagar: ${esc(plazo)}</div></div></div>
       </div>
       <div class="cf-cols"><section>
         <div class="c-titulo">${ICO.recibo}<h3>Compras pendientes</h3></div>
@@ -131,6 +132,7 @@ export async function pantallaClientes(vista, ctx) {
           : '<tbody><tr><td class="muted vacio">Sin movimientos.</td></tr></tbody>'}</table></div>
       </section></div>`;
       window.scrollTo(0, 0);
+      anchos(vista);
       // "← Clientes", "atrás" o Esc: la lista, como estaba. Al rearmar la ficha (después de cobrar, etc.) no se suma otra entrada.
       if (!sub) sub = subpantalla(() => { sub = null; ctx.recargar(); });
       $('#volver').onclick = () => sub.cerrar();
@@ -327,3 +329,13 @@ async function estadoPdf(c, ctx) {
   doc.text(`Documento no válido como factura. Ante cualquier diferencia, comunicate con nosotros${n.telefono ? ' al ' + n.telefono : ''}.`, 14, y + 4);
   doc.save(`Estado de cuenta ${c.nombre} ${hoyDia()}`.replace(/[\\/:*?"<>|]/g, '-') + '.pdf');
 }
+
+// Cuánto del límite de fiado ya usó: una barra (verde, amarilla desde el 70%, roja al pasarlo). Con texto, en la ficha.
+function usoLimite(c, conTexto = false) {
+  const usado = Math.max(0, +c.saldo), pct = Math.round(usado / +c.limite * 100);
+  const color = pct >= 100 ? 'pasado' : pct >= 70 ? 'cerca' : '';
+  return `<div class="c-uso ${color}" title="Usó ${pct}% del límite (${plata(usado)} de ${plata(c.limite)})"><i data-ancho="${Math.min(100, pct)}"></i></div>${conTexto
+    ? `<div class="c-sub">${pct >= 100 ? `<b class="mal">pasó el límite (${pct}%)</b>` : `usó el ${pct}% · le quedan ${plata(+c.limite - usado)}`}</div>` : ''}`;
+}
+// el ancho de las barras va desde acá (sin estilos en el HTML: CSP)
+const anchos = raiz => $$('[data-ancho]', raiz).forEach(i => { i.style.width = i.dataset.ancho + '%'; });
