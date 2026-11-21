@@ -464,3 +464,16 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
 - Los íconos son SVG de trazo escritos en cada pantalla (`const ICO = { … }`), que toman el color del texto.
 - Detalles compartidos: `verVenta(id, ctx, alCambiar)` de caja.js (ver, devolver, anular) se abre también desde la cuenta del
   cliente; `verCompra(id, ctx)` de compras.js, desde la del proveedor (con un `ctx` cuyo `recargar` vuelve a armar la ficha).
+- **Campo de escanear** de Cargar compra y Entradas y salidas: `campoEscaner(texto)` + `seguirLector(input)` de `escaner.js`
+  arman el mismo campo que Vender (clases `v-busca`, lupa y "Clic acá para escanear" / "Lector listo"), dentro de
+  `.buscador.escanear` (recuadro blanco aparte); el 📷 va adentro (`botonCamara(..., { envolver: false })`). Un buscador
+  común con ese tono: `.input.como-vender` (el de elegir producto en Cargar desde factura).
+- En Cargar compra y Entradas y salidas, como en Vender, el último producto cargado se **muestra** arriba (`.reverse()` al
+  pintar, `data-k` con la posición real) y `d.items` sigue en el orden de carga.
+
+## F5 no recarga con algo cargado
+- La venta, la compra a mano, la factura y la entrada o salida viven solo en memoria. Cada pantalla anota cuándo tiene algo
+  sin guardar con `cargaSinGuardar(fn)` (`ui.js`); `hayCargaSinGuardar()` las consulta. **Una pantalla nueva de carga se suma.**
+- `app.js` (`sinRecargar`): F5, Ctrl + F5 y Ctrl + R no recargan en Vender, Compras y Entradas y salidas
+  (`PANTALLAS_DE_CARGA`), ni en ningún lado con algo sin guardar, y avisa por qué. Con algo sin guardar, `beforeunload` hace
+  que el navegador pregunte "¿Salir del sitio?" (botón recargar, cerrar la pestaña, "Actualizar").
