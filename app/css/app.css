@@ -474,3 +474,32 @@ details.pagadas summary h3 { display: inline-block; }
 .cj-barra i.falta { background: #f79009; }
 .cj-barra i.sobra { background: #2e90fa; }
 @media (prefers-reduced-motion: reduce) { .c-uso i, .cj-barra i { transition: none; } }
+
+/* Bienvenida mientras carga (index.html + quitarBienvenida en app.js): fondo verde, el logo con el toldo que se enciende
+   raya por raya y la vidriera que titila; se va con un fundido apenas la app está lista */
+.bienvenida { position: fixed; inset: 0; z-index: 100; display: grid; place-content: center; justify-items: center; gap: .9rem;
+  background: radial-gradient(circle at 50% 40%, #0b8a52, #05603a 70%); color: #fff; transition: opacity .35s ease; }
+.bienvenida.saliendo { opacity: 0; pointer-events: none; }
+.bv-logo { width: 150px; height: 150px; filter: drop-shadow(0 12px 28px rgba(0, 0, 0, .25)); animation: bv-entrar .5s ease-out both; }
+.bv-fondo { fill: #067647; stroke: rgba(255, 255, 255, .45); stroke-width: 2; }
+.bv-raya { fill: #fff; stroke: #fff; stroke-width: 2; stroke-linejoin: round; animation: bv-toldo 1.6s ease-in-out infinite; }
+.bv-raya.r1, .bv-raya.r3 { fill: #d1fadf; }
+.bv-raya.r1 { animation-delay: .15s; } .bv-raya.r2 { animation-delay: .3s; } .bv-raya.r3 { animation-delay: .45s; }
+.bv-local { fill: #fff; }
+.bv-puerta { fill: #067647; }
+.bv-vidriera { fill: #d1fadf; stroke: #067647; stroke-width: 2.5; animation: bv-vidriera 1.6s ease-in-out infinite; }
+.bv-vereda { fill: #1f2937; }
+.bv-nombre { font-size: 1.35rem; font-weight: 700; letter-spacing: .01em; animation: bv-entrar .5s .1s ease-out both; }
+.bv-negocio { min-height: 1.3em; font-size: .95rem; color: #d1fadf; }
+@keyframes bv-toldo { 0%, 100% { opacity: .35; transform: translateY(0); } 35% { opacity: 1; transform: translateY(-1.5px); } }
+@keyframes bv-vidriera { 0%, 40% { fill: #d1fadf; } 60% { fill: #fef08a; } 100% { fill: #d1fadf; } }
+@keyframes bv-entrar { from { opacity: 0; transform: scale(.92); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .bv-logo, .bv-raya, .bv-vidriera, .bv-nombre { animation: none; } .bv-raya { opacity: 1; } }
+
+/* La firma: al pie del menú (achicado, solo "CM") y abajo en la bienvenida */
+.menu-firma { padding: .1rem .55rem 0; font-size: .72rem; color: #6b7280; letter-spacing: .02em; white-space: nowrap; }
+.menu-firma b { color: #9ca3af; font-weight: 600; }
+.menu-firma-corta { display: none; }
+@media (min-width: 801px) { .marco.colapsada .menu-firma { text-align: center; padding: 0; } .marco.colapsada .menu-firma .menu-txt { display: none; } .marco.colapsada .menu-firma-corta { display: inline; font-weight: 700; } }
+.bv-firma { position: fixed; left: 0; right: 0; bottom: 1.4rem; text-align: center; font-size: .8rem; color: rgba(255, 255, 255, .7); letter-spacing: .03em; }
+.bv-firma b { color: #fff; }

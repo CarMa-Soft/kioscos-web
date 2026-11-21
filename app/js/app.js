@@ -79,9 +79,19 @@ function sinRecargar(e) {
 }
 window.addEventListener('hashchange', () => { if (datos?.yo) mostrarSeccion(); });
 
+// ---------- Bienvenida ----------
+// La pantalla del logo (index.html) se va con un fundido apenas hay algo para mostrar: no agrega espera.
+function quitarBienvenida() {
+  const b = document.getElementById('bienvenida');
+  if (!b || b.classList.contains('saliendo')) return;
+  b.classList.add('saliendo');
+  setTimeout(() => b.remove(), 400);
+}
+
 // ---------- Cuenta y usuario ----------
 
 function pantallaCuenta() {
+  quitarBienvenida();
   raiz.className = 'caja-sola';
   raiz.innerHTML = `<h1>Kioscos y Almacenes</h1>
     <p class="muted">Entrá con la cuenta del negocio. En la PC del local se hace una sola vez.</p>
@@ -102,6 +112,7 @@ function pantallaCuenta() {
 }
 
 function pantallaSinNegocio(mensaje) {
+  quitarBienvenida();
   raiz.className = 'caja-sola';
   raiz.innerHTML = `<h1>Kioscos y Almacenes</h1><p class="aviso mal">${esc(mensaje)}</p>
     <div class="fila"><button class="btn" id="reintentar">Reintentar</button><button class="btn" id="salir">Salir de esta cuenta</button></div>`;
@@ -153,9 +164,10 @@ function pantallaElegir() {
       const pin = $('#f-pin [name=pin]');
       pin.required = false; pin.closest('label').hidden = true;
       $('#f-pin .btn.primario').textContent = `Entrar como ${soloUno().nombre}`;
-      if (entradaAutomatica) $('#f-pin').requestSubmit();
+      if (entradaAutomatica) { $('#f-pin').requestSubmit(); return; }   // la bienvenida sigue hasta que aparece Hoy
     }
   }
+  quitarBienvenida();
 }
 
 async function cambiarDeUsuario() {
@@ -194,7 +206,8 @@ function menuPorGrupos(yo) {
         ${yo.rol === 'admin' ? '' : `<button class="menu-accion" id="mi-pin-menu" title="Cambiar mi PIN"><span class="menu-ico" aria-hidden="true">🔑</span><span class="menu-txt">Cambiar mi PIN</span></button>`}
         <button class="menu-accion" id="instalar" title="Instalar la app en esta PC o celular: ícono propio y ventana sin la barra del navegador" ${pedidoInstalar ? '' : 'hidden'}><span class="menu-ico" aria-hidden="true">⬇️</span><span class="menu-txt">Instalar la app</span></button>
         <button class="menu-accion" id="cambiar" title="Cambiar de usuario"><span class="menu-ico" aria-hidden="true">🔁</span><span class="menu-txt">Cambiar de usuario</span></button>
-      </div></div>`;
+      </div>
+      <div class="menu-firma" title="Powered by Car-Ma Soft"><span class="menu-txt">Powered by <b>Car-Ma Soft</b></span><span class="menu-firma-corta" aria-hidden="true">CM</span></div></div>`;
 }
 
 // Si la PC tiene el menú colapsado (localStorage puede fallar: entonces arranca abierto)
@@ -320,6 +333,7 @@ async function mostrarSeccion() {
   };
   let ok = false;
   await correr(async () => { await s.fn(vista, ctx); ok = true; });
+  quitarBienvenida();
   if (ok && $('#vista') === vista) {   // la pantalla nueva entra con un fundido corto
     vista.classList.remove('entrando'); void vista.offsetWidth; vista.classList.add('entrando');
   }
@@ -354,10 +368,12 @@ async function iniciar() {
   try { ({ data: { session } } = await conLimite(sb.auth.getSession())); } catch (e) { return pantallaSinNegocio(e.message); }
   if (!session) return pantallaCuenta();
   try { datos = await llamar('datos_inicio'); } catch (e) { return pantallaSinNegocio(e.message); }
+  const bvNegocio = document.getElementById('bv-negocio');
+  if (bvNegocio && datos.negocio?.nombre) bvNegocio.textContent = datos.negocio.nombre;   // en la bienvenida, el nombre del negocio
   if (!datos.yo) { guardarToken(null); return pantallaElegir(); }
   armarMarco();
   const ok = await correr(async () => { await cat.cargar(datos.negocio.id); return true; });
-  if (!ok) return;
+  if (!ok) return quitarBienvenida();
   refresco = setInterval(() => cat.actualizar().catch(() => {}), 60 * 1000);
   // la primera vez que entra el dueño, el recorrido de bienvenida (un momento después, con la pantalla ya armada)
   setTimeout(() => recorridoPrimeraVez(datos), 700);
