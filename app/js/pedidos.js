@@ -21,12 +21,12 @@ export async function pantallaPedidos(vista, ctx) {
       <label class="check"><input type="checkbox" id="con-precios" ${conPrecios ? 'checked' : ''}> Precios de referencia en el PDF y el Excel</label></div></div>
     <p class="muted">Los productos con stock bajo o sin stock, por proveedor. Al cargar la compra, lo que llegó sale solo del pedido.</p>
     ${total ? '' : '<div class="recuadro-blanco"><p class="muted vacio">No hay nada para pedir: ningún producto está por debajo de su mínimo ni sin stock.</p></div>'}
-    ${grupos.map((g, k) => `<section class="recuadro-blanco pedido" data-g="${k}">
+    ${grupos.map((g, k) => `<section class="recuadro-blanco pedido ${g.id ? '' : 'sin-prov'}" data-g="${k}">
       <div class="cabecera"><h3>${esc(g.nombre)} <span class="muted">· ${g.items.length} producto${g.items.length === 1 ? '' : 's'} · estimado <b data-total="${k}">${plata(g.items.reduce((s, i) => s + subtotal(i), 0))}</b></span></h3>
         ${g.id ? `<div class="acciones"><button class="btn chico" data-pdf="${k}">PDF</button><button class="btn chico" data-xlsx="${k}">Excel</button>
           <button class="btn chico primario" data-wa="${k}">WhatsApp</button></div>` : '<span class="etiqueta pendiente">Elegí el proveedor de cada uno</span>'}</div>
       ${tabla(g.items, provs, k)}</section>`).join('')}
-    ${p.pendientes.length ? `<section class="recuadro-blanco pedido"><h3>Pendientes de pedir <span class="muted">· los quitaste de su pedido</span></h3>
+    ${p.pendientes.length ? `<section class="recuadro-blanco pedido pendientes"><div class="cabecera"><h3>Pendientes de pedir <span class="muted">· los quitaste de su pedido</span></h3></div>
       <div class="tabla-caja"><table class="tabla"><thead><tr><th>Producto</th><th class="num">Stock</th><th>Proveedor</th><th></th></tr></thead><tbody>
         ${p.pendientes.map(i => `<tr><td>${esc(i.nombre)}</td><td class="num">${estadoStock(i)}</td><td>${esc(i.proveedor || 'Sin proveedor')}</td>
           <td class="num"><button class="btn chico" data-volver="${i.producto_id}">Volver al pedido</button></td></tr>`).join('')}</tbody></table></div></section>` : ''}`;

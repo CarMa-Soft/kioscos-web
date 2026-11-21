@@ -253,8 +253,15 @@ html { scroll-padding-top: var(--alto-barra, 0px); }
 .celu-ancho { display: block; width: 100%; text-align: center; margin-top: .8rem; }
 
 /* Pedidos: un recuadro por proveedor, a todo el ancho (no el de 640 px de los demás recuadros), sin que se corten columnas */
-.pedido { margin-bottom: 1rem; max-width: none; }
-.pedido .cabecera { align-items: center; }
+.pedido { margin-bottom: 1rem; max-width: none; padding: 0; overflow: hidden; }
+/* la franja de arriba de cada pedido: el proveedor, cuántos productos y el estimado (verde; sin proveedor, amarilla; pendientes, gris) */
+.pedido > .cabecera { align-items: center; margin: 0; padding: .85rem 1.25rem; background: #ecfdf3; border-bottom: 1px solid #abefc6; box-shadow: inset 5px 0 0 var(--primario); }
+.pedido > .cabecera h3 { color: #05603a; }
+.pedido.sin-prov > .cabecera { background: #fffaeb; border-bottom-color: #fedf89; box-shadow: inset 5px 0 0 #f79009; }
+.pedido.sin-prov > .cabecera h3 { color: #93370d; }
+.pedido.pendientes > .cabecera { background: #f2f4f7; border-bottom-color: var(--borde); box-shadow: inset 5px 0 0 #98a2b3; }
+.pedido.pendientes > .cabecera h3 { color: #344054; }
+.pedido > .tabla-caja { margin: 1rem 1.25rem 1.25rem; }
 .pedido h3 { margin: 0; }
 .pedido .tabla-caja { margin-bottom: 0; }
 .pedido .tabla td:first-child { min-width: 16rem; }
