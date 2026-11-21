@@ -339,6 +339,11 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
 - `mostrarSeccion`: si la sección no se pudo cargar, muestra "No se pudo cargar" con Reintentar y Recargar la página.
 
 ## Lista de precios (para imprimir y etiquetar)
+- Productos → "Importar planilla" (`importar.js`, solo dueño): lee .xlsx (a mano: zip con fflate + DOMParser, la primera hoja;
+  sin librerías de planillas) o CSV (; , o tab, UTF-8 o Windows-1252). Adivina las columnas por el título (`CAMPOS`, sin tildes), muestra
+  las primeras filas y manda de a 1000 a `importar_productos(p_filas, p_actualizar)`: por código (o alternativo; sin código, por
+  nombre) actualiza precio/costo/categoría (con precio, deja de tener margen automático; el stock no se toca) o crea con stock
+  inicial; la categoría se crea si no existe; cada fila con error vuelve en `errores` (con su número) sin cortar las demás. tests/29.
 - Productos → "Lista de precios" (`listaprecios.js`, solo dueño). `lista_precios(p)`: `{categoria_id, proveedor_id,
   compra_ids, compras_desde, precio_desde, texto}`, se combinan; trae costo, precio y, según el filtro, `precio_antes`
   (antes del primer cambio desde la fecha), `cambio` y `llego`. Se puede destildar productos.
