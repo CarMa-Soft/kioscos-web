@@ -2,6 +2,7 @@
 // Todos los números los calcula la base (reporte): el empleado no puede pedirlos.
 import { llamar } from './base.js';
 import { $, $$, esc, plata, cant, fecha, correr } from './ui.js';
+import { columnas, activarGraficos } from './graficos.js';
 
 const dia = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const sumar = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
@@ -12,6 +13,20 @@ const RANGOS = {
   mes: () => { const h = new Date(); return [new Date(h.getFullYear(), h.getMonth(), 1), h]; },
   mes_pasado: () => { const h = new Date(); return [new Date(h.getFullYear(), h.getMonth() - 1, 1), new Date(h.getFullYear(), h.getMonth(), 0)]; },
 };
+// El período anterior del mismo largo, para comparar (con qué se compara y cómo se dice)
+function anterior(tipo, desde, hasta) {
+  const d = new Date(desde + 'T12:00'), h = new Date(hasta + 'T12:00'), n = Math.round((h - d) / 864e5) + 1;
+  if (tipo === 'mes') { const a = new Date(d.getFullYear(), d.getMonth() - 1, 1), b = new Date(a.getFullYear(), a.getMonth(), Math.min(h.getDate(), new Date(a.getFullYear(), a.getMonth() + 1, 0).getDate()));
+    return [dia(a), dia(b), 'los mismos días del mes pasado']; }
+  if (tipo === 'mes_pasado') { const a = new Date(d.getFullYear(), d.getMonth() - 1, 1); return [dia(a), dia(new Date(a.getFullYear(), a.getMonth() + 1, 0)), 'el mes anterior']; }
+  return [dia(sumar(d, -n)), dia(sumar(d, -1)), { hoy: 'ayer', ayer: 'el día anterior', semana: 'los 7 días anteriores' }[tipo] || (n === 1 ? 'el día anterior' : `los ${n} días anteriores`)];
+}
+// "↑ 12% vs. ayer" (verde si sube, rojo si baja; nada si antes no hubo)
+function comparar(ahora, antes, contra) {
+  if (!(+antes > 0)) return '';
+  const p = Math.round((ahora - antes) / antes * 100);
+  return `<span class="r-cambio ${p > 0 ? 'sube' : p < 0 ? 'baja' : ''}" title="Antes: ${plata(antes)}">${p > 0 ? '↑' : p < 0 ? '↓' : '='} ${Math.abs(p)}% vs. ${contra}</span>`;
+}
 const NOMBRES = { hoy: 'Hoy', ayer: 'Ayer', semana: '7 días', mes: 'Este mes', mes_pasado: 'Mes pasado', otro: 'Elegir fechas' };
 
 // Íconos (trazos SVG, toman el color del texto). Los estilos son los de Hoy, Caja, Productos y demás (clases c- en app.css).
@@ -41,7 +56,10 @@ let rango = { tipo: 'hoy', desde: dia(new Date()), hasta: dia(new Date()) };
 
 export async function pantallaReportes(vista) {
   if (rango.tipo !== 'otro') { const [a, b] = RANGOS[rango.tipo](); rango.desde = dia(a); rango.hasta = dia(b); }
-  const r = await llamar('reporte', { p_desde: rango.desde, p_hasta: rango.hasta });
+  const [pd, ph, contra] = anterior(rango.tipo, rango.desde, rango.hasta);
+  const [r, a] = await Promise.all([llamar('reporte', { p_desde: rango.desde, p_hasta: rango.hasta }),
+    llamar('reporte', { p_desde: pd, p_hasta: ph }).catch(() => null)]);   // si falla la comparación, se muestra igual sin ella
+  const gananciaAnt = a ? +a.total - +a.costo : 0;
   const total = +r.total, costo = +r.costo, ganancia = total - costo;
   const margen = total > 0 ? ganancia / total * 100 : 0;
   const dias = (new Date(rango.hasta) - new Date(rango.desde)) / 864e5 + 1;
@@ -53,16 +71,16 @@ export async function pantallaReportes(vista) {
         <label>Hasta <input class="input" type="date" id="hasta" value="${rango.hasta}"></label></div>` : ''}
     </div>
     <div class="c-tarjetas r-tarjetas">
-      ${tarjeta('verde', ICO.ventas, 'Ventas', plata(total), `${r.tickets} venta${r.tickets === 1 ? '' : 's'}${dias > 1 ? ` · ${plata(total / dias)} por día` : ''}`)}
-      ${tarjeta('violeta', ICO.recibo, 'Ticket promedio', plata(r.tickets ? +r.vendido / r.tickets : 0))}
-      ${tarjeta('azul', ICO.ganancia, 'Ganancia bruta', plata(ganancia), `margen ${margen.toFixed(1)}% · costo ${plata(costo)}`)}
+      ${tarjeta('verde', ICO.ventas, 'Ventas', plata(total), `${r.tickets} venta${r.tickets === 1 ? '' : 's'}${dias > 1 ? ` · ${plata(total / dias)} por día` : ''}${a ? '<br>' + comparar(total, +a.total, contra) : ''}`)}
+      ${tarjeta('violeta', ICO.recibo, 'Ticket promedio', plata(r.tickets ? +r.vendido / r.tickets : 0), a ? comparar(r.tickets ? +r.vendido / r.tickets : 0, a.tickets ? +a.vendido / a.tickets : 0, contra) : '')}
+      ${tarjeta('azul', ICO.ganancia, 'Ganancia bruta', plata(ganancia), `margen ${margen.toFixed(1)}% · costo ${plata(costo)}${a ? '<br>' + comparar(ganancia, gananciaAnt, contra) : ''}`)}
       ${tarjeta(nDev ? 'naranja' : 'gris', ICO.devolucion, 'Devoluciones', plata(r.devoluciones.total),
         `${nDev === 1 ? '1 devolución' : nDev + ' devoluciones'}${+r.devoluciones.perdidas ? ` · pérdida ${plata(r.devoluciones.perdidas)} (no volvió al stock)` : ''}`)}
       ${+r.varios?.importe ? tarjeta('gris', ICO.varios, 'Vendido como Varios', plata(r.varios.importe),
         `${r.varios.renglones} renglón${+r.varios.renglones === 1 ? '' : 'es'} sin producto: no pasan por el stock`) : ''}
     </div>
-    ${r.por_dia.length > 1 ? `${titulo(ICO.calendario, 'Por día')}${barras(r.por_dia.map(x => [fechaCorta(x.dia), +x.total]))}` : ''}
-    ${r.por_hora.length ? `${titulo(ICO.reloj, 'Por hora')}${barras(r.por_hora.map(x => [`${x.hora} hs`, +x.total]))}` : ''}
+    ${dias > 1 && dias <= 93 && r.por_dia.length ? `${titulo(ICO.calendario, 'Por día')}<p class="muted chico r-ayuda">Tocá un día para ver solo ese día.</p><div id="r-por-dia">${columnas(diasDe(r))}</div>` : ''}
+    ${r.por_hora.length ? `${titulo(ICO.reloj, 'Por hora')}<div id="r-por-hora">${columnas(horasDe(r), { alto: 150 })}</div>` : ''}
     <div class="dos-columnas">
       <div>${titulo(ICO.tarjeta, 'Por forma de pago')}${tabla(['Forma', 'Total'], r.por_forma.map(x => [esc(x.forma), plata(x.total)]))}</div>
       <div>${titulo(ICO.persona, 'Por vendedor')}${tabla(['Vendedor', 'Total'], r.por_usuario.map(x => [esc(x.nombre), plata(x.total)]))}</div>
@@ -86,6 +104,9 @@ export async function pantallaReportes(vista) {
     </div>`;
   // el ancho de las barras se pone desde acá (la política de seguridad no deja estilos escritos en el HTML)
   $$('[data-ancho]', vista).forEach(b => { b.style.width = b.dataset.ancho + '%'; });
+  // el gráfico por día: tocar un día lo abre solo (como 'Elegir fechas' con ese día); el por hora solo muestra el detalle
+  if ($('#r-por-dia', vista)) activarGraficos($('#r-por-dia', vista), k => { const d = diasDe(r)[k]; rango = { tipo: 'otro', desde: d.dia, hasta: d.dia }; correr(() => pantallaReportes(vista)); });
+  if ($('#r-por-hora', vista)) activarGraficos($('#r-por-hora', vista));
   $$('[data-r]', vista).forEach(b => b.onclick = () => { rango.tipo = b.dataset.r; correr(() => pantallaReportes(vista)); });
   if ($('#desde', vista)) {
     const cambiar = () => { rango.desde = $('#desde', vista).value; rango.hasta = $('#hasta', vista).value; if (rango.desde && rango.hasta) correr(() => pantallaReportes(vista)); };
@@ -94,10 +115,19 @@ export async function pantallaReportes(vista) {
 }
 
 const fechaCorta = d => new Date(d + 'T12:00').toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' });
-function barras(filas) {
-  const max = Math.max(...filas.map(f => f[1]), 1);
-  return `<div class="grafico">${filas.map(([etq, v]) => `<div class="grafico-fila"><span class="grafico-etq">${esc(etq)}</span>
-    <span class="grafico-barra"><span class="grafico-llena" data-ancho="${Math.max(0, Math.round(v / max * 100))}"></span></span><span class="grafico-valor">${plata(v)}</span></div>`).join('')}</div>`;
+// Cada día del período (los que no vendieron, en cero) y cada hora entre la primera y la última con ventas
+function diasDe(r) {
+  const de = Object.fromEntries(r.por_dia.map(x => [x.dia, +x.total])), filas = [];
+  for (let d = new Date(r.desde + 'T12:00'); dia(d) <= r.hasta; d = sumar(d, 1)) {
+    const k = dia(d);
+    filas.push({ dia: k, etq: fechaCorta(k), valor: de[k] || 0, detalle: `${d.toLocaleDateString('es-AR', { weekday: 'long' })} ${fechaCorta(k)}` });
+  }
+  return filas;
+}
+function horasDe(r) {
+  const de = Object.fromEntries(r.por_hora.map(x => [+x.hora, +x.total])), hs = r.por_hora.map(x => +x.hora), filas = [];
+  for (let h = Math.min(...hs); h <= Math.max(...hs); h++) filas.push({ etq: h + ' hs', valor: de[h] || 0, detalle: `De ${h} a ${h + 1} hs` });
+  return filas;
 }
 function tabla(titulos, filas) {
   if (!filas.length) return '<p class="muted">Sin datos en este período.</p>';
