@@ -6,6 +6,7 @@ import { $, $$, esc, plata, cant, numero, aviso, correr, modal, confirmar, pedir
 import { botonCamara } from './escaner.js';
 import { formCliente, textoSaldo } from './clientes.js';
 import { imprimir, ticketVenta } from './impresion.js';
+import { abrirCaja } from './caja.js';
 import { nuevoEncargo, verEncargos } from './encargos.js';
 
 // Íconos (trazos SVG, toman el color del texto)
@@ -72,7 +73,7 @@ export async function pantallaVender(vista, ctx) {
   if (!formas().includes(venta.forma)) venta.forma = 'Efectivo';
 
   vista.innerHTML = `
-    ${caja.turno ? '' : '<p class="aviso mal">La caja está cerrada: <a href="#/caja">abrí tu turno en Caja</a> para poder cobrar.</p>'}
+    ${caja.turno ? '' : '<p class="aviso mal v-cerrada"><span>La caja está cerrada: para cobrar hay que abrirla.</span> <button class="btn primario chico" id="abrir-caja">Abrir la caja</button></p>'}
     <div id="entregas"></div>
     <div class="v">
       <section class="v-izq">
@@ -378,7 +379,7 @@ export async function pantallaVender(vista, ctx) {
           <input class="v-campo" id="paga-con" inputmode="decimal" placeholder="Monto que entrega" value="${esc(venta.pagaCon)}">
           <div class="billetes">${[1000, 2000, 10000, 20000].filter(b => b >= efectivo / 20).slice(0, 4).map(b => `<button class="btn chico" data-billete="${b}">${plata(b).replace(/,00$/, '')}</button>`).join('')}</div>
           <p class="v-vuelto">${(() => { const pc = numero(venta.pagaCon); return pc > 0 ? (pc >= efectivo ? `Vuelto: ${plata(pc - efectivo)}` : `<span class="mal">Faltan ${plata(efectivo - pc)}</span>`) : ''; })()}</p></div>` : ''}
-        <button class="v-cobrar" id="cobrar" ${caja.turno && venta.items.length ? '' : 'disabled'}><span>Cobrar${venta.items.length ? ' ' + plata(tt.total) : ''}</span><kbd>F2</kbd></button>
+        <button class="v-cobrar" id="cobrar" ${venta.items.length ? '' : 'disabled'}><span>Cobrar${venta.items.length ? ' ' + plata(tt.total) : ''}</span><kbd>F2</kbd></button>
         <p class="v-turno">Turno: ${caja.turno ? esc(caja.turno.usuario) : 'cerrado'}</p>
       </div>`;
     // eventos del panel
@@ -559,7 +560,7 @@ export async function pantallaVender(vista, ctx) {
   async function cobrar() {
     if (cobrando) return;
     if (!venta.items.length) return aviso('La venta no tiene productos');
-    if (!caja.turno) return aviso('La caja está cerrada: abrí tu turno en Caja');
+    if (!caja.turno) return abrirCaja(caja, () => ctx.recargar());   // la venta en curso se mantiene: después se cobra
     const deMas = venta.items.find(i => i.encargo && +i.cantidad > i.encargo.max + 0.0005);
     if (deMas) return aviso(`Del encargo #${deMas.encargo.numero} se pueden entregar ${cant(deMas.encargo.max)} (lo que llegó y falta entregar)`);
     const tt = totales();
@@ -613,6 +614,7 @@ export async function pantallaVender(vista, ctx) {
   }
 
   if ($('#varios')) $('#varios').onclick = () => varios();
+  if ($('#abrir-caja')) $('#abrir-caja').onclick = () => abrirCaja(caja, () => ctx.recargar());
   $('#encargo').onclick = () => nuevoEncargo({ formas: caja.formas_pago, alGuardar: () => cargarEntregas() });
   $('#vaciar').onclick = async () => { if (!venta.items.length || await confirmar('Vaciar', '¿Sacar todos los productos de la venta?', 'Vaciar')) { venta = vacia(); pintar(); enfocar(); } };
   escaner.onblur = () => setTimeout(() => { if (document.activeElement !== escaner) res.hidden = true; }, 150);

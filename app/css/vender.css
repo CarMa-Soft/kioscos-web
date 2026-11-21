@@ -173,6 +173,9 @@ button.v-campo small.mal { color: var(--mal); }
   border-radius: 12px; background: #f2f4f7; border: 1px solid var(--borde); }
 .v-entregas.listas { background: #ecfdf3; border-color: #abefc6; color: #067647; }
 .faltante { display: grid; gap: .35rem; padding: .75rem; border: 1px solid var(--borde); border-radius: 10px; }
+/* Caja cerrada: el aviso con el botón para abrirla */
+.v-cerrada { display: flex; align-items: center; justify-content: space-between; gap: .75rem; flex-wrap: wrap; }
+
 /* Entregas pendientes y encargos: arriba, en una sola fila (uno al lado del otro) y finos */
 #entregas { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: .6rem; }
 #entregas:not(:empty) { margin-bottom: .75rem; }

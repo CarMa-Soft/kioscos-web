@@ -3,7 +3,7 @@
 // Cada pedido se exporta a PDF, a Excel o se manda por WhatsApp. No se marca como recibido: al cargar la compra, lo que
 // llegó y supera el mínimo sale solo del pedido.
 import { llamar } from './base.js';
-import { $, $$, esc, plata, cant, dia, hoyDia, numero, aviso, correr } from './ui.js';
+import { $, $$, esc, plata, cant, dia, hoyDia, numero, aviso, correr, telefonoWhatsApp } from './ui.js';
 
 let conPrecios = false;   // los precios de referencia en el PDF y el Excel (por si se los manda al proveedor)
 
@@ -91,13 +91,6 @@ function tabla(items, provs, k) {
 const lineaTexto = i => `${cant(i.cantidad)}${i.por_peso ? ' kg' : ''} x ${i.nombre}${i.codigo_proveedor ? ` (cód. ${i.codigo_proveedor})` : ''}`;
 
 // WhatsApp: el texto del pedido, al número del proveedor si lo tiene (si no, se elige el contacto en WhatsApp)
-function telefonoWhatsApp(tel) {
-  let d = String(tel || '').replace(/\D/g, '').replace(/^00/, '');
-  if (d.startsWith('549')) return d;
-  if (d.startsWith('54')) return '549' + d.slice(2);
-  d = d.replace(/^0/, '');
-  return d.length === 10 ? '549' + d : '';
-}
 function whatsapp(g, negocio) {
   const texto = `Hola${g.nombre ? ' ' + g.nombre : ''}! Te paso el pedido de ${negocio}:\n\n${g.items.map(i => '• ' + lineaTexto(i)).join('\n')}\n\nGracias!`;
   const num = telefonoWhatsApp(g.telefono);

@@ -13,6 +13,7 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
 | `app/js/config.js` | Dirección del proyecto de Supabase y su clave pública (publishable). |
 | `app/js/base.js` | Conexión con Supabase: `sb` (cliente), `llamar(funcion, args)`, el token del usuario con PIN y la traducción de errores. Toda la app habla con la base desde acá. |
 | `app/js/app.js` | Arranque: entrar con la cuenta, elegir usuario y PIN, menú de secciones y rutas (`#/inicio`, `#/vender`, `#/caja`…; abre siempre en Hoy). Cada sección es `pantallaX(vista, ctx)`. **Menú** (`menuPorGrupos`): en la PC, barra a la izquierda fija al bajar, que se colapsa a solo íconos con « / » (cada PC lo recuerda en `localStorage` `menu-colapsado`); en el celular (hasta 800 px), barra arriba con ☰. Cada entrada de `SECCIONES` tiene `ico` y `grupo` (`dia`, `mercaderia`, `numeros`, `admin`): bloques sin título separados por una línea, `admin` abajo, los vacíos no se muestran; Vender destacado en verde. Abajo, el bloque del usuario: Ayuda, nombre y rol, Cambiar mi PIN (solo el empleado; `cambiarMiPin` de usuarios.js) y Cambiar de usuario. En el celular, el alto de la barra va a `--alto-barra` (`seguirAltoBarra`): lo usan `scroll-padding-top` y los paneles fijos. **Teclado** (`teclasDelMenu`): con el foco en el menú, ↑ ↓ (con vuelta; al pasar por una sección se muestra su pantalla, `mostrarAlPasar`, y el foco sigue en el menú), Inicio/Fin y Ctrl + → (a la pantalla: su primer campo, `enfocarPantalla`); Enter abre la sección y el foco queda en el menú. El atajo para ir al menú (`irAlMenu`) es la config `atajo_menu` del negocio (Ajustes → Teclado, Ctrl + ← de fábrica; se puede elegir Ctrl + ←, no Ctrl + →; `teclado.js`: `atajoDe`, `esAtajo`, `problemaAtajo` controla que no choque con F1–F3, Alt + número, las del navegador ni una tecla sola). Foco visible: `:focus-visible` con anillo verde en toda la app. |
+| `app/manifest.webmanifest`, `app/sw.js`, `app/img/` | Para instalar la app (ícono y ventana propia). El service worker **no guarda nada** (todo se pide a internet; sin conexión muestra un aviso); se registra en app.js solo con https. El botón "Instalar la app" del menú aparece con `beforeinstallprompt` (Chrome/Edge). |
 | `app/js/ui.js` | Utilidades de pantalla: `$`, `esc`, `plata`, `numero` (acepta coma decimal), `aviso`, `correr`, `modal`, `confirmar`. |
 | `app/js/catalogo.js` | Catálogo de productos en el navegador (ver abajo). |
 | `app/js/vender.js`, `caja.js`, `productos.js`, `usuarios.js` | Las secciones. |
@@ -64,6 +65,10 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
 - **Usuarios** (`usuarios`, como en la app local): personas con PIN de 4 a 8 números, rol `admin` (Dueño) o `empleado`.
   En la PC se entra una vez con la cuenta; después cada uno elige su nombre y pone su PIN (`iniciar_usuario`).
   5 PIN incorrectos seguidos bloquean a ese usuario 5 minutos.
+  **Un solo usuario:** no se elige el nombre, va directo al PIN. Si además el dueño activó **Entrar sin PIN** (Usuarios; config
+  `entrar_sin_pin`), al abrir la app entra solo (`iniciar_usuario` con PIN vacío; la base lo acepta solo si `entra_sin_pin`: la config
+  activada, un único usuario activo y que sea dueño; con un segundo usuario se vuelve a pedir). Después de "Cambiar de usuario" no entra
+  solo: muestra "Entrar como …" (y "Salir de la cuenta de esta PC"). Pruebas: tests/27.
 - **Sesión del usuario:** `iniciar_usuario` devuelve un token (vence a las 16 horas) que la app manda en el encabezado
   `x-usuario-kiosco` en cada pedido (`base.js`). Solo vale con la misma cuenta y el mismo negocio.
 - **Controles para las funciones:** `requiere_negocio()`, `requiere_usuario()`, `requiere_admin()` (cortan con el error
@@ -91,6 +96,9 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   Los pagos (varias formas) tienen que sumar el total y van a la caja del turno.
 - **Turnos:** uno abierto por negocio. Vende y carga movimientos quien lo abrió (o el dueño); lo cierra quien lo abrió
   (o el dueño). Las funciones que mueven plata o stock bloquean la fila del negocio (`for update`) para no cruzarse.
+  **Abrir la caja desde Vender:** con la caja cerrada, Vender muestra "Abrir la caja" (y Cobrar también la abre; la venta en curso
+  se mantiene). `abrirCaja(estado, alAbrir)` de caja.js. `estado_caja()` con la caja cerrada trae `queda_anterior` (contado − retiro
+  del último turno cerrado), que se propone como efectivo inicial (también en Caja). Pruebas: tests/28.
 - **Anular** (solo dueño): devuelve el stock y saca la plata de la caja del turno abierto.
 - **Productos:** un producto con movimientos (`producto_con_movimientos`: ventas, devoluciones, compras, devoluciones a
   proveedor, entradas y salidas, ajustes de stock; no cuentan "Stock inicial" ni "Corrección desde la ficha") no se borra:
@@ -116,6 +124,10 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   anula solo lo que quedó: el stock no devuelto y la plata que quedaba, repartida entre los pagos.
 
 ## Inicio y Reportes (etapa 4e)
+- **Primeros pasos** (Hoy, solo el dueño; `primerosPasos` de inicio.js): datos del ticket, productos, probar la impresora, abrir la
+  caja, primera venta e instalar la app. Se tildan solos: `inicio().arranque` (`hubo_turno`, `hubo_venta`), el catálogo, la config
+  `negocio`; lo de cada PC (impresora probada, app instalada) en localStorage `primeros-pasos` (`marcar`; Ajustes marca la impresora
+  al imprimir la prueba). Con todo hecho no aparece; "Ocultar" guarda la config `primeros_pasos = oculto`. tests/30.
 - `inicio()`: ventas de hoy, últimas ventas, caja y fiado pendiente. El empleado ve solo sus ventas y no la ganancia.
 - `reporte(desde, hasta)` (solo dueño, días inclusive, hasta 400): ventas, costo, devoluciones y pérdidas, por día,
   hora, forma, vendedor, categoría y producto, descuentos y recargos, autorizaciones, mercadería valorizada y fiado.
@@ -203,6 +215,10 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   recorta lo aplicado de más y aplica lo que está a favor, así `registrar_venta`, `anular_venta` y `devolver_venta` no saben nada de esto.
 - **Vencimiento:** fecha de la venta + `clientes.plazo` (solo el dueño lo cambia; null = config `plazo_clientes`, 30 de fábrica,
   `guardar_plazo_clientes`). Se calcula al mostrarlo. `cuenta_cliente` trae `pendientes`, `pagadas` (con `pagada`, las últimas 100) y `a_favor`.
+- **Lista y estado de cuenta:** `clientes()` trae también `deuda_desde` (la compra pendiente más vieja), `vence` (el vencimiento más
+  próximo) y `ultimo` (último movimiento); la lista se ordena por nombre, "debe desde", límite o saldo (clic en el título).
+  La ficha saca el **estado de cuenta** en PDF (jsPDF, con los productos de cada compra, `llamar('venta')`) o arma el texto para
+  **WhatsApp** (`telefonoWhatsApp` de ui.js, también lo usa Pedidos: saca el 0 y el 15). Como el Fichero de GSCom.
 
 ## Forma de trabajo
 - **Nunca commitear ni hacer push directo a `main`** (GitHub lo impide). Todo va en una rama y entra por pull request.
@@ -335,6 +351,11 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
 - `mostrarSeccion`: si la sección no se pudo cargar, muestra "No se pudo cargar" con Reintentar y Recargar la página.
 
 ## Lista de precios (para imprimir y etiquetar)
+- Productos → "Importar planilla" (`importar.js`, solo dueño): lee .xlsx (a mano: zip con fflate + DOMParser, la primera hoja;
+  sin librerías de planillas) o CSV (; , o tab, UTF-8 o Windows-1252). Adivina las columnas por el título (`CAMPOS`, sin tildes), muestra
+  las primeras filas y manda de a 1000 a `importar_productos(p_filas, p_actualizar)`: por código (o alternativo; sin código, por
+  nombre) actualiza precio/costo/categoría (con precio, deja de tener margen automático; el stock no se toca) o crea con stock
+  inicial; la categoría se crea si no existe; cada fila con error vuelve en `errores` (con su número) sin cortar las demás. tests/29.
 - Productos → "Lista de precios" (`listaprecios.js`, solo dueño). `lista_precios(p)`: `{categoria_id, proveedor_id,
   compra_ids, compras_desde, precio_desde, texto}`, se combinan; trae costo, precio y, según el filtro, `precio_antes`
   (antes del primer cambio desde la fecha), `cambio` y `llego`. Se puede destildar productos.

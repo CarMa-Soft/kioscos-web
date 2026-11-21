@@ -15,6 +15,16 @@ export const sumarDias = (d, n) => { const x = new Date(d + 'T12:00'); x.setDate
 export const diasHasta = d => Math.round((new Date(d + 'T12:00') - new Date(hoyDia() + 'T12:00')) / 864e5);
 // "venció hace 5 días" / "vence hoy" / "vence en 3 días"
 export const textoVence = d => { const n = diasHasta(d); return n < 0 ? `<span class="mal">venció hace ${-n} día${n === -1 ? '' : 's'}</span>` : n === 0 ? '<span class="mal">vence hoy</span>' : `vence en ${n} día${n === 1 ? '' : 's'}`; };
+// Teléfono como lo pide WhatsApp (549 + área + número); '' si no sirve (se elige el contacto en WhatsApp)
+export function telefonoWhatsApp(tel) {
+  let d = String(tel || '').replace(/\D/g, '').replace(/^00/, '');
+  if (d.startsWith('549')) return d;
+  if (d.startsWith('54')) return '549' + d.slice(2);
+  d = d.replace(/^0/, '');
+  // celular con el 15 (área de 2 a 4 cifras + 15 + número): el 15 no va en WhatsApp
+  if (d.length === 12) for (const a of [2, 3, 4]) if (d.slice(a, a + 2) === '15') { d = d.slice(0, a) + d.slice(a + 2); break; }
+  return d.length === 10 ? '549' + d : '';
+}
 export const hora = iso => iso ? new Date(iso).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }) : '—';
 // Número escrito por la persona: acepta coma decimal; vacío = NaN
 export const numero = v => {

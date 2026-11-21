@@ -18,6 +18,21 @@ const ICO = {
 };
 const icoForma = f => /d[eé]bito|cr[eé]dito|tarjeta/i.test(f) ? ICO.tarjeta : /transf/i.test(f) ? ICO.transfer : /mercado|qr|billetera|modo|ual[aá]/i.test(f) ? ICO.celu : ICO.tarjeta;
 
+// Abrir la caja desde otra pantalla (Vender): pide el efectivo inicial, con lo que quedó del cierre anterior ya puesto
+export function abrirCaja(estado, alAbrir) {
+  const m = modal('Abrir la caja', `<form class="form" id="f-abrir-caja">
+    <p class="muted">Para cobrar hay que abrir la caja. Contá el efectivo que hay.</p>
+    <label>Efectivo inicial en la caja<input class="input grande" name="inicial" inputmode="decimal" value="${+estado.queda_anterior || 0}" autofocus></label>
+    ${estado.queda_anterior != null ? `<p class="muted chico">Al cerrar el turno anterior quedaron ${plata(estado.queda_anterior)}.</p>` : ''}
+    <div class="fila fin"><button type="button" class="btn" data-cerrar>Cancelar</button><button class="btn primario">Abrir la caja</button></div></form>`);
+  $('#f-abrir-caja', m.el).onsubmit = ev => {
+    ev.preventDefault();
+    const inicial = numero(new FormData(ev.target).get('inicial'));
+    if (!(inicial >= 0)) return aviso('Revisá el efectivo inicial');
+    correr(async () => { await llamar('abrir_turno', { p_inicial: inicial }); m.cerrar(); aviso('Caja abierta', 'ok'); alAbrir(); });
+  };
+}
+
 export async function pantallaCaja(vista, ctx) {
   const e = await llamar('estado_caja');
   const admin = ctx.yo.rol === 'admin';
@@ -25,7 +40,8 @@ export async function pantallaCaja(vista, ctx) {
     vista.innerHTML = `<div class="cabecera"><h2>Caja cerrada</h2><button class="btn" id="anteriores">Turnos anteriores</button></div>
       <div class="recuadro-blanco c-abrir"><div class="c-titulo">${ICO.caja}<h3>Abrir el turno</h3></div>
       <p class="muted">Para vender hay que abrir el turno. Contá el efectivo que hay en la caja.</p>
-      <form class="form" id="f-abrir"><label>Efectivo inicial en la caja<input class="input grande" name="inicial" inputmode="decimal" value="0" autofocus></label>
+      <form class="form" id="f-abrir"><label>Efectivo inicial en la caja<input class="input grande" name="inicial" inputmode="decimal" value="${+e.queda_anterior || 0}" autofocus></label>
+      ${e.queda_anterior != null ? `<p class="muted chico">Al cerrar el turno anterior quedaron ${plata(e.queda_anterior)} en la caja.</p>` : ''}
       <div class="fila"><button class="btn primario">Abrir turno</button></div></form></div>`;
     $('#anteriores').onclick = () => turnosAnteriores();
     $('#f-abrir').onsubmit = ev => {

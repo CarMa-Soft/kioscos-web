@@ -50,6 +50,19 @@ siVenceLaSesion(() => iniciar());
 window.addEventListener('unhandledrejection', ev => {
   if (ev.reason instanceof TypeError && !/fetch|network|load failed/i.test(ev.reason.message) || ev.reason instanceof ReferenceError) aviso('Algo falló en la app. Probá de nuevo; si sigue pasando, recargá la página con el botón ↻ del navegador');
 });
+
+// Instalar como app: el service worker (sw.js, no guarda nada) y el botón "Instalar la app" del menú, que aparece cuando el
+// navegador ofrece instalarla (Chrome y Edge; ya instalada, no aparece)
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+let pedidoInstalar = null;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); pedidoInstalar = e; if ($('#instalar')) $('#instalar').hidden = false; });
+window.addEventListener('appinstalled', () => { pedidoInstalar = null; if ($('#instalar')) $('#instalar').hidden = true; aviso('Listo: la app quedó instalada', 'ok'); });
+async function instalar() {
+  if (!pedidoInstalar) return aviso('Para instalarla, abrí el menú del navegador (⋮) y elegí "Instalar" o "Agregar a la pantalla de inicio"', 'info');
+  pedidoInstalar.prompt();
+  await pedidoInstalar.userChoice.catch(() => {});
+  pedidoInstalar = null; $('#instalar').hidden = true;
+}
 document.addEventListener('keydown', e => { if (!sinRecargar(e) && !irAlMenu(e)) teclas?.(e); });
 // Con algo cargado sin guardar, si igual se recarga o se cierra la pestaña, el navegador pregunta "¿Salir del sitio?"
 window.addEventListener('beforeunload', e => { if (hayCargaSinGuardar()) { e.preventDefault(); e.returnValue = ''; } });
@@ -95,6 +108,11 @@ function pantallaSinNegocio(mensaje) {
   $('#salir').onclick = () => salirDeLaCuenta();
 }
 
+// Con un solo usuario no hay que elegir: va directo al PIN. Si además el dueño activó "Entrar sin PIN" (Usuarios), entra solo
+// al abrir la app; después de "Cambiar de usuario" muestra el botón Entrar (así se puede salir de la cuenta de la PC).
+let entradaAutomatica = true;
+const soloUno = () => datos.usuarios.length === 1 ? datos.usuarios[0] : null;
+const sinPin = () => soloUno()?.rol === 'admin' && datos.config?.entrar_sin_pin === true;
 function pantallaElegir() {
   raiz.className = 'caja-sola';
   raiz.innerHTML = `<h1>${esc(datos.negocio.nombre)}</h1><p class="muted">¿Quién sos?</p>
@@ -117,7 +135,9 @@ function pantallaElegir() {
     const pin = new FormData(e.target).get('pin');
     correr(async () => {
       const r = await llamar('iniciar_usuario', { p_usuario_id: elegido.id, p_pin: pin });
-      if (r.error) { e.target.reset(); $('#f-pin [name=pin]').focus(); return aviso(r.error); }
+      if (r.error) {   // (si entraba sin PIN y ya no se puede, por ejemplo porque se agregó otro usuario, aparece el campo)
+        e.target.reset(); const pin = $('#f-pin [name=pin]'); pin.required = true; pin.closest('label').hidden = false; pin.focus(); return aviso(r.error);
+      }
       guardarToken(r.token);
       await iniciar();
     });
@@ -125,9 +145,20 @@ function pantallaElegir() {
   $('#salir').onclick = async () => {
     if (confirm('Para volver a entrar en esta PC va a hacer falta el email y la contraseña de la cuenta. ¿Salir?')) await salirDeLaCuenta();
   };
+  if (soloUno()) {
+    $('.usuarios').hidden = true; $('#volver').hidden = true; $('p.muted', raiz).hidden = true;
+    $('.usuario').click();   // el formulario del PIN, ya con su nombre
+    if (sinPin()) {
+      const pin = $('#f-pin [name=pin]');
+      pin.required = false; pin.closest('label').hidden = true;
+      $('#f-pin .btn.primario').textContent = `Entrar como ${soloUno().nombre}`;
+      if (entradaAutomatica) $('#f-pin').requestSubmit();
+    }
+  }
 }
 
 async function cambiarDeUsuario() {
+  entradaAutomatica = false;
   await correr(async () => { try { await llamar('cerrar_usuario'); } catch { /* ya no había sesión */ } });
   guardarToken(null);
   cat.olvidarCostos();
@@ -160,6 +191,7 @@ function menuPorGrupos(yo) {
         <a href="#/ayuda" data-ruta="#/ayuda" title="Ayuda: cómo hacer cada cosa"><span class="menu-ico" aria-hidden="true">?</span><span class="menu-txt">Ayuda</span></a>
         <div class="menu-quien" title="${esc(quien)}"><span class="menu-ico" aria-hidden="true">👤</span><span class="menu-txt">${esc(quien)}</span></div>
         ${yo.rol === 'admin' ? '' : `<button class="menu-accion" id="mi-pin-menu" title="Cambiar mi PIN"><span class="menu-ico" aria-hidden="true">🔑</span><span class="menu-txt">Cambiar mi PIN</span></button>`}
+        <button class="menu-accion" id="instalar" title="Instalar la app en esta PC o celular: ícono propio y ventana sin la barra del navegador" ${pedidoInstalar ? '' : 'hidden'}><span class="menu-ico" aria-hidden="true">⬇️</span><span class="menu-txt">Instalar la app</span></button>
         <button class="menu-accion" id="cambiar" title="Cambiar de usuario"><span class="menu-ico" aria-hidden="true">🔁</span><span class="menu-txt">Cambiar de usuario</span></button>
       </div></div>`;
 }
@@ -204,6 +236,7 @@ function armarMarco() {
   colapsar(leerColapsado());
   $('#colapsar').onclick = () => { const si = !raiz.classList.contains('colapsada'); colapsar(si); guardarColapsado(si); };
   $('#cambiar').onclick = () => cambiarDeUsuario();
+  $('#instalar').onclick = instalar;
   if ($('#mi-pin-menu')) $('#mi-pin-menu').onclick = () => { abrirMenu(false); cambiarMiPin(); };
   $('#menu').onclick = () => abrirMenu(!$('#barra').classList.contains('abierto'));
   $('#menu-nav').onkeydown = teclasDelMenu;

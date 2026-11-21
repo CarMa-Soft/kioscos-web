@@ -5,15 +5,29 @@ import { $, $$, esc, ROL, aviso, correr, modal } from './ui.js';
 export async function pantallaUsuarios(vista, ctx) {
   const admin = ctx.yo.rol === 'admin';
   const lista = admin ? await llamar('listar_usuarios') : [];
+  const unico = lista.filter(u => u.activo).length === 1 && lista.find(u => u.activo)?.rol === 'admin';
   vista.innerHTML = `<div class="cabecera"><h2>${admin ? 'Usuarios' : 'Mi usuario'}</h2>
       <div class="acciones"><button class="btn" id="mi-pin">Cambiar mi PIN</button>${admin ? '<button class="btn primario" id="nuevo">＋ Nuevo usuario</button>' : ''}</div></div>
     ${admin ? `<div class="tabla-caja"><table class="tabla"><thead><tr><th>Nombre</th><th>Rol</th><th>Estado</th><th></th></tr></thead><tbody>
       ${lista.map(u => `<tr><td>${esc(u.nombre)}</td><td>${ROL[u.rol]}</td><td>${u.activo ? (u.bloqueado ? 'Bloqueado unos minutos' : 'Activo') : 'Desactivado'}</td>
-        <td class="num"><button class="link" data-editar="${u.id}">Editar</button></td></tr>`).join('')}</tbody></table></div>` : ''}`;
+        <td class="num"><button class="link" data-editar="${u.id}">Editar</button></td></tr>`).join('')}</tbody></table></div>
+      <form class="form ancho recuadro-blanco" id="f-sin-pin"><h3>Entrar sin PIN</h3>
+        <label class="check"><input type="checkbox" name="sin_pin" ${ctx.config.entrar_sin_pin === true ? 'checked' : ''} ${unico ? '' : 'disabled'}>
+          Al abrir la app, entrar directo sin poner el PIN</label>
+        <p class="muted chico">${unico ? 'Para cuando atendés solo vos. En esta PC ya se entró con el email y la contraseña del negocio; si alguien más usa la PC, dejalo apagado.'
+          : 'Solo se puede con un único usuario activo (el dueño). Con más de uno, cada uno entra con su PIN.'}
+          Si después agregás otro usuario, se vuelve a pedir el PIN.</p>
+        ${unico ? '<div class="fila"><button class="btn primario">Guardar</button></div>' : ''}</form>` : ''}`;
   $('#mi-pin').onclick = () => cambiarMiPin();
   if (admin) {
     $('#nuevo').onclick = () => formUsuario(null);
     $$('[data-editar]').forEach(b => b.onclick = () => formUsuario(lista.find(u => u.id === +b.dataset.editar)));
+    $('#f-sin-pin').onsubmit = e => {
+      e.preventDefault();
+      const si = e.target.elements.sin_pin.checked;
+      correr(async () => { await llamar('guardar_config', { p_clave: 'entrar_sin_pin', p_valor: si }); ctx.config.entrar_sin_pin = si;
+        aviso(si ? 'Listo: la próxima vez que abras la app entrás directo' : 'Listo: se vuelve a pedir el PIN', 'ok'); });
+    };
   }
 
   function formUsuario(u) {

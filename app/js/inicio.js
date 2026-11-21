@@ -1,6 +1,6 @@
 // Inicio: lo de hoy (el empleado ve solo sus ventas; la ganancia, solo el dueño)
 import { llamar } from './base.js';
-import { esc, plata, hora, fecha, hoyDia, sumarDias } from './ui.js';
+import { esc, plata, hora, fecha, hoyDia, sumarDias, aviso, correr } from './ui.js';
 import * as cat from './catalogo.js';
 import { verARevisar, verParaReponer } from './productos.js';
 import { vencimientosModal } from './proveedores.js';
@@ -33,6 +33,7 @@ export async function pantallaInicio(vista, ctx) {
   const vencido = venc ? venc.proveedores.reduce((s, x) => s + x.deudas.filter(d => d.vencimiento < venc.hoy).reduce((a, d) => a + +d.pendiente, 0), 0) : 0;
   vista.innerHTML = `<div class="cabecera"><div><h2>Hoy</h2><p class="muted">${new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}</p></div>
       <div class="acciones"><a class="btn primario" href="#/vender">Vender</a>${admin ? '<a class="btn" href="#/reportes">Reportes</a>' : ''}</div></div>
+    ${admin ? primerosPasos(r, ctx) : ''}
     ${aRevisar ? `<div class="p-aviso fila-aviso"><span>Hay <b>${aRevisar}</b> producto${aRevisar === 1 ? '' : 's'} creado${aRevisar === 1 ? '' : 's'} en la caja para revisar (costo, categoría y stock).</span>
       <button class="btn chico" id="ir-revisar">Revisarlos</button></div>` : ''}
     <div class="c-tarjetas de-a-tres">
@@ -63,10 +64,47 @@ export async function pantallaInicio(vista, ctx) {
         <td class="num">${+v.devuelto ? `${plata(v.total - v.devuelto)}<div class="aviso-chico"><s>${plata(v.total)}</s> · devuelto ${plata(v.devuelto)}</div>` : plata(v.total)}</td></tr>`).join('')}</tbody>`
       : '<tbody><tr><td class="muted vacio">Todavía no hay ventas hoy.</td></tr></tbody>'}</table></div>
     <p class="muted chico">Actualizado ${fecha(new Date().toISOString())}</p>`;
+  vista.querySelectorAll('[data-ancho]').forEach(i => { i.style.width = i.dataset.ancho + '%'; });   // (sin estilos en el HTML: CSP)
+  vista.querySelectorAll('[data-pp-listo]').forEach(b => b.onclick = () => { marcar(b.dataset.ppListo); ctx.recargar(); });
+  const ocultar = vista.querySelector('#pp-ocultar');
+  if (ocultar) ocultar.onclick = () => correr(async () => {
+    await llamar('guardar_config', { p_clave: 'primeros_pasos', p_valor: 'oculto' }); ctx.config.primeros_pasos = 'oculto';
+    aviso('Listo: los primeros pasos siguen en Ayuda', 'ok'); ctx.recargar();
+  });
   const ir = vista.querySelector('#ir-revisar');
   if (ir) ir.onclick = () => { verARevisar(); ctx.ir('#/productos'); };
   const vr = vista.querySelector('#ver-reponer');
   if (vr) vr.onclick = () => { verParaReponer(); ctx.ir('#/productos'); };
   const vv = vista.querySelector('#ver-venc');
   if (vv) vv.onclick = () => vencimientosModal(() => ctx.ir('#/proveedores'));   // "Pagar" en la ventana lleva a Proveedores
+}
+
+// ---------- Primeros pasos (solo el dueño) ----------
+// Una lista para arrancar, que se va tildando sola. Lo que es de cada PC (la impresora, la app instalada) se recuerda en
+// la PC; lo del negocio sale de la base (inicio().arranque) y del catálogo. Cuando está todo, o el dueño la oculta, no aparece.
+const CLAVE_PC = 'primeros-pasos';
+const deLaPC = () => { try { return JSON.parse(localStorage.getItem(CLAVE_PC)) || {}; } catch { return {}; } };
+export function marcar(paso) { try { localStorage.setItem(CLAVE_PC, JSON.stringify({ ...deLaPC(), [paso]: true })); } catch { /* sin almacenamiento */ } }
+
+function primerosPasos(r, ctx) {
+  if (!r.arranque || ctx.config.primeros_pasos === 'oculto') return '';
+  const n = ctx.config.negocio || {}, pc = deLaPC();
+  const instalada = matchMedia('(display-mode: standalone)').matches || pc.instalar;
+  const pasos = [
+    [!!(n.direccion || n.telefono || n.cuit), 'Poné los datos del negocio para el ticket', 'Nombre, dirección, teléfono y CUIT.', '<a class="btn chico" href="#/ajustes">Ir a Ajustes</a>'],
+    [cat.productos().length > 0, 'Cargá los productos', 'De a uno, o muchos juntos desde una planilla de Excel. También se pueden crear al vender.', '<a class="btn chico" href="#/productos">Ir a Productos</a>'],
+    [!!pc.impresora, 'Probá la impresora de tickets', 'En Ajustes, "Imprimir un ticket de prueba". Ayuda → "Configurar la impresora de tickets".',
+      '<a class="btn chico" href="#/ajustes">Probar</a> <button class="link chico" data-pp-listo="impresora">No uso impresora</button>'],
+    [r.arranque.hubo_turno, 'Abrí la caja', 'Al empezar el día, con el efectivo que hay.', '<a class="btn chico" href="#/vender">Ir a Vender</a>'],
+    [r.arranque.hubo_venta, 'Hacé la primera venta', 'Escaneá o buscá el producto y tocá Cobrar.', '<a class="btn chico" href="#/vender">Vender</a>'],
+    [instalada, 'Instalá la app en esta PC', 'Queda un ícono en el escritorio y se abre en su propia ventana.',
+      '<a class="btn chico" href="#/ayuda">Cómo</a> <button class="link chico" data-pp-listo="instalar">Ya está</button>'],
+  ];
+  const hechos = pasos.filter(p => p[0]).length;
+  if (hechos === pasos.length) return '';
+  return `<section class="recuadro-blanco pp"><div class="pp-cabeza"><h3>Primeros pasos <span class="muted chico">${hechos} de ${pasos.length}</span></h3>
+      <button class="link chico" id="pp-ocultar">Ocultar</button></div>
+    <div class="pp-barra"><i data-ancho="${Math.round(hechos * 100 / pasos.length)}"></i></div>
+    <ol class="pp-lista">${pasos.map(([ok, t, d, acc]) => `<li class="${ok ? 'hecho' : ''}"><span class="pp-tilde" aria-hidden="true">${ok ? '✓' : ''}</span>
+      <div><b>${t}</b><div class="muted chico">${d}</div></div><div class="pp-acc">${ok ? '<span class="muted chico">Listo</span>' : acc}</div></li>`).join('')}</ol></section>`;
 }
