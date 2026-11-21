@@ -104,9 +104,10 @@ export async function pantallaCaja(vista, ctx) {
       <label id="caja-total">¿Cuánto efectivo hay en la caja?<input class="input grande" name="total" inputmode="decimal" placeholder="0"></label>
       <p class="muted chico" id="ayuda-billetes">Contá cuántos billetes hay de cada valor: el total se suma solo.</p>
       <table class="tabla" id="tabla-billetes"><thead><tr><th>Billete</th><th>Cantidad</th><th class="num">Subtotal</th></tr></thead><tbody>
-        ${billetes.map(b => `<tr><td><b>${plata(b).replace(/,00$/, '')}</b></td><td><input class="input corto" data-bill="${b}" inputmode="numeric" placeholder="0"></td><td class="num" data-sub="${b}">—</td></tr>`).join('')}
+        ${billetes.map(b => `<tr><td><b>${plata(b).replace(/,00$/, '')}</b></td><td><div class="cj-cont"><button type="button" class="cj-btn" data-menos="${b}" aria-label="Uno menos de ${plata(b)}" tabindex="-1">−</button><input class="input corto" data-bill="${b}" inputmode="numeric" placeholder="0"><button type="button" class="cj-btn" data-mas="${b}" aria-label="Uno más de ${plata(b)}" tabindex="-1">+</button></div></td><td class="num" data-sub="${b}">—</td></tr>`).join('')}
         <tr><td colspan="2">Monedas y otros <span class="muted chico">(si no contás por billetes, poné acá el total)</span></td><td class="num"><input class="input corto" name="otros" inputmode="decimal" placeholder="0"></td></tr></tbody></table>
       <div class="fila entre"><span>Total contado</span><span class="total chico-total" id="contado">${plata(0)}</span></div>
+      <div class="cj-barra" title="Lo contado contra lo que tiene que haber"><i id="cj-llena"></i></div>
       <p class="diferencia" id="dif"></p>
       <label class="check" id="ajuste-box" hidden><input type="checkbox" name="ajuste" checked> <span id="ajuste-txt"></span></label>
       <label>Retiro <span class="muted">(lo que te llevás; el resto queda para el próximo turno)</span><input class="input" name="retiro" inputmode="decimal" placeholder="0"></label>
@@ -135,10 +136,19 @@ export async function pantallaCaja(vista, ctx) {
       $('#contado', m.el).textContent = plata(contado);
       const d = Math.round((contado - t.esperado) * 100) / 100, hayDif = hay && Math.abs(d) >= 0.01;
       $('#dif', m.el).innerHTML = !hay ? '' : !hayDif ? '<span class="ok">Cierra justo ✓</span>' : d > 0 ? `<span class="ok">Sobran ${plata(d)}</span>` : `<span class="mal">Faltan ${plata(-d)}</span>`;
+      // la barra se llena hasta lo que tiene que haber: verde si cierra, amarilla si falta, azul si sobra
+      const barra = $('#cj-llena', m.el);
+      barra.style.width = (+t.esperado > 0 ? Math.min(100, contado / +t.esperado * 100) : hay ? 100 : 0) + '%';
+      barra.className = !hay ? '' : !hayDif ? 'justo' : d > 0 ? 'sobra' : 'falta';
       $('#ajuste-box', m.el).hidden = !hayDif;
       $('#ajuste-txt', m.el).textContent = `Registrar el ${d > 0 ? 'sobrante' : 'faltante'} de ${plata(Math.abs(d))} en los movimientos de caja`;
     };
     m.el.addEventListener('input', actualizar);
+    // − y +: cambian de a un billete (cómodo en pantallas táctiles)
+    $$('[data-mas], [data-menos]', m.el).forEach(b => b.onclick = () => {
+      const i = $(`[data-bill="${b.dataset.mas || b.dataset.menos}"]`, m.el), q = Math.max(0, (Math.round(numero(i.value)) || 0) + (b.dataset.mas ? 1 : -1));
+      i.value = q || ''; actualizar();
+    });
     // Enter pasa al campo siguiente; en el último, cierra
     const campos = () => $$('input:not([type=checkbox])', m.el);
     campos().forEach(c => c.addEventListener('focus', () => c.select()));
