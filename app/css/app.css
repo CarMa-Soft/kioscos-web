@@ -445,3 +445,21 @@ details.pagadas summary h3 { display: inline-block; }
 .vto-prov .tabla { table-layout: fixed; }
 .vto-prov .tabla th:nth-child(1) { width: 42%; } .vto-prov .tabla th:nth-child(2) { width: 18%; } .vto-prov .tabla th:nth-child(3) { width: 22%; }
 .vto-cabeza { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: .4rem; }
+
+/* Clientes: cuánto del límite de fiado usó */
+.c-uso { height: 5px; border-radius: 99px; background: #eaecf0; overflow: hidden; margin: .3rem 0 .1rem auto; max-width: 9rem; }
+.c-tarjeta .c-uso { margin-left: 0; max-width: 12rem; }
+.c-uso i { display: block; height: 100%; width: 0; background: #12b76a; border-radius: 99px; transition: width .5s ease-out; }
+.c-uso.cerca i { background: #f79009; }
+.c-uso.pasado i { background: #d92d20; }
+/* Caja: contar billetes con − y +, y la barra contra lo esperado */
+.cj-cont { display: inline-flex; align-items: center; gap: .3rem; }
+.cj-btn { width: 2.2rem; height: 2.2rem; border-radius: 10px; border: 1px solid var(--borde); background: #f8fafc; font-size: 1.2rem; line-height: 1; cursor: pointer; color: var(--texto); }
+.cj-btn:hover { background: #ecfdf3; border-color: #abefc6; }
+.cj-btn:active { transform: scale(.94); }
+.cj-barra { height: 10px; border-radius: 99px; background: #eaecf0; overflow: hidden; margin: .5rem 0 .2rem; }
+.cj-barra i { display: block; height: 100%; width: 0; background: #98a2b3; border-radius: 99px; transition: width .3s ease-out, background .3s; }
+.cj-barra i.justo { background: #12b76a; }
+.cj-barra i.falta { background: #f79009; }
+.cj-barra i.sobra { background: #2e90fa; }
+@media (prefers-reduced-motion: reduce) { .c-uso i, .cj-barra i { transition: none; } }

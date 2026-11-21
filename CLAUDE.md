@@ -185,6 +185,7 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
 - **Cierre por billetes** (`cerrar_turno` con `p_billetes` = `{ "valor": cantidad }` y `p_otros`): el contado lo calcula
   la base; queda en `turnos.billetes`. Con `p_registrar_ajuste`, el faltante o sobrante queda como movimiento de caja
   (`caja.ajuste = true`); el esperado guardado no cambia. Los valores de billetes se editan en Ajustes (`guardar_ajustes_caja`).
+- **Contar billetes con − y +** (botones al lado de cada cantidad) y una barra contra lo esperado (verde justo, amarilla falta, azul sobra).
 - **Cierre poniendo el total:** la ventana de cierre tiene "Poner el total" / "Contar billete por billete" (cada PC recuerda en
   localStorage `cierre-modo`; de fábrica, billetes si hay valores cargados). Con el total va `p_contado` (sin `p_billetes`).
 - **Descargar mis datos** (Ajustes, dueño): Excel con Productos (del catálogo), Clientes, Proveedores y Ventas del período
@@ -225,6 +226,7 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   recorta lo aplicado de más y aplica lo que está a favor, así `registrar_venta`, `anular_venta` y `devolver_venta` no saben nada de esto.
 - **Vencimiento:** fecha de la venta + `clientes.plazo` (solo el dueño lo cambia; null = config `plazo_clientes`, 30 de fábrica,
   `guardar_plazo_clientes`). Se calcula al mostrarlo. `cuenta_cliente` trae `pendientes`, `pagadas` (con `pagada`, las últimas 100) y `a_favor`.
+- **Uso del límite:** con límite de fiado, una barra en la lista y en la ficha (`usoLimite`: verde, amarilla desde 70%, roja al pasarlo).
 - **Lista y estado de cuenta:** `clientes()` trae también `deuda_desde` (la compra pendiente más vieja), `vence` (el vencimiento más
   próximo) y `ultimo` (último movimiento); la lista se ordena por nombre, "debe desde", límite o saldo (clic en el título).
   La **ficha** es una pantalla dentro de Clientes (no una ventana): `subpantalla(volver)` de ui.js hace que "← Clientes", "atrás"
@@ -364,6 +366,8 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
 - `mostrarSeccion`: si la sección no se pudo cargar, muestra "No se pudo cargar" con Reintentar y Recargar la página.
 
 ## Lista de precios (para imprimir y etiquetar)
+- Productos: **precio y stock en la tabla** (`enLinea`): tocar el valor abre un campo; Enter o salir guarda, Esc cancela. Precio con
+  `cambiar_precio(p_id, p_precio)` (dueño; deja el producto sin margen automático; tests/33), stock con `ajustar_stock` ("Corrección desde la lista").
 - Productos → "Importar planilla" (`importar.js`, solo dueño): lee .xlsx (a mano: zip con fflate + DOMParser, la primera hoja;
   sin librerías de planillas) o CSV (; , o tab, UTF-8 o Windows-1252). Adivina las columnas por el título (`CAMPOS`, sin tildes), muestra
   las primeras filas y manda de a 1000 a `importar_productos(p_filas, p_actualizar)`: por código (o alternativo; sin código, por

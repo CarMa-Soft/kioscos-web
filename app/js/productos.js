@@ -99,6 +99,34 @@ export async function pantallaProductos(vista, ctx) {
   const hayFiltros = () => filtro.trim() || categoria || grupo !== 'todos';
 
   const COLS = [['nombre', 'Producto', ''], ['categoria', 'Categoría', ''], ['stock', 'Stock', 'num'], ['costo', 'Costo', 'num'], ['precio', 'Precio', 'num'], ['margen', 'Margen', 'num']];
+  // Precio o stock tocándolos en la tabla: aparece un campo; Enter o salir del campo guarda, Esc deja como estaba
+  let guardado = null;   // la fila recién guardada destella
+  function enLinea(b) {
+    const p = [...activos, ...bajas].find(x => x.id === +b.dataset.pid), campo = b.dataset.editar;
+    const antes = +p[campo];
+    const inp = Object.assign(document.createElement('input'), { className: 'input p-edit-input', value: String(antes).replace('.', ','), inputmode: 'decimal' });
+    inp.setAttribute('aria-label', campo === 'precio' ? 'Precio nuevo' : 'Stock nuevo');
+    b.replaceWith(inp); inp.focus(); inp.select();
+    inp.onclick = e => e.stopPropagation();
+    let listo = false;
+    const terminar = guardar => {
+      if (listo) return; listo = true;
+      const v = numero(inp.value);
+      if (!guardar || !Number.isFinite(v) || Math.abs(v - antes) < 0.0005) return pintar();
+      if (campo === 'precio' && v < 0) { aviso('El precio no puede ser negativo'); return pintar(); }
+      correr(async () => {
+        const r = campo === 'precio' ? await llamar('cambiar_precio', { p_id: p.id, p_precio: v })
+          : await llamar('ajustar_stock', { p_producto_id: p.id, p_nuevo: v, p_motivo: 'Corrección desde la lista' });
+        const teniaMargen = p.margen != null;
+        Object.assign(p, { precio: r.precio, stock: r.stock, margen: r.margen });
+        aviso(campo === 'precio' ? `Precio de ${p.nombre}: ${plata(r.precio)}${teniaMargen ? ' (queda fijo: ya no sigue al costo)' : ''}` : `Stock de ${p.nombre}: ${cant(r.stock)}`, teniaMargen && campo === 'precio' ? 'info' : 'ok');
+        guardado = p.id;
+        cat.actualizar().catch(() => {});
+      }).finally(pintar);
+    };
+    inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); terminar(true); } else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); terminar(false); } };
+    inp.onblur = () => terminar(true);
+  }
   const pintar = () => {
     $('#grupos').innerHTML = GRUPOS.map(([g, nombre]) => `<button class="chip ${g === grupo ? 'elegido' : ''}" data-grupo="${g}">${esc(nombre)} <span class="p-cuenta">${contar(g)}</span></button>`).join('');
     $$('[data-grupo]').forEach(b => b.onclick = () => { grupo = b.dataset.grupo; pintar(); });
@@ -114,9 +142,9 @@ export async function pantallaProductos(vista, ctx) {
           <td><div class="p-nombre">${esc(p.nombre)}${p.favorito ? ' <span class="p-estrella" title="Botón rápido en Vender">★</span>' : ''}${p.a_revisar ? ' <span class="etiqueta pendiente" title="Creado en la caja: falta completarlo">a revisar</span>' : ''}</div>
             <div class="p-sub mono">${p.codigo ? esc(p.codigo) : ''}${p.por_peso ? `${p.codigo ? ' ' : ''}· por kilo` : ''}</div></td>
           <td>${esc(catNombre(p.categoria_id))}</td>
-          <td class="num"><span class="${claseStock}">${cant(s)}${p.por_peso ? ' kg' : ''}</span>${min > 0 ? `<div class="p-sub">mín. ${cant(min)}</div>` : ''}${aEntregar(p.id) ? `<div class="p-entregar" title="${esc(entregas[p.id].map(e => aQuien(e).replace(/<[^>]+>/g, '')).join(' / '))}">📦 ${cant(aEntregar(p.id))} a entregar</div>` : ''}</td>
+          <td class="num"><button class="p-edit ${claseStock}" data-editar="stock" data-pid="${p.id}" title="Cambiar el stock">${cant(s)}${p.por_peso ? ' kg' : ''}</button>${min > 0 ? `<div class="p-sub">mín. ${cant(min)}</div>` : ''}${aEntregar(p.id) ? `<div class="p-entregar" title="${esc(entregas[p.id].map(e => aQuien(e).replace(/<[^>]+>/g, '')).join(' / '))}">📦 ${cant(aEntregar(p.id))} a entregar</div>` : ''}</td>
           <td class="num">${plata(p.costo)}</td>
-          <td class="num"><b>${plata(p.precio)}</b>${p.por_peso ? '<span class="muted">/kg</span>' : ''}</td>
+          <td class="num"><button class="p-edit" data-editar="precio" data-pid="${p.id}" title="Cambiar el precio"><b>${plata(p.precio)}</b>${p.por_peso ? '<span class="muted">/kg</span>' : ''}</button></td>
           <td class="num">${p.margen != null
             // margen automático: el configurado; el real puede dar un poco más por el redondeo del precio
             ? `<span title="Margen automático: el precio sigue al costo${m != null && Math.round(m) !== Math.round(+p.margen) ? `. Real: ${Math.round(m)}%, por el redondeo del precio` : ''}">${String(+p.margen).replace('.', ',')}% <span class="etiqueta info">auto</span></span>`
@@ -131,6 +159,8 @@ export async function pantallaProductos(vista, ctx) {
       pintar();
     });
     $$('tr[data-id]').forEach(tr => tr.onclick = () => ficha([...activos, ...bajas].find(p => p.id === +tr.dataset.id)));
+    $$('[data-editar]').forEach(b => b.onclick = e => { e.stopPropagation(); enLinea(b); });
+    if (guardado) { $(`tr[data-id="${guardado}"]`)?.classList.add('p-guardado'); guardado = null; }
   };
   $('#filtro').oninput = e => { filtro = e.target.value; pintar(); };
   $('#categoria').onchange = e => { categoria = e.target.value; pintar(); };
