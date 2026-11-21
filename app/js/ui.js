@@ -101,6 +101,18 @@ export function subpantalla(volver) {
   return ventana;
 }
 
+// Tarjetas de resumen que llevan al detalle (clase "clic", role="button", tabindex="0"): Enter o espacio = clic.
+// Un clic en un enlace o botón de adentro de la tarjeta hace lo suyo, no lo de la tarjeta.
+document.addEventListener('keydown', e => {
+  const t = e.target;
+  if ((e.key === 'Enter' || e.key === ' ') && t?.getAttribute?.('role') === 'button' && !/^(BUTTON|A|INPUT|SELECT|TEXTAREA)$/.test(t.tagName)) { e.preventDefault(); t.click(); }
+});
+export function tarjeta(el, accion) {
+  if (!el) return;
+  el.classList.add('clic'); el.setAttribute('role', 'button'); el.tabIndex = 0;
+  el.onclick = e => { if (!e.target.closest('a, button, input, select') || e.target === el) accion(); };
+}
+
 // Ventana sobre la pantalla. Devuelve { el, cerrar }. Escape, "Cancelar" (data-cerrar) o "atrás" la cierran.
 export function modal(titulo, cuerpo, { ancho = false, alCerrar } = {}) {
   const fondo = document.createElement('div');

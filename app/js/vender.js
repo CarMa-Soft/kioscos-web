@@ -57,6 +57,35 @@ function sonidoError() {
   } catch { /* sin audio: queda solo el aviso en pantalla */ }
 }
 
+// Bip al agregar un producto (como el de la caja del súper). Cada PC elige si suena (localStorage 'vender-sonido'); el de error suena siempre.
+const conSonido = () => { try { return localStorage.getItem('vender-sonido') !== 'no'; } catch { return true; } };
+function bip() {
+  if (!conSonido()) return;
+  try {
+    audio ??= new (window.AudioContext || window.webkitAudioContext)();
+    if (audio.state === 'suspended') audio.resume();
+    const t = audio.currentTime, o = audio.createOscillator(), g = audio.createGain();
+    o.type = 'sine'; o.frequency.value = 1320;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.12, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.09);
+    o.connect(g).connect(audio.destination); o.start(t); o.stop(t + 0.1);
+  } catch { /* sin audio */ }
+}
+
+// Venta registrada: un ✓ grande con el número, el total y el vuelto. Se va solo, con un clic o al seguir escaneando.
+function ventaLista(r, vuelto) {
+  document.querySelector('.v-listo')?.remove();
+  const el = document.createElement('div');
+  el.className = 'v-listo'; el.setAttribute('role', 'status');
+  el.innerHTML = `<div class="v-listo-caja"><svg viewBox="0 0 52 52" class="v-listo-tilde" aria-hidden="true"><circle cx="26" cy="26" r="24"/><path d="M15 27l7 7 15-16"/></svg>
+    <div class="v-listo-txt">Venta <b>#${r.numero}</b> · ${plata(r.total)}</div>
+    ${vuelto > 0.004 ? `<div class="v-listo-vuelto">Vuelto <b>${plata(vuelto)}</b></div>` : ''}</div>`;
+  document.body.append(el);
+  const cerrar = () => { el.classList.add('saliendo'); setTimeout(() => el.remove(), 200); document.removeEventListener('keydown', cerrar); };
+  el.onclick = cerrar;
+  setTimeout(() => document.addEventListener('keydown', cerrar), 300);   // la tecla que cobró no lo cierra
+  setTimeout(cerrar, vuelto > 0.004 ? 4500 : 2200);
+}
+
 const r2 = n => Math.round((+n || 0) * 100) / 100;
 const r3 = n => Math.round((+n || 0) * 1000) / 1000;
 
@@ -88,6 +117,7 @@ export async function pantallaVender(vista, ctx) {
           ${ctx.config.varios === false ? '' : `<button class="v-btn" id="varios">${ICO.mas} Varios / precio libre</button>`}
           <button class="v-btn" id="encargo" title="Un cliente encarga algo sin pagarlo (o con seña)">📋 Encargo</button>
           <button class="v-btn peligro" id="vaciar">${ICO.tacho} Vaciar</button>
+          <button class="v-btn" id="sonido" aria-pressed="${conSonido()}" title="Sonido al agregar un producto (en esta PC)">${conSonido() ? '🔊' : '🔇'}</button>
           <span class="v-atajos"><kbd>F2</kbd> cobrar <kbd>F1</kbd> efectivo <kbd>F3</kbd> fiado <kbd>Esc</kbd> limpiar</span>
         </div>
         <div class="v-renglones" id="renglones"></div>
@@ -143,8 +173,8 @@ export async function pantallaVender(vista, ctx) {
     if (bal?.error) { escaner.select(); sonidoError(); return aviso(bal.error); }
     if (bal) {
       escaner.value = ''; res.hidden = true;
-      venta.items.push({ producto_id: bal.p.id, nombre: bal.p.nombre, cantidad: bal.cantidad, precio: null, por_peso: true, etiqueta: bal.importe ?? null });
-      pintar(); return escaner.focus();
+      venta.items.push(nuevo = { producto_id: bal.p.id, nombre: bal.p.nombre, cantidad: bal.cantidad, precio: null, por_peso: true, etiqueta: bal.importe ?? null });
+      bip(); pintar(); return escaner.focus();
     }
     const p = cat.porCodigoDeBarras(texto) || (!res.hidden && sugeridos[marcado]) || (cat.buscar(texto, 2).length === 1 ? cat.buscar(texto, 1)[0] : null);
     if (p) return agregar(p, n > 0 ? n : 1);
@@ -164,8 +194,8 @@ export async function pantallaVender(vista, ctx) {
     if (p.por_peso) return pedirPeso(p);
     if (!p.por_peso) n = Math.max(1, Math.round(n));
     const ya = venta.items.find(i => i.producto_id === p.id && i.precio == null && !i.encargo);
-    if (ya) ya.cantidad += n; else venta.items.push({ producto_id: p.id, nombre: p.nombre, cantidad: n, precio: null });
-    pintar(); escaner.focus();
+    if (ya) { ya.cantidad += n; nuevo = ya; } else venta.items.push(nuevo = { producto_id: p.id, nombre: p.nombre, cantidad: n, precio: null });
+    bip(); pintar(); escaner.focus();
   }
   // Alta rápida desde la caja: nombre (opcional), código y precio. El producto queda "a revisar": el dueño completa
   // después en Productos el costo, la categoría y el stock real. La puede usar también el empleado.
@@ -299,6 +329,7 @@ export async function pantallaVender(vista, ctx) {
   }
 
   // ---------- Pintar ----------
+  let nuevo = null;   // el renglón recién agregado (o sumado): destella una vez
   function pintar() {
     pintarAccesos();
     const t = $('#renglones');
@@ -321,6 +352,8 @@ export async function pantallaVender(vista, ctx) {
         <button class="v-quitar" data-quitar="${k}" title="Quitar">×</button></div>`; }).reverse().join('')}</div>`   /* el último que se agrega va arriba (en la venta y el ticket quedan en el orden en que se cargaron) */
       : `<div class="v-vacio">${DIBUJO_VACIO}<b>Escaneá un producto para empezar</b><span>o buscalo por nombre en la barra de arriba</span></div>`;
     $$('[data-quitar]', t).forEach(b => b.onclick = () => { venta.items.splice(+b.dataset.quitar, 1); pintar(); enfocar(); });
+    const kNuevo = venta.items.indexOf(nuevo); nuevo = null;
+    if (kNuevo >= 0) { const fila = $$('.v-item', t)[kNuevo]; fila?.classList.add('v-nuevo'); fila?.scrollIntoView({ block: 'nearest' }); }
     $$('[data-precio]', t).forEach(b => b.onclick = () => cambiarPrecio(venta.items[+b.dataset.precio]));
     // − y +: de a una unidad; en 0 se saca el renglón
     $$('[data-mas],[data-menos]', t).forEach(b => b.onclick = () => {
@@ -604,8 +637,10 @@ export async function pantallaVender(vista, ctx) {
         }
         venta = vacia(); pintar(); enfocar();
         if (r.repetida) aviso(`Esta venta ya se había registrado como #${r.numero} (${plata(r.total)}): no se cobró de nuevo`, 'info');
-        else aviso(`Venta #${r.numero} registrada${pc > 0 && efectivo ? ' · Vuelto ' + plata(pc - efectivo) : ''}${r.pendientes?.length
-          ? ` · Para entregar después: ${r.pendientes.map(e => `${cant(e.cantidad)} ${e.nombre}`).join(', ')} (${r.pendientes[0].a_nombre})` : ''}`, r.pendientes?.length ? 'info' : 'ok');
+        else {
+          ventaLista(r, pc > 0 && efectivo ? pc - efectivo : 0);
+          if (r.pendientes?.length) aviso(`Para entregar después: ${r.pendientes.map(e => `${cant(e.cantidad)} ${e.nombre}`).join(', ')} (${r.pendientes[0].a_nombre})`, 'info');
+        }
         cargarEntregas();
         if (eleccion === 'imprimir') imprimir(ticketVenta(r, ctx.config));
         cat.actualizar().then(pintar).catch(() => {});
@@ -614,6 +649,13 @@ export async function pantallaVender(vista, ctx) {
   }
 
   if ($('#varios')) $('#varios').onclick = () => varios();
+  $('#sonido').onclick = e => {
+    const si = !conSonido();
+    try { localStorage.setItem('vender-sonido', si ? 'si' : 'no'); } catch { /* sin almacenamiento */ }
+    e.currentTarget.textContent = si ? '🔊' : '🔇'; e.currentTarget.setAttribute('aria-pressed', String(si));
+    if (si) bip();
+    enfocar();
+  };
   if ($('#abrir-caja')) $('#abrir-caja').onclick = () => abrirCaja(caja, () => ctx.recargar());
   $('#encargo').onclick = () => nuevoEncargo({ formas: caja.formas_pago, alGuardar: () => cargarEntregas() });
   $('#vaciar').onclick = async () => { if (!venta.items.length || await confirmar('Vaciar', '¿Sacar todos los productos de la venta?', 'Vaciar')) { venta = vacia(); pintar(); enfocar(); } };

@@ -181,3 +181,24 @@ button.v-campo small.mal { color: var(--mal); }
 #entregas:not(:empty) { margin-bottom: .75rem; }
 #entregas .v-entregas { margin-bottom: 0; padding: .4rem .5rem .4rem .9rem; font-size: .95rem; }
 #entregas .v-entregas .btn { padding: .25rem .7rem; }
+
+/* El renglón recién agregado destella en verde */
+.v-item.v-nuevo { animation: v-destello 1s ease-out; }
+@keyframes v-destello { from { background: #d1fadf; } to { background: transparent; } }
+/* Venta registrada: el ✓ grande */
+.v-listo { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; background: rgba(17, 24, 39, .18); animation: v-listo-entrar .18s ease-out; cursor: pointer; }
+.v-listo.saliendo { opacity: 0; transition: opacity .2s; }
+.v-listo-caja { background: #fff; border-radius: 20px; padding: 1.6rem 2.6rem 1.8rem; text-align: center; box-shadow: 0 20px 50px rgba(16, 24, 40, .25); animation: v-listo-saltar .35s cubic-bezier(.2, 1.4, .4, 1); }
+.v-listo-tilde { width: 88px; height: 88px; display: block; margin: 0 auto .7rem; }
+.v-listo-tilde circle { fill: #12b76a; }
+.v-listo-tilde path { fill: none; stroke: #fff; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 40; stroke-dashoffset: 40; animation: v-tilde .35s .15s ease-out forwards; }
+.v-listo-txt { font-size: 1.25rem; }
+.v-listo-vuelto { margin-top: .6rem; font-size: 1.1rem; color: #067647; }
+.v-listo-vuelto b { display: block; font-size: 2.6rem; line-height: 1.1; }
+@keyframes v-listo-entrar { from { opacity: 0; } to { opacity: 1; } }
+@keyframes v-listo-saltar { from { transform: scale(.85); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes v-tilde { to { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .v-item.v-nuevo, .v-listo, .v-listo-caja { animation: none; }
+  .v-listo-tilde path { animation: none; stroke-dashoffset: 0; }
+}

@@ -2,7 +2,7 @@
 // qué compras va el pago, ajustes (solo dueño). Como la cuenta del proveedor. La lista se ordena por nombre, saldo, límite o
 // antigüedad de la deuda; la ficha saca el estado de cuenta en PDF o lo arma para mandar por WhatsApp.
 import { llamar } from './base.js';
-import { $, $$, esc, plata, cant, fecha, dia, hoyDia, textoVence, numero, aviso, correr, modal, confirmar, telefonoWhatsApp, subpantalla } from './ui.js';
+import { $, $$, esc, plata, cant, fecha, dia, hoyDia, textoVence, numero, aviso, correr, modal, confirmar, telefonoWhatsApp, subpantalla, tarjeta } from './ui.js';
 import { verVenta } from './caja.js';
 
 const nombreDeuda = d => d.venta_id ? `Compra #${d.numero}` : (d.concepto || 'Deuda');
@@ -11,6 +11,7 @@ const linkVenta = (ventaId, texto) => ventaId ? `<button class="link" data-venta
 
 // Lo elegido se mantiene al ir y volver de la sección
 let filtro = '', grupo = 'todos', orden = { col: 'nombre', asc: true };
+export function verDeudores() { grupo = 'deben'; filtro = ''; orden = { col: 'saldo', asc: false }; }
 
 // Íconos de las tarjetas (trazos SVG, toman el color del texto)
 const svg = d => `<svg viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
@@ -30,9 +31,9 @@ export async function pantallaClientes(vista, ctx) {
   const deben = lista.filter(c => +c.saldo > 0.004);
   vista.innerHTML = `<div class="cabecera"><h2>Clientes</h2><div class="acciones"><button class="btn primario" id="nuevo">＋ Nuevo cliente</button></div></div>
     <div class="c-tarjetas">
-      <div class="c-tarjeta rojo"><span class="c-ico">${ICO.plata}</span><div><div class="etq">Te deben (fiado)</div><div class="valor">${plata(deben.reduce((s, c) => s + +c.saldo, 0))}</div></div></div>
-      <div class="c-tarjeta naranja"><span class="c-ico">${ICO.alerta}</span><div><div class="etq">Clientes que deben</div><div class="valor">${deben.length}</div></div></div>
-      <div class="c-tarjeta verde"><span class="c-ico">${ICO.personas}</span><div><div class="etq">Total de clientes</div><div class="valor">${lista.length}</div></div></div>
+      <div class="c-tarjeta rojo" id="t-deben" title="Ver los que deben"><span class="c-ico">${ICO.plata}</span><div><div class="etq">Te deben (fiado)</div><div class="valor">${plata(deben.reduce((s, c) => s + +c.saldo, 0))}</div></div></div>
+      <div class="c-tarjeta naranja" id="t-cuantos" title="Ver los que deben, del que debe más al que menos"><span class="c-ico">${ICO.alerta}</span><div><div class="etq">Clientes que deben</div><div class="valor">${deben.length}</div></div></div>
+      <div class="c-tarjeta verde" id="t-todos" title="Ver todos"><span class="c-ico">${ICO.personas}</span><div><div class="etq">Total de clientes</div><div class="valor">${lista.length}</div></div></div>
     </div>
     <div class="c-filtros">
       <label class="c-buscar">${ICO.lupa}<input id="filtro" placeholder="Buscar por nombre o teléfono…" value="${esc(filtro)}" autocomplete="off"></label>
@@ -75,6 +76,10 @@ export async function pantallaClientes(vista, ctx) {
   }
   $('#filtro').oninput = e => { filtro = e.target.value; pintar(); };
   $('#nuevo').onclick = () => formCliente(null, admin, () => ctx.recargar());
+  // las tarjetas de arriba filtran la lista
+  tarjeta($('#t-deben'), () => { grupo = 'deben'; pintar(); });
+  tarjeta($('#t-cuantos'), () => { grupo = 'deben'; orden = { col: 'saldo', asc: false }; pintar(); });
+  tarjeta($('#t-todos'), () => { grupo = 'todos'; filtro = ''; $('#filtro').value = ''; pintar(); });
   pintar();
 
   // La ficha del cliente: una pantalla dentro de Clientes (no una ventana), con el estilo de la lista. "← Clientes", "atrás"

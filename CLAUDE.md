@@ -15,6 +15,7 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
 | `app/js/app.js` | Arranque: entrar con la cuenta, elegir usuario y PIN, menú de secciones y rutas (`#/inicio`, `#/vender`, `#/caja`…; abre siempre en Hoy). Cada sección es `pantallaX(vista, ctx)`. **Menú** (`menuPorGrupos`): en la PC, barra a la izquierda fija al bajar, que se colapsa a solo íconos con « / » (cada PC lo recuerda en `localStorage` `menu-colapsado`); en el celular (hasta 800 px), barra arriba con ☰. Cada entrada de `SECCIONES` tiene `ico` y `grupo` (`dia`, `mercaderia`, `numeros`, `admin`): bloques sin título separados por una línea, `admin` abajo, los vacíos no se muestran; Vender destacado en verde. Abajo, el bloque del usuario: Ayuda, nombre y rol, Cambiar mi PIN (solo el empleado; `cambiarMiPin` de usuarios.js) y Cambiar de usuario. En el celular, el alto de la barra va a `--alto-barra` (`seguirAltoBarra`): lo usan `scroll-padding-top` y los paneles fijos. **Teclado** (`teclasDelMenu`): con el foco en el menú, ↑ ↓ (con vuelta; al pasar por una sección se muestra su pantalla, `mostrarAlPasar`, y el foco sigue en el menú), Inicio/Fin y Ctrl + → (a la pantalla: su primer campo, `enfocarPantalla`); Enter abre la sección y el foco queda en el menú. El atajo para ir al menú (`irAlMenu`) es la config `atajo_menu` del negocio (Ajustes → Teclado, Ctrl + ← de fábrica; se puede elegir Ctrl + ←, no Ctrl + →; `teclado.js`: `atajoDe`, `esAtajo`, `problemaAtajo` controla que no choque con F1–F3, Alt + número, las del navegador ni una tecla sola). Foco visible: `:focus-visible` con anillo verde en toda la app. |
 | `app/manifest.webmanifest`, `app/sw.js`, `app/img/` | Para instalar la app (ícono y ventana propia). El service worker **no guarda nada** (todo se pide a internet; sin conexión muestra un aviso); se registra en app.js solo con https. El botón "Instalar la app" del menú aparece con `beforeinstallprompt` (Chrome/Edge). |
 | `app/js/ui.js` | Utilidades de pantalla: `$`, `esc`, `plata`, `numero` (acepta coma decimal), `aviso`, `correr`, `modal`, `confirmar`. |
+| Pantallas más vivas | Mientras carga, `mostrarSeccion` (app.js) pone un esqueleto gris (`.esqueleto`) y la pantalla entra con un fundido (`#vista.entrando`). Las tarjetas de resumen que llevan al detalle usan `tarjeta(el, accion)` de ui.js (clic, Enter o espacio). Todo respeta `prefers-reduced-motion`. |
 | `app/js/catalogo.js` | Catálogo de productos en el navegador (ver abajo). |
 | `app/js/vender.js`, `caja.js`, `productos.js`, `usuarios.js` | Las secciones. |
 | `supabase/migrations/` | Cambios de la base, en orden. Se aplican solos al unirse a `main`. |
@@ -440,6 +441,9 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   `aparte`: no está en los bloques de secciones). **Al agregar o cambiar una función, actualizar su tema acá.**
 
 ## Vender: pantalla, cobro y teclas
+- **Destello, bip y ✓:** el renglón agregado (o sumado) destella (`nuevo` en `pintar`), `bip()` suena al agregar (botón 🔊/🔇,
+  localStorage `vender-sonido` por PC; `sonidoError` suena siempre) y al cobrar `ventaLista` muestra un ✓ con el número, el total y
+  el vuelto (se va solo, con un clic o con la próxima tecla).
 - Estilos en `vender.css` (clases `v-`). `--v-oscuro` (verde oscuro) es el fondo de "Total a cobrar" y del encabezado de la
   lista de la venta; el botón elegido ($ / %, forma de pago) usa `--primario`. Arriba, las entregas pendientes y los encargos
   en una fila fina; la columna de la venta termina a la altura del panel de cobro.
