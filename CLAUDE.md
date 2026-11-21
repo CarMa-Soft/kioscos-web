@@ -125,6 +125,10 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   anula solo lo que quedó: el stock no devuelto y la plata que quedaba, repartida entre los pagos.
 
 ## Inicio y Reportes (etapa 4e)
+- **Gráficos** (`graficos.js`): `columnas(filas)` arma columnas con cartelito de detalle (mouse, dedo o teclado) y `activarGraficos(raiz, alClic)`
+  les pone la altura (desde JS, por la CSP) y la acción al tocar. `contar(el, valor)` hace subir los números de Hoy. Hoy: `inicio().por_hora`
+  (`[{hora, total, tickets}]`, tests/32) → "Hoy, hora por hora". Reportes: por día (cada día del período; tocar uno abre ese día) y por hora,
+  y las tarjetas comparan con el período anterior del mismo largo (`anterior()`: ayer, los 7 días anteriores, los mismos días del mes pasado…).
 - **Recorrido de bienvenida** (`recorrido.js`, solo el dueño): 7 pasos con un dibujo SVG (en los colores de la app, sin capturas) y
   dos o tres líneas, "Siguiente"/"Anterior" (y flechas), puntos, "Ir ahí" (abre esa pantalla y deja abajo a la derecha el cartel "Recorrido N de 7 · Seguir · ✕", que sigue en el paso siguiente) y "Saltear". Sale solo una vez: `recorridoPrimeraVez`
   (app.js, al entrar) si la config `recorrido_visto` no es true, y la guarda al cerrarlo. Después, en Ayuda: "▶ Ver el recorrido".
