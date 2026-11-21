@@ -308,7 +308,9 @@ async function mostrarSeccion() {
   if (!desdeElMenu) abrirMenu(false);
   teclas = null;
   const vista = $('#vista');
-  vista.innerHTML = '<p class="muted">Cargando…</p>';
+  // mientras carga, la forma de una pantalla en gris que "late" (aparece recién si tarda: sin parpadeo en lo rápido)
+  vista.innerHTML = `<div class="esqueleto" role="status" aria-label="Cargando ${esc(s.nombre)}"><div class="esq esq-titulo"></div>
+    <div class="esq-tarjetas"><div class="esq"></div><div class="esq"></div><div class="esq"></div></div><div class="esq esq-tabla"></div></div>`;
   const ctx = {
     yo, negocio: datos.negocio, usuarios: datos.usuarios,
     config: datos.config,          // configuración del negocio (datos para el ticket, cuándo imprimir); Ajustes la actualiza
@@ -318,9 +320,12 @@ async function mostrarSeccion() {
   };
   let ok = false;
   await correr(async () => { await s.fn(vista, ctx); ok = true; });
+  if (ok && $('#vista') === vista) {   // la pantalla nueva entra con un fundido corto
+    vista.classList.remove('entrando'); void vista.offsetWidth; vista.classList.add('entrando');
+  }
   if (desdeElMenu && location.hash === s.ruta) { volverAlMenu(); setTimeout(volverAlMenu, 50); }
   // si no se pudo cargar (sin internet, la base no respondió), no queda en "Cargando…": se ofrece reintentar
-  if (!ok && $('#vista') === vista && /Cargando…/.test(vista.textContent)) {
+  if (!ok && $('#vista') === vista && vista.querySelector('.esqueleto')) {
     vista.innerHTML = `<div class="recuadro-blanco"><p><b>No se pudo cargar ${esc(s.nombre)}.</b></p>
       <p class="muted">Puede ser que se haya cortado internet o que la PC haya estado suspendida.</p>
       <div class="fila"><button class="btn primario" id="reintentar-seccion">Reintentar</button><button class="btn" id="recargar-pagina">Recargar la página</button></div></div>`;

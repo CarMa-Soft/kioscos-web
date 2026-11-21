@@ -391,3 +391,24 @@ details.pagadas summary h3 { display: inline-block; }
   box-shadow: 0 8px 24px rgba(16, 24, 40, .15); }
 .rec-cartel .link { font-size: 1.1rem; line-height: 1; padding: .2rem .35rem; text-decoration: none; color: var(--suave); }
 @media (max-width: 600px) { .rec-cartel { left: 1rem; right: 1rem; justify-content: space-between; } }
+
+/* Mientras carga una pantalla: la forma en gris que late (aparece si tarda más de un instante) */
+.esqueleto { animation: esq-aparecer .2s .15s both; }
+.esq { background: linear-gradient(90deg, #eaecf0 25%, #f5f6f8 50%, #eaecf0 75%); background-size: 200% 100%; border-radius: 12px; animation: esq-latir 1.2s ease-in-out infinite; }
+.esq-titulo { width: 220px; height: 30px; margin-bottom: 1.2rem; }
+.esq-tarjetas { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1.2rem; }
+.esq-tarjetas .esq { height: 88px; }
+.esq-tabla { height: 260px; }
+@keyframes esq-latir { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+@keyframes esq-aparecer { from { opacity: 0; } to { opacity: 1; } }
+/* La pantalla nueva entra con un fundido corto */
+#vista.entrando { animation: vista-entrar .22s ease-out; }
+@keyframes vista-entrar { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+/* Tarjetas de resumen que llevan al detalle */
+.c-tarjeta.clic { cursor: pointer; transition: transform .12s, box-shadow .12s; }
+.c-tarjeta.clic:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(16, 24, 40, .08); }
+.c-tarjeta.clic:active { transform: translateY(0); }
+@media (prefers-reduced-motion: reduce) {
+  .esq, .esqueleto, #vista.entrando { animation: none; }
+  .c-tarjeta.clic, .c-tarjeta.clic:hover { transition: none; transform: none; }
+}

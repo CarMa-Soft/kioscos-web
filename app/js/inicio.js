@@ -1,6 +1,7 @@
 // Inicio: lo de hoy (el empleado ve solo sus ventas; la ganancia, solo el dueño)
 import { llamar } from './base.js';
-import { esc, plata, hora, fecha, hoyDia, sumarDias } from './ui.js';
+import { esc, plata, hora, fecha, hoyDia, sumarDias, tarjeta } from './ui.js';
+import { verDeudores } from './clientes.js';
 import * as cat from './catalogo.js';
 import { verARevisar, verParaReponer } from './productos.js';
 import { vencimientosModal } from './proveedores.js';
@@ -36,19 +37,19 @@ export async function pantallaInicio(vista, ctx) {
     ${aRevisar ? `<div class="p-aviso fila-aviso"><span>Hay <b>${aRevisar}</b> producto${aRevisar === 1 ? '' : 's'} creado${aRevisar === 1 ? '' : 's'} en la caja para revisar (costo, categoría y stock).</span>
       <button class="btn chico" id="ir-revisar">Revisarlos</button></div>` : ''}
     <div class="c-tarjetas de-a-tres">
-      <div class="c-tarjeta verde"><span class="c-ico">${ICO.ventas}</span><div><div class="etq">Ventas de hoy${r.propias ? ' (tuyas)' : ''}</div><div class="valor">${plata(r.total)}</div>
+      <div class="c-tarjeta verde" id="t-ventas" title="Ver las ventas del turno en Caja"><span class="c-ico">${ICO.ventas}</span><div><div class="etq">Ventas de hoy${r.propias ? ' (tuyas)' : ''}</div><div class="valor">${plata(r.total)}</div>
         <div class="c-sub">${r.tickets} venta${r.tickets === 1 ? '' : 's'}${+r.devuelto ? ` · devuelto ${plata(r.devuelto)}` : ''}</div></div></div>
-      ${admin ? `<div class="c-tarjeta azul"><span class="c-ico">${ICO.ganancia}</span><div><div class="etq">Ganancia bruta de hoy</div><div class="valor">${plata(r.ganancia)}</div>
+      ${admin ? `<div class="c-tarjeta azul" id="t-ganancia" title="Ver Reportes"><span class="c-ico">${ICO.ganancia}</span><div><div class="etq">Ganancia bruta de hoy</div><div class="valor">${plata(r.ganancia)}</div>
         <div class="c-sub">ventas menos el costo de la mercadería</div></div></div>` : ''}
-      <div class="c-tarjeta ${r.turno ? 'violeta' : 'gris'}"><span class="c-ico">${ICO.caja}</span><div><div class="etq">Caja</div><div class="valor">${r.turno ? plata(r.turno.esperado) : 'Cerrada'}</div>
+      <div class="c-tarjeta ${r.turno ? 'violeta' : 'gris'}" id="t-caja" title="Ir a Caja"><span class="c-ico">${ICO.caja}</span><div><div class="etq">Caja</div><div class="valor">${r.turno ? plata(r.turno.esperado) : 'Cerrada'}</div>
         <div class="c-sub">${r.turno ? `efectivo · turno de ${esc(r.turno.usuario)} desde ${hora(r.turno.apertura)}` : '<a href="#/caja">abrir el turno</a>'}</div></div></div>
-      <div class="c-tarjeta rojo"><span class="c-ico">${ICO.fiado}</span><div><div class="etq">Fiado pendiente</div><div class="valor">${plata(r.fiado_pendiente)}</div>
+      <div class="c-tarjeta rojo" id="t-fiado" title="Ver los clientes que deben"><span class="c-ico">${ICO.fiado}</span><div><div class="etq">Fiado pendiente</div><div class="valor">${plata(r.fiado_pendiente)}</div>
         <div class="c-sub"><a href="#/clientes">ver clientes</a></div></div></div>
-      ${venc ? `<div class="c-tarjeta ${vencido > 0.004 ? 'rojo' : aPagar > 0.004 ? 'naranja' : 'gris'}"><span class="c-ico">${ICO.calendario}</span><div>
+      ${venc ? `<div class="c-tarjeta ${vencido > 0.004 ? 'rojo' : aPagar > 0.004 ? 'naranja' : 'gris'}" id="t-pagar" title="Ver los vencimientos"><span class="c-ico">${ICO.calendario}</span><div>
         <div class="etq">A pagar a proveedores (7 días)</div><div class="valor">${plata(aPagar)}</div>
         <div class="c-sub">${vencido > 0.004 ? `<b class="mal">${plata(vencido)} ya vencido</b> · ` : ''}${venc.proveedores.length
           ? `${venc.proveedores.length} proveedor${venc.proveedores.length === 1 ? '' : 'es'} · <button class="link" id="ver-venc">ver vencimientos</button>` : 'nada que pagar esta semana'}</div></div></div>` : ''}
-      ${admin ? `<div class="c-tarjeta ${reponer ? 'naranja' : 'gris'}"><span class="c-ico">${ICO.reponer}</span><div>
+      ${admin ? `<div class="c-tarjeta ${reponer ? 'naranja' : 'gris'}" id="t-reponer" title="Ver los productos para reponer"><span class="c-ico">${ICO.reponer}</span><div>
         <div class="etq">Productos para reponer</div><div class="valor">${reponer}</div>
         <div class="c-sub">${reponer ? '<button class="link" id="ver-reponer">ver cuáles</button>' : 'ninguno debajo del stock mínimo'}</div></div></div>` : ''}
     </div>
@@ -63,6 +64,14 @@ export async function pantallaInicio(vista, ctx) {
         <td class="num">${+v.devuelto ? `${plata(v.total - v.devuelto)}<div class="aviso-chico"><s>${plata(v.total)}</s> · devuelto ${plata(v.devuelto)}</div>` : plata(v.total)}</td></tr>`).join('')}</tbody>`
       : '<tbody><tr><td class="muted vacio">Todavía no hay ventas hoy.</td></tr></tbody>'}</table></div>
     <p class="muted chico">Actualizado ${fecha(new Date().toISOString())}</p>`;
+  // las tarjetas llevan al detalle
+  const q = sel => vista.querySelector(sel);
+  tarjeta(q('#t-ventas'), () => ctx.ir('#/caja'));
+  tarjeta(q('#t-ganancia'), () => ctx.ir('#/reportes'));
+  tarjeta(q('#t-caja'), () => ctx.ir('#/caja'));
+  tarjeta(q('#t-fiado'), () => { verDeudores(); ctx.ir('#/clientes'); });
+  tarjeta(q('#t-pagar'), () => vencimientosModal(() => ctx.ir('#/proveedores')));
+  tarjeta(q('#t-reponer'), () => { verParaReponer(); ctx.ir('#/productos'); });
   const ir = vista.querySelector('#ir-revisar');
   if (ir) ir.onclick = () => { verARevisar(); ctx.ir('#/productos'); };
   const vr = vista.querySelector('#ver-reponer');

@@ -1,6 +1,6 @@
 // Proveedores (solo dueño): lista con lo que se les debe, ficha con la cuenta, pagos, ajustes y datos
 import { llamar } from './base.js';
-import { $, $$, esc, plata, fecha, dia, hoyDia, sumarDias, textoVence, numero, aviso, correr, modal, confirmar, subpantalla } from './ui.js';
+import { $, $$, esc, plata, fecha, dia, hoyDia, sumarDias, textoVence, numero, aviso, correr, modal, confirmar, subpantalla, tarjeta } from './ui.js';
 import { verCompra } from './compras.js';
 
 // Lo elegido se mantiene al ir y volver de la sección
@@ -24,9 +24,9 @@ export async function pantallaProveedores(vista, ctx) {
   const deben = lista.filter(p => +p.saldo > 0.004);
   vista.innerHTML = `<div class="cabecera"><h2>Proveedores</h2><div class="acciones"><a class="btn" href="#/compras">Compras</a><button class="btn" id="vencimientos">📅 Vencimientos</button><button class="btn primario" id="nuevo">＋ Nuevo proveedor</button></div></div>
     <div class="c-tarjetas">
-      <div class="c-tarjeta rojo"><span class="c-ico">${ICO.plata}</span><div><div class="etq">Le debés a proveedores</div><div class="valor">${plata(deben.reduce((s, p) => s + +p.saldo, 0))}</div></div></div>
-      <div class="c-tarjeta naranja"><span class="c-ico">${ICO.alerta}</span><div><div class="etq">Proveedores a los que les debés</div><div class="valor">${deben.length}</div></div></div>
-      <div class="c-tarjeta verde"><span class="c-ico">${ICO.camion}</span><div><div class="etq">Total de proveedores</div><div class="valor">${lista.length}</div></div></div>
+      <div class="c-tarjeta rojo" id="t-deben" title="Ver a quiénes les debés"><span class="c-ico">${ICO.plata}</span><div><div class="etq">Le debés a proveedores</div><div class="valor">${plata(deben.reduce((s, p) => s + +p.saldo, 0))}</div></div></div>
+      <div class="c-tarjeta naranja" id="t-cuantos" title="Ver los vencimientos"><span class="c-ico">${ICO.alerta}</span><div><div class="etq">Proveedores a los que les debés</div><div class="valor">${deben.length}</div></div></div>
+      <div class="c-tarjeta verde" id="t-todos" title="Ver todos"><span class="c-ico">${ICO.camion}</span><div><div class="etq">Total de proveedores</div><div class="valor">${lista.length}</div></div></div>
     </div>
     <div class="c-filtros">
       <label class="c-buscar">${ICO.lupa}<input id="filtro" placeholder="Buscar por nombre o CUIT…" value="${esc(filtro)}" autocomplete="off"></label>
@@ -53,6 +53,9 @@ export async function pantallaProveedores(vista, ctx) {
   $('#filtro').oninput = e => { filtro = e.target.value; pintar(); };
   $('#nuevo').onclick = () => formProveedor(null, () => ctx.recargar());
   $('#vencimientos').onclick = () => vencimientosModal(id => ficha(id, ctx, vista));
+  tarjeta($('#t-deben'), () => { grupo = 'deben'; pintar(); });
+  tarjeta($('#t-cuantos'), () => vencimientosModal(id => ficha(id, ctx, vista)));
+  tarjeta($('#t-todos'), () => { grupo = 'todos'; filtro = ''; $('#filtro').value = ''; pintar(); });
   pintar();
 }
 
