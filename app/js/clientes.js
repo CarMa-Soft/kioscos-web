@@ -91,16 +91,16 @@ export async function pantallaClientes(vista, ctx) {
           <button class="btn" data-cerrar>Cerrar</button></div></div>
         <div class="cf-cols"><section>
         ${c.pendientes.length ? `<h3>Compras pendientes</h3><div class="tabla-caja"><table class="tabla"><thead><tr><th>Compra</th><th>Fecha</th><th>Vence</th><th class="num">Importe</th><th class="num">Pagado</th><th class="num">Pendiente</th></tr></thead><tbody>
-          ${c.pendientes.map(d => `<tr><td>${linkVenta(d.venta_id, nombreDeuda(d))}</td><td>${fecha(d.fecha)}</td><td>${dia(d.vencimiento)}<div class="chico">${textoVence(d.vencimiento)}</div></td>
-            <td class="num">${plata(d.importe)}</td><td class="num ok">${+d.aplicado ? plata(d.aplicado) : ''}</td><td class="num"><b>${plata(d.pendiente)}</b></td></tr>`).join('')}</tbody></table></div>` : ''}
+          ${c.pendientes.map(d => `<tr><td class="nowrap">${linkVenta(d.venta_id, nombreDeuda(d))}</td><td class="nowrap">${fecha(d.fecha)}</td><td>${dia(d.vencimiento)}<div class="chico">${textoVence(d.vencimiento)}</div></td>
+            <td class="num nowrap">${plata(d.importe)}</td><td class="num ok nowrap">${+d.aplicado ? plata(d.aplicado) : ''}</td><td class="num nowrap"><b>${plata(d.pendiente)}</b></td></tr>`).join('')}</tbody></table></div>` : ''}
         ${+c.a_favor > 0.004 ? `<p class="chico">A favor, sin aplicar a ninguna compra: <b class="ok">${plata(c.a_favor)}</b></p>` : ''}
         ${c.pagadas.length ? `<details class="pagadas"><summary><h3>Compras pagadas <span class="muted">(${c.pagadas.length}${c.pagadas.length === 100 ? ', las últimas' : ''})</span></h3></summary>
           <div class="tabla-caja"><table class="tabla"><thead><tr><th>Compra</th><th>Fecha</th><th class="num">Importe</th><th>Pagada el</th></tr></thead><tbody>
-          ${c.pagadas.map(d => `<tr><td>${linkVenta(d.venta_id, nombreDeuda(d))}</td><td>${fecha(d.fecha)}</td><td class="num">${plata(d.importe)}</td><td>${fecha(d.pagada)}</td></tr>`).join('')}</tbody></table></div></details>` : ''}
+          ${c.pagadas.map(d => `<tr><td class="nowrap">${linkVenta(d.venta_id, nombreDeuda(d))}</td><td class="nowrap">${fecha(d.fecha)}</td><td class="num nowrap">${plata(d.importe)}</td><td class="nowrap">${fecha(d.pagada)}</td></tr>`).join('')}</tbody></table></div></details>` : ''}
         ${!c.pendientes.length && !c.pagadas.length ? '<h3>Compras</h3><p class="muted">No tiene compras fiadas.</p>' : ''}</section>
         <section><h3>Movimientos</h3>
         <div class="tabla-caja"><table class="tabla">${movs.length ? `<thead><tr><th>Fecha</th><th>Concepto</th><th class="num">Debe</th><th class="num">Pagó</th><th class="num">Saldo</th></tr></thead><tbody>
-          ${movs.map(x => `<tr><td>${fecha(x.fecha)}</td><td>${linkVenta(x.venta_id, x.concepto)}${x.forma ? ` <span class="muted">(${esc(x.forma)})</span>` : ''}<div class="muted chico">${esc(x.usuario)}</div></td>
+          ${movs.map(x => `<tr><td class="nowrap">${fecha(x.fecha)}</td><td>${linkVenta(x.venta_id, x.concepto)}${x.forma ? ` <span class="muted">(${esc(x.forma)})</span>` : ''}<div class="muted chico">${esc(x.usuario)}</div></td>
             <td class="num">${+x.monto > 0 ? plata(x.monto) : ''}</td><td class="num ok">${+x.monto < 0 ? plata(-x.monto) : ''}</td><td class="num">${plata(x.saldo)}</td></tr>`).join('')}</tbody>`
           : '<tbody><tr><td class="muted vacio">Sin movimientos.</td></tr></tbody>'}</table></div></section></div>`, { ancho: true });
       $('.modal', m.el).classList.add('cf-modal');   // apaisada: arriba el saldo y los botones; abajo lo pendiente y los movimientos, lado a lado
