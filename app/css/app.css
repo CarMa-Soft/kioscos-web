@@ -433,3 +433,15 @@ details.pagadas summary h3 { display: inline-block; }
 .r-cambio.sube { color: #067647; }
 .r-cambio.baja { color: #b42318; }
 @media (prefers-reduced-motion: reduce) { .graf-col span { transition: none; } }
+
+/* Vencimientos (proveedores.js): el filtro en una línea, una tabla por proveedor */
+.modal.vto-modal { width: min(860px, 100%); }
+.vto-filtro { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1rem; margin-bottom: 1rem; }
+.vto-filtro label { display: flex; align-items: center; gap: .5rem; font-weight: 600; }
+.vto-filtro .input { width: auto; padding: .4rem .6rem; }
+.vto-modal .c-tarjetas { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); margin-bottom: 1rem; }
+.vto-prov { margin-bottom: 1rem; }
+/* todas las tablas con las mismas columnas, así quedan alineadas entre proveedores */
+.vto-prov .tabla { table-layout: fixed; }
+.vto-prov .tabla th:nth-child(1) { width: 42%; } .vto-prov .tabla th:nth-child(2) { width: 18%; } .vto-prov .tabla th:nth-child(3) { width: 22%; }
+.vto-cabeza { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: .4rem; }
