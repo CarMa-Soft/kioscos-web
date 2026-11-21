@@ -168,7 +168,7 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
 - **Descargar mis datos** (Ajustes, dueño): Excel con Productos (del catálogo), Clientes, Proveedores y Ventas del período
   (`ventas_periodo(p_desde, p_hasta)`, hasta un año; tests/31). `planilla.js` arma el .xlsx con varias hojas (fflate).
 - **Errores entendibles:** `traducir` (base.js) pasa a castellano los de Postgres sin traducir (timeout, texto largo, número
-  inválido, check, clave foránea) y los de programación (TypeError…) a "Algo falló en la app… recargá (F5)" (el detalle, en la
+  inválido, check, clave foránea) y los de programación (TypeError…) a "Algo falló en la app… recargá con ↻" (F5 no recarga en las pantallas de carga) (el detalle, en la
   consola). app.js avisa igual los TypeError/ReferenceError que se escapan (`unhandledrejection`).
 - **Turnos anteriores** (`turnos_anteriores`, `turno(id)`): el dueño ve todos; el empleado, los suyos.
 

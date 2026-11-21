@@ -3,8 +3,8 @@
 // Por dentro se llaman "remitos" (tablas y funciones de la base).
 import { llamar } from './base.js';
 import * as cat from './catalogo.js';
-import { $, $$, esc, plata, cant, fecha, numero, aviso, correr, modal, confirmar } from './ui.js';
-import { botonCamara } from './escaner.js';
+import { $, $$, esc, plata, cant, fecha, numero, aviso, correr, modal, confirmar, cargaSinGuardar } from './ui.js';
+import { botonCamara, campoEscaner, seguirLector } from './escaner.js';
 import { productoNoEncontrado } from './alta-producto.js';
 import { imprimir, ticketRemito } from './impresion.js';
 
@@ -15,6 +15,7 @@ const etiquetaTipo = r => r.anulado ? '<span class="etiqueta">anulada</span>'
 let filtro = '', buscar = '';   // lo elegido se mantiene al ir y volver de la sección
 // Un borrador por tipo: si se sale de la pantalla, no se pierde lo cargado
 const borradores = {};
+cargaSinGuardar(() => Object.values(borradores).some(b => b.items.length));
 let cargando = null;   // 'ingreso' | 'egreso' mientras se carga una
 
 // Íconos (trazos SVG, toman el color del texto). Los estilos son los de las demás pantallas (clases c- en app.css).
@@ -119,14 +120,15 @@ async function nuevoRemito(vista, ctx, tipo) {
         ${lista.map(x => `<option ${x === d.motivo ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label>
       <label class="crece">Notas <span class="muted">(opcional: detalle, quién retiró, a qué local…)</span><input class="input" id="notas" maxlength="300" value="${esc(d.notas)}"></label></div>
       <p class="muted chico">Los motivos se cambian en Ajustes.</p></div>
-    <div class="buscador"><input class="input grande" id="escaner" placeholder="Escaneá o escribí el producto que ${ing ? 'entra' : 'sale'}" autocomplete="off" autofocus>
+    <div class="buscador escanear">${campoEscaner('Escaneá o escribí el producto que ' + (ing ? 'entra' : 'sale'))}
       <div id="resultados" class="resultados flotan" hidden></div></div>
     <div class="tabla-caja"><table class="tabla" id="lineas"></table></div>
     <div class="recuadro-blanco form ancho">
       <div class="fila entre"><span class="total-etq">Valor al costo</span><span class="total chico-total" id="tot"></span></div>
       <div class="fila fin"><button class="btn primario grande" id="guardar">Guardar ${nombreTipo(tipo).toLowerCase()}</button></div></div>`;
   const escaner = $('#escaner'), res = $('#resultados');
-  botonCamara(escaner, { describir: c => porCodigo.get(c.toLowerCase())?.nombre });   // 📷 en el celular: cada código leído se agrega como con el lector
+  seguirLector(escaner);
+  botonCamara(escaner, { envolver: false, describir: c => porCodigo.get(c.toLowerCase())?.nombre });   // 📷 en el celular: cada código leído se agrega como con el lector
   let sugeridos = [], marcado = 0;
   const buscar = t => { const w = t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').split(/\s+/).filter(Boolean);
     return cata.productos.filter(p => { const s = (p.nombre + ' ' + cat.codigosDe(p).join(' ')).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); return w.every(x => s.includes(x)); }).slice(0, 12); };
@@ -174,7 +176,7 @@ async function nuevoRemito(vista, ctx, tipo) {
         return `<tr><td>${esc(p.nombre)}${p.codigo ? `<div class="muted chico">${esc(p.codigo)}</div>` : ''}</td><td class="num">${cant(p.stock)}</td>
           <td class="num"><input class="input cant" data-k="${k}" value="${esc(i.cantidad)}" inputmode="decimal"></td>
           <td class="num ${queda < 0 ? 'mal' : ''}">${cant(queda)}</td><td class="num">${plata(c * (+p.costo || 0))}</td>
-          <td><button class="link" data-quitar="${k}">✕</button></td></tr>`; }).join('')}</tbody>`
+          <td><button class="link" data-quitar="${k}">✕</button></td></tr>`; }).reverse().join('')}</tbody>`   // el último cargado, arriba (d.items queda en el orden de carga)
       : `<tbody><tr><td class="muted vacio">Escaneá o buscá los productos que ${ing ? 'entran' : 'salen'}.</td></tr></tbody>`;
     $$('[data-k]', $('#lineas')).forEach(inp => {
       inp.onfocus = () => inp.select();
