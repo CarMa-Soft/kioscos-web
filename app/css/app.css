@@ -40,7 +40,10 @@ html { scroll-padding-top: var(--alto-barra, 0px); }
 .barra-colapsar:hover { background: #4b5563; color: #fff; }
 .barra nav { flex: 1; display: flex; flex-direction: column; }
 .menu-bloques, .menu-pie { display: flex; flex-direction: column; }
-.menu-pie { margin-top: auto; }   /* Usuarios, Ajustes y el bloque del usuario, abajo de todo */
+/* Usuarios y Ajustes siguen a los demás bloques; el bloque del usuario (Ayuda, nombre, Cambiar de usuario) va abajo de todo,
+   en un recuadro aparte: así el espacio libre no parece parte del último bloque */
+.menu-pie { flex: 1; gap: .6rem; }   /* con poco alto, igual queda un respiro antes del recuadro */
+.menu-pie .menu-usuario { margin-top: auto; border-top: 0; padding: .35rem; background: rgba(255, 255, 255, .05); border-radius: 10px; }
 /* bloques sin título: los separa una línea fina */
 .menu-grupo { display: flex; flex-direction: column; gap: .1rem; margin-top: .5rem; padding-top: .5rem; border-top: 1px solid #374151; }
 .menu-bloques > .menu-grupo:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
@@ -74,7 +77,8 @@ html { scroll-padding-top: var(--alto-barra, 0px); }
   .barra nav { display: none; }
   .barra.abierto nav { display: flex; padding-top: .5rem; }
   .barra.abierto .menu-grupo { display: grid; grid-template-columns: 1fr 1fr; gap: .25rem; }
-  .menu-pie { margin-top: 0; }
+  .menu-pie { flex: none; }
+  .menu-pie .menu-usuario { margin-top: .5rem; }
   .menu-quien { grid-column: 1 / -1; }
   .barra nav a, .menu-accion, .menu-quien { font-size: 1rem; padding: .6rem .7rem; }
 }
