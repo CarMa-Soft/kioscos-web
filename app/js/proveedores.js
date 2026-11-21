@@ -1,6 +1,6 @@
 // Proveedores (solo dueño): lista con lo que se les debe, ficha con la cuenta, pagos, ajustes y datos
 import { llamar } from './base.js';
-import { $, $$, esc, plata, fecha, dia, hoyDia, sumarDias, textoVence, numero, aviso, correr, modal, confirmar } from './ui.js';
+import { $, $$, esc, plata, fecha, dia, hoyDia, sumarDias, textoVence, numero, aviso, correr, modal, confirmar, subpantalla } from './ui.js';
 import { verCompra } from './compras.js';
 
 // Lo elegido se mantiene al ir y volver de la sección
@@ -14,6 +14,9 @@ const ICO = {
   alerta: svg('<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5v.01"/>'),
   camion: svg('<path d="M2.5 6.5h11v9h-11zM13.5 9.5h4l3 3v3h-7"/><circle cx="6.5" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/>'),
   lupa: svg('<circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/>'),
+  calendario: svg('<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/>'),
+  recibo: svg('<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>'),
+  lista: svg('<path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/>'),
 };
 
 export async function pantallaProveedores(vista, ctx) {
@@ -45,49 +48,73 @@ export async function pantallaProveedores(vista, ctx) {
         <td>${esc([p.contacto, p.telefono].filter(Boolean).join(' · '))}</td><td>${p.ultima_compra ? `${fecha(p.ultima_compra.fecha)} · ${plata(p.ultima_compra.total)}` : '<span class="muted">—</span>'}</td>
         <td class="num">${p.productos}</td><td class="num">${saldo(p.saldo)}</td></tr>`).join('')}</tbody>`
       : `<tbody><tr><td class="muted vacio">${lista.length ? (grupo === 'deben' && !f ? 'No le debés nada a ningún proveedor.' : 'Ningún proveedor coincide.') : 'Todavía no hay proveedores.'}</td></tr></tbody>`;
-    $$('tr[data-id]').forEach(tr => tr.onclick = () => ficha(+tr.dataset.id, ctx));
+    $$('tr[data-id]').forEach(tr => tr.onclick = () => ficha(+tr.dataset.id, ctx, vista));
   };
   $('#filtro').oninput = e => { filtro = e.target.value; pintar(); };
   $('#nuevo').onclick = () => formProveedor(null, () => ctx.recargar());
-  $('#vencimientos').onclick = () => vencimientosModal(id => ficha(id, ctx));
+  $('#vencimientos').onclick = () => vencimientosModal(id => ficha(id, ctx, vista));
   pintar();
 }
 
-function ficha(id, ctx) {
+// La cuenta del proveedor: una pantalla dentro de Proveedores (no una ventana), igual que la ficha del cliente. "← Proveedores",
+// "atrás" y Esc vuelven a la lista como estaba. Pagar, ajustar y editar siguen siendo ventanas chicas.
+let sub = null;
+function ficha(id, ctx, vista) {
   correr(async () => {
     const p = await llamar('cuenta_proveedor', { p_id: id });
     let acum = 0;
     const movs = p.movimientos.map(m => ({ ...m, saldo: (acum = Math.round((acum + +m.monto) * 100) / 100) })).reverse();
-    const m = modal(p.nombre, `<p class="muted">${[p.cuit && 'CUIT ' + p.cuit, p.contacto, p.telefono && 'Tel. ' + p.telefono, p.dias && 'Visita: ' + p.dias,
-        p.plazo != null && `Plazo: ${p.plazo} días`].filter(Boolean).map(esc).join(' · ') || 'Sin datos de contacto'}</p>
-      <div class="tarjeta"><div class="etq">Cuenta</div><div class="valor ${+p.saldo > 0.004 ? 'mal' : ''}">${textoSaldo(p.saldo)}</div></div>
-      <div class="fila"><button class="btn primario" id="pagar">Registrar pago</button>
+    const debe = +p.saldo > 0.004, aFavor = +p.saldo < -0.004;
+    const proxima = p.deudas.map(d => d.vencimiento).filter(Boolean).sort()[0];
+    const vencido = p.deudas.filter(d => d.vencimiento && d.vencimiento < hoyDia()).reduce((x, d) => x + +d.pendiente, 0);
+    vista.innerHTML = `<div class="cabecera"><div><button class="link cf-volver" id="volver">← Proveedores</button><h2>${esc(p.nombre)}</h2>
+        <p class="muted">${[p.cuit && 'CUIT ' + p.cuit, p.contacto, p.telefono && 'Tel. ' + p.telefono].filter(Boolean).map(esc).join(' · ') || 'Sin datos de contacto'}</p></div>
+      <div class="acciones"><button class="btn primario" id="pagar">Registrar pago</button>
         ${+p.sin_aplicar > 0.004 && p.deudas.length ? `<button class="btn" id="aplicar">Aplicar lo que está a cuenta (${plata(p.sin_aplicar)})</button>` : ''}
         <button class="btn" id="ajuste">Saldo inicial / ajuste</button>
-        <button class="btn" id="editar">Editar datos</button><button class="btn peligro" id="eliminar">Eliminar</button>
-        <button class="btn" data-cerrar>Cerrar</button></div>
-      ${p.deudas.length ? `<h3>Facturas pendientes</h3><div class="tabla-caja"><table class="tabla"><thead><tr><th>Factura</th><th>Fecha</th><th>Vence</th><th class="num">Importe</th><th class="num">Pagado</th><th class="num">Pendiente</th></tr></thead><tbody>
-        ${p.deudas.map(d => `<tr><td>${linkCompra(d.compra_id, nombreDeuda(d))}</td><td>${dia(d.fecha_factura)}</td><td>${dia(d.vencimiento)}<div class="chico">${textoVence(d.vencimiento)}</div></td>
-          <td class="num">${plata(d.importe)}</td><td class="num ok">${+d.aplicado ? plata(d.aplicado) : ''}</td><td class="num"><b>${plata(d.pendiente)}</b></td></tr>`).join('')}</tbody></table></div>` : ''}
+        <button class="btn" id="editar">Editar datos</button><button class="btn peligro" id="eliminar">Eliminar</button></div></div>
+    <div class="c-tarjetas">
+      <div class="c-tarjeta ${debe ? 'rojo' : 'verde'}"><span class="c-ico">${ICO.plata}</span><div><div class="etq">Cuenta</div>
+        <div class="valor">${debe ? plata(p.saldo) : aFavor ? plata(-p.saldo) : 'Al día'}</div>
+        <div class="c-sub">${debe ? `le debés · ${p.deudas.length} factura${p.deudas.length === 1 ? '' : 's'} pendiente${p.deudas.length === 1 ? '' : 's'}` : aFavor ? 'a tu favor' : 'no le debés nada'}</div></div></div>
+      <div class="c-tarjeta ${vencido > 0.004 ? 'rojo' : proxima ? 'naranja' : 'gris'}"><span class="c-ico">${ICO.calendario}</span><div><div class="etq">${vencido > 0.004 ? 'Vencido desde' : 'Próximo vencimiento'}</div>
+        <div class="valor">${proxima ? dia(proxima) : '—'}</div>
+        <div class="c-sub">${vencido > 0.004 ? `<b class="mal">${plata(vencido)} ya vencido</b>` : proxima ? textoVence(proxima) : 'nada que pagar'}</div></div></div>
+      <div class="c-tarjeta azul"><span class="c-ico">${ICO.camion}</span><div><div class="etq">Plazo y visita</div>
+        <div class="valor">${p.plazo != null ? `${p.plazo} días` : 'Sin plazo'}</div>
+        <div class="c-sub">${p.dias ? 'visita: ' + esc(p.dias) : 'sin día de visita cargado'}</div></div></div>
+    </div>
+    <div class="cf-cols"><section>
+      <div class="c-titulo">${ICO.recibo}<h3>Facturas pendientes</h3></div>
+      <div class="tabla-caja c-tabla"><table class="tabla">${p.deudas.length ? `<thead><tr><th>Factura</th><th>Fecha</th><th>Vence</th><th class="num">Importe</th><th class="num">Pagado</th><th class="num">Pendiente</th></tr></thead><tbody>
+        ${p.deudas.map(d => `<tr><td class="nowrap">${linkCompra(d.compra_id, nombreDeuda(d))}</td><td class="nowrap">${dia(d.fecha_factura)}</td><td>${dia(d.vencimiento)}<div class="chico">${textoVence(d.vencimiento)}</div></td>
+          <td class="num nowrap">${plata(d.importe)}</td><td class="num ok nowrap">${+d.aplicado ? plata(d.aplicado) : ''}</td><td class="num nowrap"><b>${plata(d.pendiente)}</b></td></tr>`).join('')}</tbody>`
+        : '<tbody><tr><td class="muted vacio">No le debés ninguna factura.</td></tr></tbody>'}</table></div>
       ${+p.sin_aplicar > 0.004 ? `<p class="chico">A cuenta, sin aplicar a ninguna factura: <b class="ok">${plata(p.sin_aplicar)}</b></p>` : ''}
-      <h3>Movimientos</h3>
-      <div class="tabla-caja"><table class="tabla">${movs.length ? `<thead><tr><th>Fecha</th><th>Concepto</th><th class="num">Compra / suma</th><th class="num">Pagado / resta</th><th class="num">Saldo</th><th></th></tr></thead><tbody>
-        ${movs.map(x => `<tr class="${x.anulado ? 'anulada' : ''}"><td>${fecha(x.fecha)}</td><td>${linkCompra(x.compra_id, x.concepto)}${x.forma ? ` <span class="muted">(${esc(x.forma)}${x.de_caja ? ', de la caja' : ''})</span>` : ''}<div class="muted chico">${esc(x.usuario)}</div></td>
-          <td class="num">${+x.monto > 0 ? plata(x.monto) : ''}</td><td class="num ok">${+x.monto < 0 ? plata(-x.monto) : ''}</td><td class="num">${plata(x.saldo)}</td>
+      ${p.notas ? `<p class="muted chico">Notas: ${esc(p.notas)}</p>` : ''}
+    </section><section>
+      <div class="c-titulo">${ICO.lista}<h3>Movimientos</h3></div>
+      <div class="tabla-caja c-tabla"><table class="tabla">${movs.length ? `<thead><tr><th>Fecha</th><th>Concepto</th><th class="num">Compra / suma</th><th class="num">Pagado / resta</th><th class="num">Saldo</th><th></th></tr></thead><tbody>
+        ${movs.map(x => `<tr class="${x.anulado ? 'anulada' : ''}"><td class="nowrap">${fecha(x.fecha)}</td><td>${linkCompra(x.compra_id, x.concepto)}${x.forma ? ` <span class="muted">(${esc(x.forma)}${x.de_caja ? ', de la caja' : ''})</span>` : ''}<div class="muted chico">${esc(x.usuario)}</div></td>
+          <td class="num nowrap">${+x.monto > 0 ? plata(x.monto) : ''}</td><td class="num ok nowrap">${+x.monto < 0 ? plata(-x.monto) : ''}</td><td class="num nowrap">${plata(x.saldo)}</td>
           <td class="num">${['pago', 'ajuste'].includes(x.tipo) && !x.compra_id && !x.anulado ? `<button class="link" data-anular="${x.id}">Anular</button>` : ''}</td></tr>`).join('')}</tbody>`
-        : '<tbody><tr><td class="muted vacio">Sin movimientos. Si ya le debías algo, cargalo con "Saldo inicial / ajuste".</td></tr></tbody>'}</table></div>`, { ancho: true });
-    const otraVez = () => { m.cerrar(); ctx.recargar(); ficha(id, ctx); };
-    $('#pagar', m.el).onclick = () => pagar(p, otraVez);
-    if ($('#aplicar', m.el)) $('#aplicar', m.el).onclick = () => aplicar(p, otraVez);
-    $('#ajuste', m.el).onclick = () => ajuste(p, movs.length, otraVez);
-    $('#editar', m.el).onclick = () => formProveedor(p, otraVez);
+        : '<tbody><tr><td class="muted vacio">Sin movimientos. Si ya le debías algo, cargalo con "Saldo inicial / ajuste".</td></tr></tbody>'}</table></div>
+    </section></div>`;
+    window.scrollTo(0, 0);
+    if (!sub) sub = subpantalla(() => { sub = null; ctx.recargar(); });
+    $('#volver').onclick = () => sub.cerrar();
+    const otraVez = () => ficha(id, ctx, vista);
+    $('#pagar').onclick = () => pagar(p, otraVez);
+    if ($('#aplicar')) $('#aplicar').onclick = () => aplicar(p, otraVez);
+    $('#ajuste').onclick = () => ajuste(p, movs.length, otraVez);
+    $('#editar').onclick = () => formProveedor(p, otraVez);
     // la factura abre el detalle de la compra (el mismo de Compras); si se anula, devuelve o carga la factura, se vuelve a armar la ficha
-    $$('[data-compra]', m.el).forEach(b => b.onclick = () => verCompra(+b.dataset.compra, { ...ctx, recargar: otraVez }));
-    $('#eliminar', m.el).onclick = async () => {
+    $$('[data-compra]', vista).forEach(b => b.onclick = () => verCompra(+b.dataset.compra, { ...ctx, recargar: otraVez }));
+    $('#eliminar').onclick = async () => {
       if (!await confirmar('Eliminar proveedor', `¿Eliminar a ${p.nombre}? Solo se puede si no tiene compras y su cuenta está en cero.`, 'Eliminar')) return;
-      correr(async () => { await llamar('eliminar_proveedor', { p_id: p.id }); m.cerrar(); aviso('Proveedor eliminado', 'ok'); ctx.recargar(); });
+      correr(async () => { await llamar('eliminar_proveedor', { p_id: p.id }); aviso('Proveedor eliminado', 'ok'); sub.cerrar(); });
     };
-    $$('[data-anular]', m.el).forEach(b => b.onclick = async () => {
+    $$('[data-anular]', vista).forEach(b => b.onclick = async () => {
       const x = movs.find(y => y.id === +b.dataset.anular);
       if (!await confirmar('Anular movimiento', `Se anula "${x.concepto}" por ${plata(Math.abs(x.monto))}${x.de_caja ? ' y la plata vuelve a la caja del turno abierto' : ''}.`, 'Anular')) return;
       correr(async () => { await llamar('anular_mov_proveedor', { p_id: x.id }); aviso('Movimiento anulado', 'ok'); otraVez(); });

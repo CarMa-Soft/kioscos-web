@@ -82,6 +82,25 @@ document.addEventListener('click', e => {
   if (location.hash !== a.getAttribute('href')) location.replace(a.getAttribute('href'));
 });
 
+// Una pantalla adentro de otra (la ficha de un cliente dentro de Clientes): como una ventana, "atrás" y Esc vuelven a la
+// anterior (volver). Devuelve { cerrar } para el botón "← Volver". Si se va a otra sección, se olvida sola.
+export function subpantalla(volver) {
+  history.pushState({ ventana: true }, '');
+  let activa = true;
+  const quitar = () => {
+    activa = false;
+    const k = abiertas.indexOf(ventana); if (k >= 0) abiertas.splice(k, 1);
+    document.removeEventListener('keydown', tecla); window.removeEventListener('hashchange', quitar);
+  };
+  const ventana = { cerrar: () => { if (!activa) return; quitar(); volver(); } };
+  // Esc vuelve, salvo que haya una ventana abierta encima (esa se cierra primero)
+  const tecla = e => { if (e.key === 'Escape' && !document.querySelector('.modal-fondo')) ventana.cerrar(); };
+  abiertas.push(ventana);
+  document.addEventListener('keydown', tecla);
+  window.addEventListener('hashchange', quitar);
+  return ventana;
+}
+
 // Ventana sobre la pantalla. Devuelve { el, cerrar }. Escape, "Cancelar" (data-cerrar) o "atrás" la cierran.
 export function modal(titulo, cuerpo, { ancho = false, alCerrar } = {}) {
   const fondo = document.createElement('div');

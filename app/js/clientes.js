@@ -2,7 +2,7 @@
 // qué compras va el pago, ajustes (solo dueño). Como la cuenta del proveedor. La lista se ordena por nombre, saldo, límite o
 // antigüedad de la deuda; la ficha saca el estado de cuenta en PDF o lo arma para mandar por WhatsApp.
 import { llamar } from './base.js';
-import { $, $$, esc, plata, cant, fecha, dia, hoyDia, textoVence, numero, aviso, correr, modal, confirmar, telefonoWhatsApp } from './ui.js';
+import { $, $$, esc, plata, cant, fecha, dia, hoyDia, textoVence, numero, aviso, correr, modal, confirmar, telefonoWhatsApp, subpantalla } from './ui.js';
 import { verVenta } from './caja.js';
 
 const nombreDeuda = d => d.venta_id ? `Compra #${d.numero}` : (d.concepto || 'Deuda');
@@ -19,6 +19,9 @@ const ICO = {
   alerta: svg('<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5v.01"/>'),
   personas: svg('<circle cx="9" cy="8.5" r="3.2"/><path d="M3 19c.6-3.2 3-5 6-5s5.4 1.8 6 5"/><circle cx="17" cy="9.5" r="2.5"/><path d="M16 14.2c2.6.2 4.4 1.8 5 4.8"/>'),
   lupa: svg('<circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/>'),
+  calendario: svg('<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/>'),
+  recibo: svg('<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>'),
+  lista: svg('<path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/>'),
 };
 
 export async function pantallaClientes(vista, ctx) {
@@ -74,48 +77,70 @@ export async function pantallaClientes(vista, ctx) {
   $('#nuevo').onclick = () => formCliente(null, admin, () => ctx.recargar());
   pintar();
 
+  // La ficha del cliente: una pantalla dentro de Clientes (no una ventana), con el estilo de la lista. "← Clientes", "atrás"
+  // y Esc vuelven a la lista como estaba (filtro y orden). Cobrar, editar y los ajustes siguen siendo ventanas chicas.
+  let sub = null;
   function ficha(id) {
     correr(async () => {
       const c = await llamar('cuenta_cliente', { p_id: id });
       let acum = 0;
       const movs = c.movimientos.map(m => ({ ...m, saldo: (acum = Math.round((acum + +m.monto) * 100) / 100) })).reverse();
-      const plazo = c.plazo != null ? `plazo ${c.plazo} días` : `plazo ${c.plazo_general} días (el general)`;
-      const m = modal(c.nombre, `<p class="muted">${[c.telefono, c.direccion].filter(Boolean).map(esc).join(' · ') || 'Sin datos de contacto'}${+c.limite ? ' · límite ' + plata(c.limite) : ''} · ${esc(plazo)}</p>
-        <div class="cf-cabeza"><div class="tarjeta"><div class="etq">Cuenta</div><div class="valor ${+c.saldo > 0.004 ? 'mal' : ''}">${textoSaldo(c.saldo)}</div></div>
-        <div class="fila"><button class="btn primario" id="cobrar">Cobrar</button>
+      const plazo = c.plazo != null ? `${c.plazo} días` : `${c.plazo_general} días (el general)`;
+      const masVieja = c.pendientes.slice().sort((a, b) => String(a.fecha).localeCompare(String(b.fecha)))[0];
+      const vence = c.pendientes.map(d => d.vencimiento).sort()[0];
+      const dias = masVieja ? Math.max(0, Math.floor((Date.now() - new Date(masVieja.fecha)) / 864e5)) : 0;
+      const debe = +c.saldo > 0.004, aFavor = +c.saldo < -0.004;
+      vista.innerHTML = `<div class="cabecera"><div><button class="link cf-volver" id="volver">← Clientes</button><h2>${esc(c.nombre)}</h2>
+          <p class="muted">${[c.telefono, c.direccion].filter(Boolean).map(esc).join(' · ') || 'Sin datos de contacto'}${c.notas ? ' · ' + esc(c.notas) : ''}</p></div>
+        <div class="acciones"><button class="btn primario" id="cobrar">Cobrar</button>
           <button class="btn" id="estado-pdf" title="Lo que debe, compra por compra, para imprimir o mandar">📄 Estado de cuenta</button>
           <button class="btn" id="estado-wa" title="${c.telefono ? 'Arma el mensaje con lo que debe y abre WhatsApp' : 'No tiene teléfono: vas a elegir el contacto en WhatsApp'}">WhatsApp</button>
           ${+c.a_favor > 0.004 && c.pendientes.length ? `<button class="btn" id="aplicar">Aplicar lo que está a favor (${plata(c.a_favor)})</button>` : ''}
           ${admin ? '<button class="btn" id="ajuste">Deuda anterior / ajuste</button>' : ''}
-          <button class="btn" id="editar">Editar datos</button>${admin ? '<button class="btn peligro" id="eliminar">Eliminar</button>' : ''}
-          <button class="btn" data-cerrar>Cerrar</button></div></div>
-        <div class="cf-cols"><section>
-        ${c.pendientes.length ? `<h3>Compras pendientes</h3><div class="tabla-caja"><table class="tabla"><thead><tr><th>Compra</th><th>Fecha</th><th>Vence</th><th class="num">Importe</th><th class="num">Pagado</th><th class="num">Pendiente</th></tr></thead><tbody>
+          <button class="btn" id="editar">Editar datos</button>${admin ? '<button class="btn peligro" id="eliminar">Eliminar</button>' : ''}</div></div>
+      <div class="c-tarjetas">
+        <div class="c-tarjeta ${debe ? 'rojo' : 'verde'}"><span class="c-ico">${ICO.plata}</span><div><div class="etq">Cuenta</div>
+          <div class="valor">${debe ? plata(c.saldo) : aFavor ? plata(-c.saldo) : 'Al día'}</div>
+          <div class="c-sub">${debe ? `debe · ${c.pendientes.length} compra${c.pendientes.length === 1 ? '' : 's'} pendiente${c.pendientes.length === 1 ? '' : 's'}` : aFavor ? 'a favor del cliente' : 'no debe nada'}</div></div></div>
+        <div class="c-tarjeta ${masVieja ? 'naranja' : 'gris'}"><span class="c-ico">${ICO.calendario}</span><div><div class="etq">Debe desde</div>
+          <div class="valor">${masVieja ? new Date(masVieja.fecha).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—'}</div>
+          <div class="c-sub">${masVieja ? `hace ${dias} día${dias === 1 ? '' : 's'} · ${textoVence(vence)}` : 'sin compras pendientes'}</div></div></div>
+        <div class="c-tarjeta azul"><span class="c-ico">${ICO.alerta}</span><div><div class="etq">Límite de fiado</div>
+          <div class="valor">${+c.limite ? plata(c.limite) : 'Sin límite'}</div><div class="c-sub">plazo para pagar: ${esc(plazo)}</div></div></div>
+      </div>
+      <div class="cf-cols"><section>
+        <div class="c-titulo">${ICO.recibo}<h3>Compras pendientes</h3></div>
+        <div class="tabla-caja c-tabla"><table class="tabla">${c.pendientes.length ? `<thead><tr><th>Compra</th><th>Fecha</th><th>Vence</th><th class="num">Importe</th><th class="num">Pagado</th><th class="num">Pendiente</th></tr></thead><tbody>
           ${c.pendientes.map(d => `<tr><td class="nowrap">${linkVenta(d.venta_id, nombreDeuda(d))}</td><td class="nowrap">${fecha(d.fecha)}</td><td>${dia(d.vencimiento)}<div class="chico">${textoVence(d.vencimiento)}</div></td>
-            <td class="num nowrap">${plata(d.importe)}</td><td class="num ok nowrap">${+d.aplicado ? plata(d.aplicado) : ''}</td><td class="num nowrap"><b>${plata(d.pendiente)}</b></td></tr>`).join('')}</tbody></table></div>` : ''}
+            <td class="num nowrap">${plata(d.importe)}</td><td class="num ok nowrap">${+d.aplicado ? plata(d.aplicado) : ''}</td><td class="num nowrap"><b>${plata(d.pendiente)}</b></td></tr>`).join('')}</tbody>`
+          : '<tbody><tr><td class="muted vacio">No debe ninguna compra.</td></tr></tbody>'}</table></div>
         ${+c.a_favor > 0.004 ? `<p class="chico">A favor, sin aplicar a ninguna compra: <b class="ok">${plata(c.a_favor)}</b></p>` : ''}
         ${c.pagadas.length ? `<details class="pagadas"><summary><h3>Compras pagadas <span class="muted">(${c.pagadas.length}${c.pagadas.length === 100 ? ', las últimas' : ''})</span></h3></summary>
-          <div class="tabla-caja"><table class="tabla"><thead><tr><th>Compra</th><th>Fecha</th><th class="num">Importe</th><th>Pagada el</th></tr></thead><tbody>
+          <div class="tabla-caja c-tabla"><table class="tabla"><thead><tr><th>Compra</th><th>Fecha</th><th class="num">Importe</th><th>Pagada el</th></tr></thead><tbody>
           ${c.pagadas.map(d => `<tr><td class="nowrap">${linkVenta(d.venta_id, nombreDeuda(d))}</td><td class="nowrap">${fecha(d.fecha)}</td><td class="num nowrap">${plata(d.importe)}</td><td class="nowrap">${fecha(d.pagada)}</td></tr>`).join('')}</tbody></table></div></details>` : ''}
-        ${!c.pendientes.length && !c.pagadas.length ? '<h3>Compras</h3><p class="muted">No tiene compras fiadas.</p>' : ''}</section>
-        <section><h3>Movimientos</h3>
-        <div class="tabla-caja"><table class="tabla">${movs.length ? `<thead><tr><th>Fecha</th><th>Concepto</th><th class="num">Debe</th><th class="num">Pagó</th><th class="num">Saldo</th></tr></thead><tbody>
+      </section><section>
+        <div class="c-titulo">${ICO.lista}<h3>Movimientos</h3></div>
+        <div class="tabla-caja c-tabla"><table class="tabla">${movs.length ? `<thead><tr><th>Fecha</th><th>Concepto</th><th class="num">Debe</th><th class="num">Pagó</th><th class="num">Saldo</th></tr></thead><tbody>
           ${movs.map(x => `<tr><td class="nowrap">${fecha(x.fecha)}</td><td>${linkVenta(x.venta_id, x.concepto)}${x.forma ? ` <span class="muted">(${esc(x.forma)})</span>` : ''}<div class="muted chico">${esc(x.usuario)}</div></td>
-            <td class="num">${+x.monto > 0 ? plata(x.monto) : ''}</td><td class="num ok">${+x.monto < 0 ? plata(-x.monto) : ''}</td><td class="num">${plata(x.saldo)}</td></tr>`).join('')}</tbody>`
-          : '<tbody><tr><td class="muted vacio">Sin movimientos.</td></tr></tbody>'}</table></div></section></div>`, { ancho: true });
-      $('.modal', m.el).classList.add('cf-modal');   // apaisada: arriba el saldo y los botones; abajo lo pendiente y los movimientos, lado a lado
-      const otraVez = () => { m.cerrar(); ctx.recargar(); ficha(id); };
-      $('#cobrar', m.el).onclick = () => cobrar(c, otraVez);
-      $('#estado-pdf', m.el).onclick = () => correr(() => estadoPdf(c, ctx));
-      $('#estado-wa', m.el).onclick = () => estadoWhatsApp(c, ctx);
-      if ($('#aplicar', m.el)) $('#aplicar', m.el).onclick = () => aplicar(c, otraVez);
-      $('#editar', m.el).onclick = () => formCliente(c, admin, otraVez);
-      $$('[data-venta]', m.el).forEach(b => b.onclick = () => verVenta(+b.dataset.venta, ctx, otraVez));   // si se anula o devuelve, se vuelve a armar la ficha
+            <td class="num nowrap">${+x.monto > 0 ? plata(x.monto) : ''}</td><td class="num ok nowrap">${+x.monto < 0 ? plata(-x.monto) : ''}</td><td class="num nowrap">${plata(x.saldo)}</td></tr>`).join('')}</tbody>`
+          : '<tbody><tr><td class="muted vacio">Sin movimientos.</td></tr></tbody>'}</table></div>
+      </section></div>`;
+      window.scrollTo(0, 0);
+      // "← Clientes", "atrás" o Esc: la lista, como estaba. Al rearmar la ficha (después de cobrar, etc.) no se suma otra entrada.
+      if (!sub) sub = subpantalla(() => { sub = null; ctx.recargar(); });
+      $('#volver').onclick = () => sub.cerrar();
+      const otraVez = () => ficha(id);
+      $('#cobrar').onclick = () => cobrar(c, otraVez);
+      $('#estado-pdf').onclick = () => correr(() => estadoPdf(c, ctx));
+      $('#estado-wa').onclick = () => estadoWhatsApp(c, ctx);
+      if ($('#aplicar')) $('#aplicar').onclick = () => aplicar(c, otraVez);
+      $('#editar').onclick = () => formCliente(c, admin, otraVez);
+      $$('[data-venta]', vista).forEach(b => b.onclick = () => verVenta(+b.dataset.venta, ctx, otraVez));   // si se anula o devuelve, se vuelve a armar la ficha
       if (admin) {
-        $('#ajuste', m.el).onclick = () => ajuste(c, otraVez);
-        $('#eliminar', m.el).onclick = async () => {
+        $('#ajuste').onclick = () => ajuste(c, otraVez);
+        $('#eliminar').onclick = async () => {
           if (!await confirmar('Eliminar cliente', `¿Eliminar a ${c.nombre}? Si tiene movimientos, queda dado de baja.`, 'Eliminar')) return;
-          correr(async () => { const r = await llamar('eliminar_cliente', { p_id: c.id }); m.cerrar(); aviso(r.desactivado ? 'Cliente dado de baja' : 'Cliente eliminado', 'ok'); ctx.recargar(); });
+          correr(async () => { const r = await llamar('eliminar_cliente', { p_id: c.id }); aviso(r.desactivado ? 'Cliente dado de baja' : 'Cliente eliminado', 'ok'); sub.cerrar(); });
         };
       }
     });
