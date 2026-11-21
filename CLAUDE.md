@@ -95,6 +95,9 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   Los pagos (varias formas) tienen que sumar el total y van a la caja del turno.
 - **Turnos:** uno abierto por negocio. Vende y carga movimientos quien lo abrió (o el dueño); lo cierra quien lo abrió
   (o el dueño). Las funciones que mueven plata o stock bloquean la fila del negocio (`for update`) para no cruzarse.
+  **Abrir la caja desde Vender:** con la caja cerrada, Vender muestra "Abrir la caja" (y Cobrar también la abre; la venta en curso
+  se mantiene). `abrirCaja(estado, alAbrir)` de caja.js. `estado_caja()` con la caja cerrada trae `queda_anterior` (contado − retiro
+  del último turno cerrado), que se propone como efectivo inicial (también en Caja). Pruebas: tests/28.
 - **Anular** (solo dueño): devuelve el stock y saca la plata de la caja del turno abierto.
 - **Productos:** un producto con movimientos (`producto_con_movimientos`: ventas, devoluciones, compras, devoluciones a
   proveedor, entradas y salidas, ajustes de stock; no cuentan "Stock inicial" ni "Corrección desde la ficha") no se borra:
