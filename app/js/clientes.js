@@ -81,14 +81,15 @@ export async function pantallaClientes(vista, ctx) {
       const movs = c.movimientos.map(m => ({ ...m, saldo: (acum = Math.round((acum + +m.monto) * 100) / 100) })).reverse();
       const plazo = c.plazo != null ? `plazo ${c.plazo} días` : `plazo ${c.plazo_general} días (el general)`;
       const m = modal(c.nombre, `<p class="muted">${[c.telefono, c.direccion].filter(Boolean).map(esc).join(' · ') || 'Sin datos de contacto'}${+c.limite ? ' · límite ' + plata(c.limite) : ''} · ${esc(plazo)}</p>
-        <div class="tarjeta"><div class="etq">Cuenta</div><div class="valor ${+c.saldo > 0.004 ? 'mal' : ''}">${textoSaldo(c.saldo)}</div></div>
+        <div class="cf-cabeza"><div class="tarjeta"><div class="etq">Cuenta</div><div class="valor ${+c.saldo > 0.004 ? 'mal' : ''}">${textoSaldo(c.saldo)}</div></div>
         <div class="fila"><button class="btn primario" id="cobrar">Cobrar</button>
           <button class="btn" id="estado-pdf" title="Lo que debe, compra por compra, para imprimir o mandar">📄 Estado de cuenta</button>
           <button class="btn" id="estado-wa" title="${c.telefono ? 'Arma el mensaje con lo que debe y abre WhatsApp' : 'No tiene teléfono: vas a elegir el contacto en WhatsApp'}">WhatsApp</button>
           ${+c.a_favor > 0.004 && c.pendientes.length ? `<button class="btn" id="aplicar">Aplicar lo que está a favor (${plata(c.a_favor)})</button>` : ''}
           ${admin ? '<button class="btn" id="ajuste">Deuda anterior / ajuste</button>' : ''}
           <button class="btn" id="editar">Editar datos</button>${admin ? '<button class="btn peligro" id="eliminar">Eliminar</button>' : ''}
-          <button class="btn" data-cerrar>Cerrar</button></div>
+          <button class="btn" data-cerrar>Cerrar</button></div></div>
+        <div class="cf-cols"><section>
         ${c.pendientes.length ? `<h3>Compras pendientes</h3><div class="tabla-caja"><table class="tabla"><thead><tr><th>Compra</th><th>Fecha</th><th>Vence</th><th class="num">Importe</th><th class="num">Pagado</th><th class="num">Pendiente</th></tr></thead><tbody>
           ${c.pendientes.map(d => `<tr><td>${linkVenta(d.venta_id, nombreDeuda(d))}</td><td>${fecha(d.fecha)}</td><td>${dia(d.vencimiento)}<div class="chico">${textoVence(d.vencimiento)}</div></td>
             <td class="num">${plata(d.importe)}</td><td class="num ok">${+d.aplicado ? plata(d.aplicado) : ''}</td><td class="num"><b>${plata(d.pendiente)}</b></td></tr>`).join('')}</tbody></table></div>` : ''}
@@ -96,11 +97,13 @@ export async function pantallaClientes(vista, ctx) {
         ${c.pagadas.length ? `<details class="pagadas"><summary><h3>Compras pagadas <span class="muted">(${c.pagadas.length}${c.pagadas.length === 100 ? ', las últimas' : ''})</span></h3></summary>
           <div class="tabla-caja"><table class="tabla"><thead><tr><th>Compra</th><th>Fecha</th><th class="num">Importe</th><th>Pagada el</th></tr></thead><tbody>
           ${c.pagadas.map(d => `<tr><td>${linkVenta(d.venta_id, nombreDeuda(d))}</td><td>${fecha(d.fecha)}</td><td class="num">${plata(d.importe)}</td><td>${fecha(d.pagada)}</td></tr>`).join('')}</tbody></table></div></details>` : ''}
-        <h3>Movimientos</h3>
+        ${!c.pendientes.length && !c.pagadas.length ? '<h3>Compras</h3><p class="muted">No tiene compras fiadas.</p>' : ''}</section>
+        <section><h3>Movimientos</h3>
         <div class="tabla-caja"><table class="tabla">${movs.length ? `<thead><tr><th>Fecha</th><th>Concepto</th><th class="num">Debe</th><th class="num">Pagó</th><th class="num">Saldo</th></tr></thead><tbody>
           ${movs.map(x => `<tr><td>${fecha(x.fecha)}</td><td>${linkVenta(x.venta_id, x.concepto)}${x.forma ? ` <span class="muted">(${esc(x.forma)})</span>` : ''}<div class="muted chico">${esc(x.usuario)}</div></td>
             <td class="num">${+x.monto > 0 ? plata(x.monto) : ''}</td><td class="num ok">${+x.monto < 0 ? plata(-x.monto) : ''}</td><td class="num">${plata(x.saldo)}</td></tr>`).join('')}</tbody>`
-          : '<tbody><tr><td class="muted vacio">Sin movimientos.</td></tr></tbody>'}</table></div>`, { ancho: true });
+          : '<tbody><tr><td class="muted vacio">Sin movimientos.</td></tr></tbody>'}</table></div></section></div>`, { ancho: true });
+      $('.modal', m.el).classList.add('cf-modal');   // apaisada: arriba el saldo y los botones; abajo lo pendiente y los movimientos, lado a lado
       const otraVez = () => { m.cerrar(); ctx.recargar(); ficha(id); };
       $('#cobrar', m.el).onclick = () => cobrar(c, otraVez);
       $('#estado-pdf', m.el).onclick = () => correr(() => estadoPdf(c, ctx));
