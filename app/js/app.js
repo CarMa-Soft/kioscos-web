@@ -16,6 +16,7 @@ import { pantallaPedidos } from './pedidos.js';
 import { pantallaProveedores } from './proveedores.js';
 import { pantallaRemitos } from './remitos.js';
 import { VERSION } from './version.js';
+import { recorridoPrimeraVez } from './recorrido.js';
 import { atajoDe, textoAtajo, esAtajo } from './teclado.js';
 
 const raiz = $('#app');
@@ -353,6 +354,8 @@ async function iniciar() {
   const ok = await correr(async () => { await cat.cargar(datos.negocio.id); return true; });
   if (!ok) return;
   refresco = setInterval(() => cat.actualizar().catch(() => {}), 60 * 1000);
+  // la primera vez que entra el dueño, el recorrido de bienvenida (un momento después, con la pantalla ya armada)
+  setTimeout(() => recorridoPrimeraVez(datos), 700);
   // al abrir la app (o recargar la página) siempre arranca en la primera sección, Hoy, aunque la dirección quedara en otra.
   // Con location.replace (como el menú), no replaceState: así el manejo del botón "atrás" (ui.js) se entera del cambio;
   // el cambio de dirección muestra la sección solo (hashchange).

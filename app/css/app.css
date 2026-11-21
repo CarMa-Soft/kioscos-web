@@ -380,17 +380,14 @@ details.pagadas summary h3 { display: inline-block; }
 .ay-texto { margin-top: .45rem; line-height: 1.55; }
 .ay-texto ol, .ay-texto ul { margin: .25rem 0; padding-left: 1.3rem; }
 
-/* Primeros pasos (Hoy) */
-.pp { margin-bottom: 1rem; }
-.pp-cabeza { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
-.pp-cabeza h3 { margin: 0; }
-.pp-barra { height: 6px; border-radius: 99px; background: #eaecf0; margin: .6rem 0 .4rem; overflow: hidden; }
-.pp-barra i { display: block; height: 100%; background: #12b76a; width: 0; }
-.pp-lista { list-style: none; margin: 0; padding: 0; }
-.pp-lista li { display: grid; grid-template-columns: 1.6rem 1fr auto; gap: .7rem; align-items: center; padding: .6rem 0; border-bottom: 1px solid var(--borde); }
-.pp-lista li:last-child { border-bottom: 0; }
-.pp-tilde { width: 1.5rem; height: 1.5rem; border-radius: 50%; border: 2px solid #d0d5dd; display: grid; place-items: center; font-size: .85rem; font-weight: 700; }
-.pp-lista li.hecho .pp-tilde { background: #12b76a; border-color: #12b76a; color: #fff; }
-.pp-lista li.hecho b { color: var(--suave); text-decoration: line-through; font-weight: 500; }
-.pp-acc { white-space: nowrap; }
-@media (max-width: 600px) { .pp-lista li { grid-template-columns: 1.6rem 1fr; } .pp-acc { grid-column: 2; } }
+
+/* Recorrido de bienvenida (recorrido.js) */
+.modal.rec-modal { width: min(520px, 100%); padding: 1.5rem 1.75rem 1.25rem; }
+.rec { text-align: center; }
+.rec-dibujo { width: 100%; max-width: 320px; height: auto; display: block; margin: 0 auto .5rem; }
+.rec h2 { margin: .25rem 0 .5rem; font-size: 1.35rem; }
+.rec p { margin: 0 auto .6rem; max-width: 40ch; line-height: 1.45; }
+.rec-puntos { display: flex; justify-content: center; gap: .45rem; margin: 1rem 0; }
+.rec-puntos button { width: .6rem; height: .6rem; border-radius: 50%; border: 0; padding: 0; background: #d0d5dd; cursor: pointer; }
+.rec-puntos button.activo { background: #067647; width: 1.5rem; border-radius: 99px; }
+.rec-botones { display: flex; justify-content: space-between; align-items: center; gap: .75rem; }

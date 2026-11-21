@@ -124,10 +124,10 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   anula solo lo que quedó: el stock no devuelto y la plata que quedaba, repartida entre los pagos.
 
 ## Inicio y Reportes (etapa 4e)
-- **Primeros pasos** (Hoy, solo el dueño; `primerosPasos` de inicio.js): datos del ticket, productos, probar la impresora, abrir la
-  caja, primera venta e instalar la app. Se tildan solos: `inicio().arranque` (`hubo_turno`, `hubo_venta`), el catálogo, la config
-  `negocio`; lo de cada PC (impresora probada, app instalada) en localStorage `primeros-pasos` (`marcar`; Ajustes marca la impresora
-  al imprimir la prueba). Con todo hecho no aparece; "Ocultar" guarda la config `primeros_pasos = oculto`. tests/30.
+- **Recorrido de bienvenida** (`recorrido.js`, solo el dueño): 7 pasos con un dibujo SVG (en los colores de la app, sin capturas) y
+  dos o tres líneas, "Siguiente"/"Anterior" (y flechas), puntos, "Ir ahí" y "Saltear". Sale solo una vez: `recorridoPrimeraVez`
+  (app.js, al entrar) si la config `recorrido_visto` no es true, y la guarda al cerrarlo. Después, en Ayuda: "▶ Ver el recorrido".
+  (`inicio().arranque` quedó de los "primeros pasos" que se sacaron de Hoy; no se usa.)
 - `inicio()`: ventas de hoy, últimas ventas, caja y fiado pendiente. El empleado ve solo sus ventas y no la ganancia.
 - Hoy (`inicio.js`) suma, solo para el dueño, "A pagar a proveedores (7 días)" (`vencimientos(hoy + 7)`, roja si hay algo
   vencido; "ver vencimientos" abre `vencimientosModal` de proveedores.js) y "Productos para reponer" (del catálogo del
