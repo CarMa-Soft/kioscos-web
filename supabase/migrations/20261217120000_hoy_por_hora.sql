@@ -33,8 +33,8 @@ begin
         'esperado', public.efectivo_esperado(t.id)) end,
     'fiado_pendiente', public.fiado_pendiente(v_neg),
     -- las ventas de hoy hora por hora (las del empleado, las suyas), para el gráfico de Hoy
-    'por_hora', (select coalesce(jsonb_agg(jsonb_build_object('hora', h, 'total', t, 'tickets', n) order by h), '[]'::jsonb)
-                 from (select extract(hour from fecha at time zone v_tz)::int as h, sum(total) as t, count(*) as n from vs group by 1) x),
+    'por_hora', (select coalesce(jsonb_agg(jsonb_build_object('hora', x.hh, 'total', x.tot, 'tickets', x.cant) order by x.hh), '[]'::jsonb)
+                 from (select extract(hour from vs.fecha at time zone v_tz)::int as hh, sum(vs.total) as tot, count(*) as cant from vs group by 1) x),
     -- para los primeros pasos (solo el dueño): si alguna vez se abrió la caja y si alguna vez se vendió
     'arranque', case when v_admin then jsonb_build_object(
         'hubo_turno', exists (select 1 from public.turnos where negocio_id = v_neg),
