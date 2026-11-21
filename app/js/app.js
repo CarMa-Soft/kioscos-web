@@ -79,6 +79,22 @@ function sinRecargar(e) {
 }
 window.addEventListener('hashchange', () => { if (datos?.yo) mostrarSeccion(); });
 
+// ---------- Marca del negocio ----------
+// El logo propio (Ajustes → Logo del negocio; config 'logo', una imagen chica como data:image/...). Se recuerda en la PC
+// (localStorage 'marca') para que la próxima bienvenida lo muestre de entrada (bienvenida.js).
+const logoNegocio = () => { const l = datos?.config?.logo; return typeof l === 'string' && l.startsWith('data:image/') ? l : ''; };
+function recordarMarca() {
+  try { localStorage.setItem('marca', JSON.stringify({ nombre: datos?.negocio?.nombre || '', logo: logoNegocio() })); } catch { /* sin almacenamiento */ }
+}
+// Ajustes cambió el logo (ctx.cambiarLogo): se ve en la barra sin recargar
+function cambiarLogo(logo) {
+  datos.config.logo = logo;
+  recordarMarca();
+  const cab = document.querySelector('.barra-cabeza');
+  cab?.querySelector('.barra-logo')?.remove();
+  if (logoNegocio()) cab?.insertAdjacentHTML('afterbegin', `<img class="barra-logo" src="${esc(logoNegocio())}" alt="">`);
+}
+
 // ---------- Bienvenida ----------
 // La pantalla del logo (index.html) se va con un fundido apenas hay algo para mostrar: no agrega espera.
 function quitarBienvenida() {
@@ -93,7 +109,7 @@ function quitarBienvenida() {
 function pantallaCuenta() {
   quitarBienvenida();
   raiz.className = 'caja-sola';
-  raiz.innerHTML = `<h1>Kioscos y Almacenes</h1>
+  raiz.innerHTML = `<h1>Gestión de ventas</h1>
     <p class="muted">Entrá con la cuenta del negocio. En la PC del local se hace una sola vez.</p>
     <form id="f-cuenta" class="form">
       <label>Email<input class="input" name="email" type="email" autocomplete="username" required autofocus></label>
@@ -114,7 +130,7 @@ function pantallaCuenta() {
 function pantallaSinNegocio(mensaje) {
   quitarBienvenida();
   raiz.className = 'caja-sola';
-  raiz.innerHTML = `<h1>Kioscos y Almacenes</h1><p class="aviso mal">${esc(mensaje)}</p>
+  raiz.innerHTML = `<h1>Gestión de ventas</h1><p class="aviso mal">${esc(mensaje)}</p>
     <div class="fila"><button class="btn" id="reintentar">Reintentar</button><button class="btn" id="salir">Salir de esta cuenta</button></div>`;
   $('#reintentar').onclick = () => iniciar();
   $('#salir').onclick = () => salirDeLaCuenta();
@@ -127,7 +143,7 @@ const soloUno = () => datos.usuarios.length === 1 ? datos.usuarios[0] : null;
 const sinPin = () => soloUno()?.rol === 'admin' && datos.config?.entrar_sin_pin === true;
 function pantallaElegir() {
   raiz.className = 'caja-sola';
-  raiz.innerHTML = `<h1>${esc(datos.negocio.nombre)}</h1><p class="muted">¿Quién sos?</p>
+  raiz.innerHTML = `${logoNegocio() ? `<img class="elegir-logo" src="${esc(logoNegocio())}" alt="">` : ''}<h1>${esc(datos.negocio.nombre)}</h1><p class="muted">¿Quién sos?</p>
     <div class="usuarios">${datos.usuarios.map(u => `<button class="usuario" data-id="${u.id}"><b>${esc(u.nombre)}</b><span>${ROL[u.rol]}</span></button>`).join('')}</div>
     <form id="f-pin" class="form" hidden>
       <label><span id="pin-de"></span><input class="input pin" name="pin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" pattern="\\d{4,8}" required></label>
@@ -242,7 +258,7 @@ function armarMarco() {
   // En la PC, barra a la izquierda que se puede colapsar (« »). En el celular, barra arriba: el menú y el usuario se
   // esconden detrás del botón ☰, que muestra la sección actual.
   raiz.innerHTML = `<header class="barra" id="barra">
-      <div class="barra-cabeza"><div class="negocio" title="${esc(datos.negocio.nombre)}">${esc(datos.negocio.nombre)}</div>
+      <div class="barra-cabeza">${logoNegocio() ? `<img class="barra-logo" src="${esc(logoNegocio())}" alt="">` : ''}<div class="negocio" title="${esc(datos.negocio.nombre)}">${esc(datos.negocio.nombre)}</div>
         <button class="barra-colapsar" id="colapsar"></button>
         <button class="menu-boton" id="menu" aria-expanded="false" aria-controls="menu-nav"><span aria-hidden="true">☰</span> <span id="seccion-actual">Menú</span></button></div>
       <nav id="menu-nav">${menuPorGrupos(yo)}</nav></header>
@@ -329,6 +345,7 @@ async function mostrarSeccion() {
     config: datos.config,          // configuración del negocio (datos para el ticket, cuándo imprimir); Ajustes la actualiza
     ir: ruta => { location.replace(ruta); },   // sin sumar al historial (ver ui.js: botón atrás)
     recargar: () => mostrarSeccion(),
+    cambiarLogo,
     alTeclear: fn => { teclas = fn; },
   };
   let ok = false;
@@ -370,6 +387,8 @@ async function iniciar() {
   try { datos = await llamar('datos_inicio'); } catch (e) { return pantallaSinNegocio(e.message); }
   const bvNegocio = document.getElementById('bv-negocio');
   if (bvNegocio && datos.negocio?.nombre) bvNegocio.textContent = datos.negocio.nombre;   // en la bienvenida, el nombre del negocio
+  recordarMarca();
+  document.title = `Gestión de ventas · ${datos.negocio.nombre}`;
   if (!datos.yo) { guardarToken(null); return pantallaElegir(); }
   armarMarco();
   const ok = await correr(async () => { await cat.cargar(datos.negocio.id); return true; });

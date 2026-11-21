@@ -90,6 +90,7 @@ const TEMAS = [
     <li>Para que imprima <b>directo, sin la ventana de impresión</b>: hacé un acceso directo a Chrome en el escritorio, clic derecho → <b>Propiedades</b>, y en <b>Destino</b> agregá al final, después de un espacio, <span class="mono">--kiosk-printing</span>. Abrí la app siempre desde ese acceso directo.</li>
     <li>En <b>Ajustes → Ticket después de cada venta</b> elegí <b>Imprimir siempre</b>, <b>Preguntar</b> o <b>No imprimir</b>.</li></ol>
     Si la impresora aparece en Windows como "dispositivo no especificado" o como un puerto COM, hay que instalarle el driver y elegir ese puerto: pedí ayuda.` },
+  { s: 'Reportes, usuarios y ajustes', a: true, t: 'Poner el logo del negocio', x: 'En <b>Ajustes → Logo del negocio</b>, tocá <b>📷 Elegir imagen</b> y elegí el logo (una foto o un PNG; mejor si es cuadrado). La app lo achica sola. Se ve al abrir la app, arriba en el menú y al elegir el usuario. Con <b>Quitar</b> vuelve el de la app.' },
   { s: 'Reportes, usuarios y ajustes', a: true, t: 'Datos del ticket e impresión', x: 'En <b>Ajustes</b>: nombre, CUIT, dirección, teléfono y pie del ticket, y si se imprime siempre, nunca o se pregunta. Con <b>Imprimir un ticket de prueba</b> lo probás.' },
   { s: 'Reportes, usuarios y ajustes', a: true, t: 'Formas de pago, recargos y tope de descuento', x: 'En <b>Ajustes → Formas de pago y recargos</b>: qué formas se usan, el recargo de cada una y el tope de descuento de los empleados.' },
 ];

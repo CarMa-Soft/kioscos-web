@@ -6,7 +6,7 @@
   <!-- Solo se cargan scripts propios y de cdn.jsdelivr.net, y solo se habla con el proyecto de Supabase -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self'; img-src 'self' data:; connect-src 'self' https://jmktvtbyeifrminlrhpa.supabase.co wss://jmktvtbyeifrminlrhpa.supabase.co; base-uri 'self'; form-action 'self'; object-src 'none'">
   <meta name="referrer" content="no-referrer">
-  <title>Kioscos y Almacenes</title>
+  <title>Gestión de ventas</title>
   <!-- Se puede instalar como app (ícono propio, ventana sin barra del navegador): manifest + sw.js, que no guarda nada -->
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#067647">
@@ -29,10 +29,11 @@
       <rect class="bv-vidriera" x="50" y="55" width="21" height="13" rx="2"/>
       <rect class="bv-vereda" x="14" y="78" width="72" height="5" rx="2.5"/>
     </svg>
-    <div class="bv-nombre">Kioscos y Almacenes</div>
+    <div class="bv-nombre">Gestión de ventas</div>
     <div class="bv-negocio" id="bv-negocio"></div>
     <div class="bv-firma">Powered by <b>Car-Ma Soft</b></div>
   </div>
+  <script src="js/bienvenida.js"></script>
   <div id="app" class="caja-sola"></div>
   <div id="version-nueva" class="version-nueva" hidden>Hay una versión nueva de la app. <button class="btn chico" id="actualizar">Actualizar</button></div>
   <div id="print-area"></div>

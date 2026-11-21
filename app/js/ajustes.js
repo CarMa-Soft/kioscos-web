@@ -27,6 +27,12 @@ export async function pantallaAjustes(vista, ctx) {
         y dejá la impresora de tickets como predeterminada.</p>
       <div class="fila"><button class="btn primario">Guardar</button><button type="button" class="btn" id="prueba">Imprimir un ticket de prueba</button></div>
     </form>
+    <div class="form ancho recuadro-blanco" id="logo-negocio"><h3>Logo del negocio</h3>
+      <p class="muted chico">Se ve al abrir la app, arriba en el menú y al elegir el usuario. Una imagen cuadrada (o casi) queda mejor; la app la achica sola.</p>
+      <div class="logo-fila"><div class="logo-vista" id="logo-vista"></div>
+        <div class="fila"><label class="btn"><input type="file" id="logo-archivo" accept="image/*" hidden>📷 Elegir imagen</label>
+          <button type="button" class="btn" id="logo-quitar">Quitar</button></div></div>
+    </div>
     <form class="form ancho recuadro-blanco" id="f-cobro">
       <h3>Formas de pago y recargos</h3>
       <p class="muted">Los precios de los productos son para efectivo. Cada forma puede llevar un recargo en %, que se suma al cobrar
@@ -153,6 +159,38 @@ export async function pantallaAjustes(vista, ctx) {
       aviso('Motivos guardados', 'ok');
     });
   };
+  // Logo del negocio: se achica a 256 px (como mucho) y se guarda como imagen chica en la config ('logo')
+  const pintarLogo = () => {
+    const l = typeof ctx.config.logo === 'string' && ctx.config.logo.startsWith('data:image/') ? ctx.config.logo : '';
+    $('#logo-vista').innerHTML = l ? `<img src="${esc(l)}" alt="Logo del negocio">` : '<span class="muted chico">Sin logo: se usa el de la app</span>';
+    $('#logo-quitar').hidden = !l;
+  };
+  const guardarLogo = valor => correr(async () => {
+    await llamar('guardar_config', { p_clave: 'logo', p_valor: valor });
+    ctx.config.logo = valor; ctx.cambiarLogo?.(valor); pintarLogo();
+    aviso(valor ? 'Logo guardado' : 'Logo quitado', 'ok');
+  });
+  $('#logo-archivo').onchange = e => {
+    const archivo = e.target.files[0]; e.target.value = '';
+    if (!archivo) return;
+    if (!archivo.type.startsWith('image/')) return aviso('Elegí una imagen (foto, PNG, JPG…)');
+    const img = new Image(), url = URL.createObjectURL(archivo);
+    img.onerror = () => { URL.revokeObjectURL(url); aviso('No se pudo abrir esa imagen'); };
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const k = Math.min(1, 256 / Math.max(img.width, img.height));
+      const c = Object.assign(document.createElement('canvas'), { width: Math.round(img.width * k), height: Math.round(img.height * k) });
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      let datos = '';
+      for (const q of [0.9, 0.8, 0.65, 0.5]) { datos = c.toDataURL('image/webp', q); if (datos.length < 60000) break; }
+      if (!datos.startsWith('data:image/webp')) datos = c.toDataURL('image/png');   // navegador sin webp
+      if (datos.length >= 60000) return aviso('La imagen es demasiado pesada: probá con una más simple');
+      guardarLogo(datos);
+    };
+    img.src = url;
+  };
+  $('#logo-quitar').onclick = () => guardarLogo('');
+  pintarLogo();
   $('#f-negocio').onsubmit = e => {
     e.preventDefault();
     const f = new FormData(e.target);
