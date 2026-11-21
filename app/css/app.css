@@ -503,3 +503,14 @@ details.pagadas summary h3 { display: inline-block; }
 @media (min-width: 801px) { .marco.colapsada .menu-firma { text-align: center; padding: 0; } .marco.colapsada .menu-firma .menu-txt { display: none; } .marco.colapsada .menu-firma-corta { display: inline; font-weight: 700; } }
 .bv-firma { position: fixed; left: 0; right: 0; bottom: 1.4rem; text-align: center; font-size: .8rem; color: rgba(255, 255, 255, .7); letter-spacing: .03em; }
 .bv-firma b { color: #fff; }
+
+/* Logo propio del negocio: en la barra, al elegir el usuario, en la bienvenida y en Ajustes */
+.barra-logo { flex: none; width: 2.1rem; height: 2.1rem; object-fit: contain; border-radius: 8px; background: #fff; padding: 2px; }
+@media (min-width: 801px) { .marco.colapsada .barra-logo { width: 1.9rem; height: 1.9rem; } }
+.elegir-logo { display: block; width: 96px; height: 96px; object-fit: contain; margin: 0 auto .6rem; border-radius: 16px; }
+.bv-logo-propio { object-fit: contain; background: #fff; border-radius: 26px; padding: 10px; box-sizing: border-box; animation: bv-entrar .5s ease-out both, bv-latido 1.8s .5s ease-in-out infinite; }
+@keyframes bv-latido { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+@media (prefers-reduced-motion: reduce) { .bv-logo-propio { animation: none; } }
+.logo-fila { display: flex; align-items: center; gap: 1.2rem; flex-wrap: wrap; }
+.logo-vista { width: 96px; height: 96px; display: grid; place-items: center; border: 1px dashed #d0d5dd; border-radius: 14px; background: #f8fafc; text-align: center; padding: .3rem; }
+.logo-vista img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 10px; }

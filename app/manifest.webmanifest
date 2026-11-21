@@ -1,7 +1,7 @@
 {
   "id": "./index.html",
-  "name": "Kioscos y Almacenes",
-  "short_name": "Mi negocio",
+  "name": "Gestión de ventas",
+  "short_name": "Ventas",
   "description": "Ventas, caja, stock, clientes y proveedores del negocio.",
   "lang": "es-AR",
   "start_url": "./index.html#/inicio",
