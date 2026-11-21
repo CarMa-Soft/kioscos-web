@@ -252,21 +252,34 @@ function aplicar(p, despues) {
 
 // Qué hay que pagar hasta una fecha, por proveedor
 let vencHasta = null;
+const PLAZOS = [['Hoy', 0], ['7 días', 7], ['15 días', 15], ['30 días', 30]];
 export function vencimientosModal(alPagar) {
   vencHasta ??= sumarDias(hoyDia(), 7);
-  const m = modal('Vencimientos: qué tenés que pagar', `<div class="fila"><label>Hasta el día <input class="input" type="date" id="v-hasta" value="${vencHasta}"></label>
-      <span class="chips">${[['Hoy', 0], ['7 días', 7], ['15 días', 15], ['30 días', 30]].map(([l, n]) => `<button class="chip" data-d="${n}">${l}</button>`).join('')}</span></div>
+  const m = modal('Vencimientos: qué tenés que pagar', `<div class="vto-filtro"><label>Hasta el día <input class="input" type="date" id="v-hasta" value="${vencHasta}"></label>
+      <div class="chips">${PLAZOS.map(([l, n]) => `<button class="chip" data-d="${n}">${l}</button>`).join('')}</div></div>
     <div id="v-lista"><p class="muted">Cargando…</p></div><div class="fila fin"><button class="btn primario" data-cerrar>Cerrar</button></div>`, { ancho: true });
+  $('.modal', m.el).classList.add('vto-modal');
+  // el chip del plazo elegido queda marcado (si la fecha se eligió a mano, ninguno)
+  const marcar = () => $$('[data-d]', m.el).forEach(b => b.classList.toggle('elegido', sumarDias(hoyDia(), +b.dataset.d) === vencHasta));
   const cargar = () => correr(async () => {
+    marcar();
     const r = await llamar('vencimientos', { p_hasta: vencHasta });
-    const total = r.proveedores.reduce((s, x) => s + +x.total, 0);
-    const vencido = r.proveedores.reduce((s, x) => s + x.deudas.filter(d => d.vencimiento < r.hoy).reduce((a, d) => a + +d.pendiente, 0), 0);
-    $('#v-lista', m.el).innerHTML = !r.proveedores.length ? `<p class="muted">No hay nada que pagar hasta el ${dia(r.hasta)}.</p>` : `
-      <div class="tarjetas"><div class="tarjeta"><div class="etq">A pagar hasta el ${dia(r.hasta)}</div><div class="valor mal">${plata(total)}</div></div>
-        <div class="tarjeta"><div class="etq">Ya vencido</div><div class="valor ${vencido > 0.004 ? 'mal' : ''}">${plata(vencido)}</div></div></div>
-      ${r.proveedores.map(x => `<div class="recuadro-blanco"><div class="fila entre"><h3>${esc(x.nombre)} · ${plata(x.total)}</h3><button class="btn chico" data-pagar="${x.id}">Registrar pago</button></div>
-        ${+x.sin_aplicar > 0.004 ? `<p class="ok chico">Tiene ${plata(x.sin_aplicar)} a cuenta sin aplicar</p>` : ''}
-        <table class="tabla deudas"><tbody>${x.deudas.map(d => `<tr><td>${esc(nombreDeuda(d))}</td><td>${dia(d.vencimiento)}</td><td>${textoVence(d.vencimiento)}</td><td class="num">${plata(d.pendiente)}</td></tr>`).join('')}</tbody></table></div>`).join('')}`;
+    const total = r.proveedores.reduce((x, p) => x + +p.total, 0);
+    const vencido = r.proveedores.reduce((x, p) => x + p.deudas.filter(d => d.vencimiento < r.hoy).reduce((a, d) => a + +d.pendiente, 0), 0);
+    $('#v-lista', m.el).innerHTML = !r.proveedores.length ? `<p class="muted vacio">No hay nada que pagar hasta el ${dia(r.hasta)}.</p>` : `
+      <div class="c-tarjetas">
+        <div class="c-tarjeta naranja"><span class="c-ico">${ICO.calendario}</span><div><div class="etq">A pagar hasta el ${dia(r.hasta)}</div><div class="valor">${plata(total)}</div>
+          <div class="c-sub">${r.proveedores.length} proveedor${r.proveedores.length === 1 ? '' : 'es'}</div></div></div>
+        <div class="c-tarjeta ${vencido > 0.004 ? 'rojo' : 'gris'}"><span class="c-ico">${ICO.alerta}</span><div><div class="etq">Ya vencido</div><div class="valor">${plata(vencido)}</div>
+          <div class="c-sub">${vencido > 0.004 ? 'conviene pagarlo primero' : 'nada vencido'}</div></div></div>
+      </div>
+      ${r.proveedores.map(p => `<div class="vto-prov">
+        <div class="vto-cabeza"><div><b>${esc(p.nombre)}</b> <span class="muted">· ${plata(p.total)}</span>
+          ${+p.sin_aplicar > 0.004 ? `<div class="ok chico">Tiene ${plata(p.sin_aplicar)} a cuenta sin aplicar</div>` : ''}</div>
+          <button class="btn chico" data-pagar="${p.id}">Registrar pago</button></div>
+        <div class="tabla-caja c-tabla"><table class="tabla"><thead><tr><th>Comprobante</th><th>Vence</th><th></th><th class="num">Pendiente</th></tr></thead><tbody>
+          ${p.deudas.map(d => `<tr><td>${esc(nombreDeuda(d))}</td><td class="nowrap">${dia(d.vencimiento)}</td><td class="nowrap">${textoVence(d.vencimiento)}</td>
+            <td class="num nowrap"><b>${plata(d.pendiente)}</b></td></tr>`).join('')}</tbody></table></div></div>`).join('')}`;
     $$('[data-pagar]', m.el).forEach(b => b.onclick = () => { m.cerrar(); alPagar(+b.dataset.pagar); });
   });
   $('#v-hasta', m.el).onchange = e => { vencHasta = e.target.value || hoyDia(); cargar(); };
