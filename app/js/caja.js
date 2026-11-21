@@ -92,12 +92,18 @@ export async function pantallaCaja(vista, ctx) {
     };
   }
 
-  // Cierre contando los billetes de cada valor (Ajustes): el total lo suma la pantalla y lo vuelve a calcular la base
+  // Cierre: poniendo solo el total que hay, o contando los billetes de cada valor (Ajustes; el total lo suma la pantalla y lo
+  // vuelve a calcular la base). Cada PC recuerda la forma elegida; de fábrica, billetes si hay valores cargados.
   function cerrar() {
     const billetes = (e.billetes || []).map(Number);
+    let modo = (() => { try { return localStorage.getItem('cierre-modo'); } catch { return null; } })() || (billetes.length ? 'billetes' : 'total');
+    if (!billetes.length) modo = 'total';
     const m = modal('Cerrar turno', `<form class="form ancho" id="f-cerrar">
-      <p>Tiene que haber <b>${plata(t.esperado)}</b> en efectivo. Contá cuántos billetes hay de cada valor: el total se suma solo.</p>
-      <table class="tabla"><thead><tr><th>Billete</th><th>Cantidad</th><th class="num">Subtotal</th></tr></thead><tbody>
+      <p>Tiene que haber <b>${plata(t.esperado)}</b> en efectivo.</p>
+      ${billetes.length ? `<div class="chips" id="modo-cierre"><button type="button" class="chip" data-modo="total">Poner el total</button><button type="button" class="chip" data-modo="billetes">Contar billete por billete</button></div>` : ''}
+      <label id="caja-total">¿Cuánto efectivo hay en la caja?<input class="input grande" name="total" inputmode="decimal" placeholder="0"></label>
+      <p class="muted chico" id="ayuda-billetes">Contá cuántos billetes hay de cada valor: el total se suma solo.</p>
+      <table class="tabla" id="tabla-billetes"><thead><tr><th>Billete</th><th>Cantidad</th><th class="num">Subtotal</th></tr></thead><tbody>
         ${billetes.map(b => `<tr><td><b>${plata(b).replace(/,00$/, '')}</b></td><td><input class="input corto" data-bill="${b}" inputmode="numeric" placeholder="0"></td><td class="num" data-sub="${b}">—</td></tr>`).join('')}
         <tr><td colspan="2">Monedas y otros <span class="muted chico">(si no contás por billetes, poné acá el total)</span></td><td class="num"><input class="input corto" name="otros" inputmode="decimal" placeholder="0"></td></tr></tbody></table>
       <div class="fila entre"><span>Total contado</span><span class="total chico-total" id="contado">${plata(0)}</span></div>
@@ -107,6 +113,10 @@ export async function pantallaCaja(vista, ctx) {
       <label>Notas<input class="input" name="notas" maxlength="500" placeholder="opcional"></label>
       <div class="fila fin"><button type="button" class="btn" data-cerrar>Cancelar</button><button class="btn primario" id="ok">Cerrar turno</button></div></form>`, { ancho: true });
     const leer = () => {
+      if (modo === 'total') {
+        const txt = $('[name=total]', m.el).value.trim(), o = txt === '' ? 0 : numero(txt);
+        return { det: {}, otros: o >= 0 ? o : 0, contado: o >= 0 ? Math.round(o * 100) / 100 : 0, invalido: !(o >= 0), hay: txt !== '' };
+      }
       const det = {}; let suma = 0, invalido = false, hay = false;
       $$('[data-bill]', m.el).forEach(i => {
         const txt = i.value.trim(), q = numero(txt);
@@ -138,15 +148,27 @@ export async function pantallaCaja(vista, ctx) {
       const cs = campos(), i = cs.indexOf(ev.target);
       if (i < cs.length - 1) cs[i + 1].focus(); else $('#ok', m.el).click();
     });
-    setTimeout(() => $('[data-bill]', m.el)?.focus(), 40);
+    const ponerModo = nuevo => {
+      modo = nuevo;
+      try { localStorage.setItem('cierre-modo', modo); } catch { /* sin almacenamiento */ }
+      $$('[data-modo]', m.el).forEach(b => b.classList.toggle('elegido', b.dataset.modo === modo));
+      $('#caja-total', m.el).hidden = modo !== 'total';
+      $('#tabla-billetes', m.el).hidden = $('#ayuda-billetes', m.el).hidden = $('#contado', m.el).parentElement.hidden = modo === 'total';
+      actualizar();
+      setTimeout(() => (modo === 'total' ? $('[name=total]', m.el) : $('[data-bill]', m.el))?.focus(), 40);
+    };
+    $$('[data-modo]', m.el).forEach(b => b.onclick = () => ponerModo(b.dataset.modo));
+    ponerModo(modo);
     $('#f-cerrar', m.el).onsubmit = ev => {
       ev.preventDefault();
       const f = new FormData(ev.target), { det, otros, contado, invalido, hay } = leer(), retiro = numero(f.get('retiro')) || 0;
       if (invalido) return aviso('Revisá el conteo: las cantidades de billetes son números enteros');
-      if (!hay) return aviso('Contá el efectivo (si no hay nada, poné 0 en "Monedas y otros")');
+      if (invalido && modo === 'total') return aviso('Revisá el efectivo: tiene que ser un número');
+      if (!hay) return aviso(modo === 'total' ? 'Poné cuánto efectivo hay (si no hay nada, poné 0)' : 'Contá el efectivo (si no hay nada, poné 0 en "Monedas y otros")');
       if (!(retiro >= 0) || retiro > contado) return aviso('El retiro no puede ser mayor a lo contado');
       correr(async () => {
-        const r = await llamar('cerrar_turno', { p_contado: null, p_retiro: retiro, p_notas: f.get('notas'), p_billetes: det, p_otros: otros, p_registrar_ajuste: f.get('ajuste') === 'on' });
+        const r = await llamar('cerrar_turno', { p_retiro: retiro, p_notas: f.get('notas'),
+          ...(modo === 'total' ? { p_contado: contado, p_billetes: null, p_otros: 0 } : { p_contado: null, p_billetes: det, p_otros: otros }), p_registrar_ajuste: f.get('ajuste') === 'on' });
         m.cerrar();
         resumenTurno(r, () => ctx.recargar());
       });
