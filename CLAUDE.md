@@ -64,6 +64,10 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
 - **Usuarios** (`usuarios`, como en la app local): personas con PIN de 4 a 8 números, rol `admin` (Dueño) o `empleado`.
   En la PC se entra una vez con la cuenta; después cada uno elige su nombre y pone su PIN (`iniciar_usuario`).
   5 PIN incorrectos seguidos bloquean a ese usuario 5 minutos.
+  **Un solo usuario:** no se elige el nombre, va directo al PIN. Si además el dueño activó **Entrar sin PIN** (Usuarios; config
+  `entrar_sin_pin`), al abrir la app entra solo (`iniciar_usuario` con PIN vacío; la base lo acepta solo si `entra_sin_pin`: la config
+  activada, un único usuario activo y que sea dueño; con un segundo usuario se vuelve a pedir). Después de "Cambiar de usuario" no entra
+  solo: muestra "Entrar como …" (y "Salir de la cuenta de esta PC"). Pruebas: tests/27.
 - **Sesión del usuario:** `iniciar_usuario` devuelve un token (vence a las 16 horas) que la app manda en el encabezado
   `x-usuario-kiosco` en cada pedido (`base.js`). Solo vale con la misma cuenta y el mismo negocio.
 - **Controles para las funciones:** `requiere_negocio()`, `requiere_usuario()`, `requiere_admin()` (cortan con el error
