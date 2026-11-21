@@ -1,8 +1,10 @@
 // Ajustes (solo dueño): datos del negocio y ticket, formas de pago, recargos, tope de descuento, balanza, billetes
 // y motivos de las entradas y salidas de mercadería
 import { llamar } from './base.js';
-import { $, $$, esc, numero, aviso, correr } from './ui.js';
+import { $, $$, esc, numero, aviso, correr, hoyDia } from './ui.js';
 import { imprimir, ticketVenta } from './impresion.js';
+import { descargarExcel } from './planilla.js';
+import * as cat from './catalogo.js';
 import { ATAJO_FABRICA, atajoDe, textoAtajo, atajoApretado, problemaAtajo } from './teclado.js';
 
 export async function pantallaAjustes(vista, ctx) {
@@ -76,7 +78,36 @@ export async function pantallaAjustes(vista, ctx) {
       <p class="chico mal" id="atajo-problema" hidden></p>
       <div class="fila"><button class="btn primario">Guardar</button><button type="button" class="btn" id="atajo-fabrica">Volver a ${esc(textoAtajo(ATAJO_FABRICA))}</button></div>
     </form>
+    <form class="form ancho recuadro-blanco" id="f-datos"><h3>Descargar mis datos</h3>
+      <p class="muted chico">Una planilla de Excel con tus productos, clientes (con lo que deben), proveedores (con lo que les debés) y las ventas
+        del período que elijas. Para tener una copia guardada o para revisar en la computadora.</p>
+      <div class="fila"><label class="crece">Ventas desde<input class="input" type="date" name="desde" value="${hoyDia().slice(0, 8)}01"></label>
+        <label class="crece">hasta<input class="input" type="date" name="hasta" value="${hoyDia()}"></label></div>
+      <div class="fila"><button class="btn primario">⬇️ Descargar Excel</button></div>
+    </form>
     <div class="form ancho recuadro-blanco"><h3>Lectura de facturas con IA</h3><div id="uso-ia" class="muted">…</div></div>`;
+  $('#f-datos').onsubmit = ev => {
+    ev.preventDefault();
+    const f = new FormData(ev.target), desde = f.get('desde'), hasta = f.get('hasta');
+    if (!desde || !hasta || hasta < desde) return aviso('Revisá las fechas');
+    correr(async () => {
+      const [clientes, proveedores, ventas] = await Promise.all([llamar('clientes'), llamar('proveedores'), llamar('ventas_periodo', { p_desde: desde, p_hasta: hasta })]);
+      const n = v => v == null || v === '' ? '' : +v;
+      const prods = cat.productos().slice().sort((a, b) => a.nombre.localeCompare(b.nombre));
+      await descargarExcel(`Datos de ${ctx.negocio.nombre} ${hoyDia()}`, [
+        { nombre: 'Productos', filas: [['Nombre', 'Código', 'Otros códigos', 'Categoría', 'Precio', 'Costo', 'Stock', 'Stock mínimo', 'Por kilo'],
+          ...prods.map(p => [p.nombre, p.codigo || '', (p.codigos || []).join(' '), cat.categoriaNombre(p.categoria_id), n(p.precio), n(p.costo), n(p.stock), n(p.stock_min), p.por_peso ? 'sí' : ''])] },
+        { nombre: 'Clientes', filas: [['Nombre', 'Teléfono', 'Dirección', 'Límite', 'Saldo (positivo = debe)', 'Notas'],
+          ...clientes.map(c => [c.nombre, c.telefono || '', c.direccion || '', n(c.limite), n(c.saldo), c.notas || ''])] },
+        { nombre: 'Proveedores', filas: [['Nombre', 'CUIT', 'Teléfono', 'Contacto', 'Saldo (positivo = le debés)'],
+          ...proveedores.map(p => [p.nombre, p.cuit || '', p.telefono || '', p.contacto || '', n(p.saldo)])] },
+        { nombre: 'Ventas', filas: [['Número', 'Fecha', 'Total', 'Devuelto', 'Anulada', 'Vendió', 'Cliente', 'Formas de pago', 'Productos'],
+          ...ventas.map(v => [v.numero, new Date(v.fecha).toLocaleString('es-AR'), n(v.total), +v.devuelto ? n(v.devuelto) : '', v.anulada ? 'sí' : '',
+            v.vendio || '', v.cliente || '', v.formas || '', v.productos || ''])] },
+      ]);
+      aviso(`Listo: ${prods.length} productos, ${clientes.length} clientes, ${proveedores.length} proveedores y ${ventas.length} ventas`, 'ok');
+    });
+  };
   llamar('uso_ia').then(u => {
     $('#uso-ia').innerHTML = `Este mes: <b>${u.mes.lecturas}</b> lectura${+u.mes.lecturas === 1 ? '' : 's'} · US$ ${(+u.mes.costo_usd).toFixed(2)}
       · En total: ${u.total.lecturas} · US$ ${(+u.total.costo_usd).toFixed(2)}

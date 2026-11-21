@@ -45,6 +45,11 @@ const GRUPOS = ['dia', 'mercaderia', 'numeros', 'admin'];   // admin (Usuarios y
 const CLAVE_COLAPSADO = 'menu-colapsado';                   // cada PC recuerda si el menú de la izquierda está colapsado
 
 siVenceLaSesion(() => iniciar());
+// Errores que se escapan de las acciones (fuera de correr): un aviso entendible en vez de nada (el detalle, en la consola)
+// (solo errores de programación: los de red o de librerías ya se manejan donde corresponde)
+window.addEventListener('unhandledrejection', ev => {
+  if (ev.reason instanceof TypeError && !/fetch|network|load failed/i.test(ev.reason.message) || ev.reason instanceof ReferenceError) aviso('Algo falló en la app. Probá de nuevo; si sigue pasando, recargá la página (F5)');
+});
 document.addEventListener('keydown', e => { if (!irAlMenu(e)) teclas?.(e); });
 window.addEventListener('hashchange', () => { if (datos?.yo) mostrarSeccion(); });
 

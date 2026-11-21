@@ -67,6 +67,17 @@ export function traducir(error) {
   if (error?.code === 'PGRST202') return new ErrorBase('La base no tiene esta función: falta aplicar una actualización de la base', error.code);
   if (error?.code === '23505') return new ErrorBase(/^Ya /.test(msg) ? msg : 'Ya existe un registro con ese dato', error.code);
   if (/permission denied|row-level security/i.test(msg)) return new ErrorBase('Sin permiso para hacer esto', '42501');
+  if (/statement timeout|canceling statement/i.test(msg)) return new ErrorBase(DEMORA, 'red');
+  if (/JWT expired|invalid JWT|refresh token/i.test(msg)) return new ErrorBase('Se venció la conexión con la base: recargá la página (F5)', 'red');
+  if (/value too long/i.test(msg)) return new ErrorBase('Algún texto es demasiado largo', error?.code || '');
+  if (/invalid input syntax|out of range|numeric field overflow/i.test(msg)) return new ErrorBase('Algún número o fecha no es válido: revisalo', error?.code || '');
+  if (/violates check constraint/i.test(msg)) return new ErrorBase('Algún dato no es válido (por ejemplo, un número negativo): revisalo', error?.code || '');
+  if (/violates foreign key/i.test(msg)) return new ErrorBase('Ese dato está en uso o ya no existe', error?.code || '');
+  // un error de la propia app (no de la base): en inglés y sin sentido para quien atiende
+  if (error instanceof TypeError || error instanceof ReferenceError || error instanceof RangeError || error instanceof SyntaxError) {
+    console.error(error);
+    return new ErrorBase('Algo falló en la app. Probá de nuevo; si sigue pasando, recargá la página (F5)', 'app');
+  }
   return new ErrorBase(msg, error?.code || '');
 }
 

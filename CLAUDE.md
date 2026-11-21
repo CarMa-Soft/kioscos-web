@@ -163,6 +163,13 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
 - **Cierre por billetes** (`cerrar_turno` con `p_billetes` = `{ "valor": cantidad }` y `p_otros`): el contado lo calcula
   la base; queda en `turnos.billetes`. Con `p_registrar_ajuste`, el faltante o sobrante queda como movimiento de caja
   (`caja.ajuste = true`); el esperado guardado no cambia. Los valores de billetes se editan en Ajustes (`guardar_ajustes_caja`).
+- **Cierre poniendo el total:** la ventana de cierre tiene "Poner el total" / "Contar billete por billete" (cada PC recuerda en
+  localStorage `cierre-modo`; de fábrica, billetes si hay valores cargados). Con el total va `p_contado` (sin `p_billetes`).
+- **Descargar mis datos** (Ajustes, dueño): Excel con Productos (del catálogo), Clientes, Proveedores y Ventas del período
+  (`ventas_periodo(p_desde, p_hasta)`, hasta un año; tests/31). `planilla.js` arma el .xlsx con varias hojas (fflate).
+- **Errores entendibles:** `traducir` (base.js) pasa a castellano los de Postgres sin traducir (timeout, texto largo, número
+  inválido, check, clave foránea) y los de programación (TypeError…) a "Algo falló en la app… recargá (F5)" (el detalle, en la
+  consola). app.js avisa igual los TypeError/ReferenceError que se escapan (`unhandledrejection`).
 - **Turnos anteriores** (`turnos_anteriores`, `turno(id)`): el dueño ve todos; el empleado, los suyos.
 
 ## Cobro: descuentos, recargos y autorización (etapa 4b)
