@@ -140,6 +140,8 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   (`zona_horaria`, config; por defecto Argentina).
 
 ## Proveedores y compras (etapa 5a)
+- **Cuenta del proveedor:** pantalla dentro de Proveedores (como la ficha del cliente, `subpantalla`): tarjetas Cuenta, Próximo
+  vencimiento (o "Vencido desde") y Plazo y visita; facturas pendientes y movimientos. Pagar, ajustar y editar, en ventanas chicas.
 - Todo solo el dueño. `proveedores` (CUIT validado con `cuit_valido`, único por negocio; `plazo` en días),
   `producto_proveedores` (proveedores de cada producto con su último costo), `productos.proveedor_id` (habitual).
 - `registrar_compra(p)`: suma stock (movimiento "Compra a …"), actualiza el costo (si es > 0) y el precio si viene
