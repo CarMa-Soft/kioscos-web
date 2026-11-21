@@ -368,3 +368,18 @@ details.pagadas summary h3 { display: inline-block; }
 .ay-tema summary { cursor: pointer; font-weight: 600; }
 .ay-texto { margin-top: .45rem; line-height: 1.55; }
 .ay-texto ol, .ay-texto ul { margin: .25rem 0; padding-left: 1.3rem; }
+
+/* Primeros pasos (Hoy) */
+.pp { margin-bottom: 1rem; }
+.pp-cabeza { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
+.pp-cabeza h3 { margin: 0; }
+.pp-barra { height: 6px; border-radius: 99px; background: #eaecf0; margin: .6rem 0 .4rem; overflow: hidden; }
+.pp-barra i { display: block; height: 100%; background: #12b76a; width: 0; }
+.pp-lista { list-style: none; margin: 0; padding: 0; }
+.pp-lista li { display: grid; grid-template-columns: 1.6rem 1fr auto; gap: .7rem; align-items: center; padding: .6rem 0; border-bottom: 1px solid var(--borde); }
+.pp-lista li:last-child { border-bottom: 0; }
+.pp-tilde { width: 1.5rem; height: 1.5rem; border-radius: 50%; border: 2px solid #d0d5dd; display: grid; place-items: center; font-size: .85rem; font-weight: 700; }
+.pp-lista li.hecho .pp-tilde { background: #12b76a; border-color: #12b76a; color: #fff; }
+.pp-lista li.hecho b { color: var(--suave); text-decoration: line-through; font-weight: 500; }
+.pp-acc { white-space: nowrap; }
+@media (max-width: 600px) { .pp-lista li { grid-template-columns: 1.6rem 1fr; } .pp-acc { grid-column: 2; } }
