@@ -190,8 +190,7 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
 - **Contar billetes con − y +** (botones al lado de cada cantidad) y una barra contra lo esperado (verde justo, amarilla falta, azul sobra).
 - **Cierre poniendo el total:** la ventana de cierre tiene "Poner el total" / "Contar billete por billete" (cada PC recuerda en
   localStorage `cierre-modo`; de fábrica, billetes si hay valores cargados). Con el total va `p_contado` (sin `p_billetes`).
-- **Descargar mis datos** (Ajustes, dueño): Excel con Productos (del catálogo), Clientes, Proveedores y Ventas del período
-  (`ventas_periodo(p_desde, p_hasta)`, hasta un año; tests/31). `planilla.js` arma el .xlsx con varias hojas (fflate).
+- (Ajustes ya no tiene "Descargar mis datos": se sacó a pedido del usuario. Quedó en la base `ventas_periodo` + tests/31, sin uso.)
 - **Errores entendibles:** `traducir` (base.js) pasa a castellano los de Postgres sin traducir (timeout, texto largo, número
   inválido, check, clave foránea) y los de programación (TypeError…) a "Algo falló en la app… recargá con ↻" (F5 no recarga en las pantallas de carga) (el detalle, en la
   consola). app.js avisa igual los TypeError/ReferenceError que se escapan (`unhandledrejection`).
@@ -226,8 +225,9 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   `cobrar_cliente(..., p_aplicaciones)` (`[{venta_id | deuda_id, monto}]`; sin él, a lo que vence primero; lo que sobra queda a favor)
   y `aplicar_cliente` (lo que está a favor, sin plata). El disparador `cc_aplicar` (cada movimiento de `cc` que no es un pago)
   recorta lo aplicado de más y aplica lo que está a favor, así `registrar_venta`, `anular_venta` y `devolver_venta` no saben nada de esto.
-- **Vencimiento:** fecha de la venta + `clientes.plazo` (solo el dueño lo cambia; null = config `plazo_clientes`, 30 de fábrica,
-  `guardar_plazo_clientes`). Se calcula al mostrarlo. `cuenta_cliente` trae `pendientes`, `pagadas` (con `pagada`, las últimas 100) y `a_favor`.
+- **Vencimiento:** fecha de la venta + `clientes.plazo` (solo el dueño lo cambia, en la ficha del cliente; null = config
+  `plazo_clientes`, 30 de fábrica; Ajustes ya no lo muestra). **Por mes:** con `clientes.vence_dia` (1 a 28), lo comprado en cada mes
+  vence ese día del mes siguiente (tests/34). Se calcula al mostrarlo. `cuenta_cliente` trae `pendientes`, `pagadas` (con `pagada`, las últimas 100) y `a_favor`.
 - **Uso del límite:** con límite de fiado, una barra en la lista y en la ficha (`usoLimite`: verde, amarilla desde 70%, roja al pasarlo).
 - **Lista y estado de cuenta:** `clientes()` trae también `deuda_desde` (la compra pendiente más vieja), `vence` (el vencimiento más
   próximo) y `ultimo` (último movimiento); la lista se ordena por nombre, "debe desde", límite o saldo (clic en el título).

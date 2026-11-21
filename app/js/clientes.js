@@ -91,7 +91,7 @@ export async function pantallaClientes(vista, ctx) {
       const c = await llamar('cuenta_cliente', { p_id: id });
       let acum = 0;
       const movs = c.movimientos.map(m => ({ ...m, saldo: (acum = Math.round((acum + +m.monto) * 100) / 100) })).reverse();
-      const plazo = c.plazo != null ? `${c.plazo} días` : `${c.plazo_general} días (el general)`;
+      const plazo = c.vence_dia ? `por mes: vence el ${c.vence_dia} del mes siguiente` : c.plazo != null ? `${c.plazo} días` : `${c.plazo_general} días`;
       const masVieja = c.pendientes.slice().sort((a, b) => String(a.fecha).localeCompare(String(b.fecha)))[0];
       const vence = c.pendientes.map(d => d.vencimiento).sort()[0];
       const dias = masVieja ? Math.max(0, Math.floor((Date.now() - new Date(masVieja.fecha)) / 864e5)) : 0;
@@ -251,18 +251,31 @@ export function formCliente(c, admin, alGuardar) {
     <label>Teléfono<input class="input" name="telefono" maxlength="40" value="${esc(c?.telefono || '')}"></label>
     <label>Dirección<input class="input" name="direccion" maxlength="120" value="${esc(c?.direccion || '')}"></label>
     ${admin ? `<div class="fila"><label class="crece">Límite de fiado <span class="muted">(0 = sin límite)</span><input class="input" name="limite" inputmode="decimal" value="${c?.limite ?? 0}"></label>
-      <label class="crece">Plazo para pagar (días) <span class="muted">(vacío = el de Ajustes)</span><input class="input" name="plazo" inputmode="numeric" value="${c?.plazo ?? ''}"></label></div>` : ''}
+      <label class="crece">Cómo paga<select class="input" name="tipo_plazo">
+        <option value="dias" ${c?.vence_dia ? '' : 'selected'}>Por días</option><option value="mes" ${c?.vence_dia ? 'selected' : ''}>Por mes</option></select></label></div>
+      <label class="plazo-dias">Plazo para pagar (días) <span class="muted">(vacío = 30)</span><input class="input" name="plazo" inputmode="numeric" value="${c?.plazo ?? ''}"></label>
+      <label class="plazo-mes">Se cierra a fin de mes y vence el día <span class="muted">(del mes siguiente, del 1 al 28)</span><input class="input" name="vence_dia" inputmode="numeric" value="${c?.vence_dia ?? 10}"></label>` : ''}
     <label>Notas<input class="input" name="notas" maxlength="500" value="${esc(c?.notas || '')}"></label>
     <div class="fila fin"><button type="button" class="btn" data-cerrar>Cancelar</button><button class="btn primario">Guardar</button></div></form>`);
+  // por días o por mes: se muestra el campo que corresponde
+  const tipo = $('[name=tipo_plazo]', m.el);
+  const verTipo = () => { if (!tipo) return; $('.plazo-dias', m.el).hidden = tipo.value !== 'dias'; $('.plazo-mes', m.el).hidden = tipo.value !== 'mes'; };
+  if (tipo) { tipo.onchange = verTipo; verTipo(); }
   $('#f-cli', m.el).onsubmit = e => {
     e.preventDefault();
     const f = new FormData(e.target);
     const datos = { id: c?.id ?? null, nombre: f.get('nombre'), telefono: f.get('telefono'), direccion: f.get('direccion'), notas: f.get('notas') };
     if (admin) {
       datos.limite = numero(f.get('limite')) || 0; if (datos.limite < 0) return aviso('Revisá el límite');
-      const plazo = String(f.get('plazo')).trim();
-      if (plazo && !(Number.isInteger(numero(plazo)) && numero(plazo) >= 0 && numero(plazo) <= 365)) return aviso('El plazo tiene que ser de 0 a 365 días');
-      datos.plazo = plazo;   // vacío = el general de Ajustes
+      if (f.get('tipo_plazo') === 'mes') {
+        const d = numero(f.get('vence_dia'));
+        if (!(Number.isInteger(d) && d >= 1 && d <= 28)) return aviso('El día de vencimiento tiene que ser del 1 al 28');
+        datos.vence_dia = d; datos.plazo = '';
+      } else {
+        const plazo = String(f.get('plazo')).trim();
+        if (plazo && !(Number.isInteger(numero(plazo)) && numero(plazo) >= 0 && numero(plazo) <= 365)) return aviso('El plazo tiene que ser de 0 a 365 días');
+        datos.plazo = plazo; datos.vence_dia = null;   // vacío = el general (30 días)
+      }
     }
     correr(async () => { const r = await llamar('guardar_cliente', { p: datos }); m.cerrar(); aviso('Cliente guardado', 'ok'); alGuardar(r); });
   };
