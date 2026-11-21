@@ -4,7 +4,7 @@
 // También sirve un archivo .json ya leído (formato "Factura leída" en CLAUDE.md).
 import { llamar, funcion } from './base.js';
 import * as cat from './catalogo.js';
-import { $, $$, esc, plata, cant, dia, hoyDia, sumarDias, numero, aviso, correr, modal, confirmar } from './ui.js';
+import { $, $$, esc, plata, cant, dia, hoyDia, sumarDias, numero, aviso, correr, modal, confirmar, cargaSinGuardar } from './ui.js';
 import { avisarListas } from './entregas.js';
 
 const r2 = n => Math.round((+n || 0) * 100) / 100;
@@ -12,6 +12,7 @@ const r3 = n => Math.round((+n || 0) * 1000) / 1000;
 const UNIDADES = new Set(['bulto', 'unidad', 'kg']);
 let carga = null;   // la factura que se está revisando (sobrevive a cambiar de sección)
 export const hayCargaFactura = () => !!carga;
+cargaSinGuardar(hayCargaFactura);
 
 // Unidades de venta que trae cada unidad facturada, según la descripción ("X 36 UNIDADES", "18 UN X 20 GR", "X 6U", "TRIPACK")
 function unidadesDeDescripcion(desc) {
@@ -326,7 +327,7 @@ function pintar(vista, ctx, alSalir) {
   // Buscador de productos en una ventana, para el renglón que no se reconoció
   function elegirProducto(descripcion, alElegir) {
     const m = modal('¿Qué producto es?', `<p class="muted">En la factura: <b>${esc(descripcion)}</b></p>
-      <div class="buscador"><input class="input" id="bp" placeholder="Buscá por nombre o código…" autocomplete="off" autofocus><div class="resultados" id="bp-res"></div></div>
+      <div class="buscador"><input class="input como-vender" id="bp" placeholder="Buscá por nombre o código…" autocomplete="off" autofocus><div class="resultados" id="bp-res"></div></div>
       <div class="fila fin"><button class="btn" data-cerrar>Cancelar</button></div>`);
     const inp = $('#bp', m.el);
     const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');

@@ -24,6 +24,7 @@ const TEMAS = [
   { s: 'Vender', t: 'Productos de balanza (por kilo)', x: 'Si el producto se vende por kilo, al agregarlo pide los kilos. Con la balanza configurada en Ajustes, la etiqueta que imprime la balanza se escanea como cualquier código y trae el peso o el importe.' },
   { s: 'Vender', t: 'Accesos rápidos', x: 'Los productos marcados como <b>"Botón rápido en Vender"</b> en su ficha aparecen arriba de la venta; los primeros 9 se agregan con <kbd>Alt</kbd> + número. Sirven para lo que no tiene código (pan, fiambre, cigarrillos sueltos…).' },
   { s: 'Vender', t: 'Atajos de teclado', x: '<kbd>F2</kbd> cobrar · <kbd>F1</kbd> efectivo · <kbd>F3</kbd> fiado · <kbd>Esc</kbd> limpiar el buscador · <kbd>Alt</kbd> + número: acceso rápido.' },
+  { s: 'Vender', t: '¿Por qué F5 no recarga la página?', x: 'Lo que se está cargando (la venta, una compra, una factura o una entrada o salida) está solo en esta pantalla y se perdería al recargar. Por eso en Vender, Compras y Entradas y salidas, y en cualquier lado mientras haya algo cargado sin guardar, <kbd>F5</kbd> y <kbd>Ctrl</kbd> + <kbd>R</kbd> no hacen nada. Si igual se recarga con el botón del navegador o se cierra la pestaña, el navegador pregunta antes de salir.' },
 
   // ---------- Fiado, entregas y encargos
   { s: 'Fiado, entregas y encargos', t: 'Fiar una venta', x: 'Elegí el <b>Cliente</b> (o crealo con <b>+</b>) y la forma de pago <b>Fiado</b> (<kbd>F3</kbd>). Va a la cuenta del cliente, no a la caja. Si el cliente tiene límite y lo pasaría, la app pregunta si fiar igual.' },
