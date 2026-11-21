@@ -84,10 +84,11 @@ const PASOS = n => [
   ['ayuda', 'Instalala y consultá la Ayuda', 'Con <b>Instalar la app</b> (abajo en el menú) queda un ícono en el escritorio. Y en <b>Ayuda</b> está cómo hacer cada cosa.', '#/ayuda'],
 ];
 
-// El recorrido. alTerminar (opcional) corre al cerrarlo, de cualquier forma.
-export function verRecorrido(ctx, alTerminar) {
+// El recorrido, desde el paso que se pida. alTerminar (opcional) corre al cerrarlo, de cualquier forma.
+export function verRecorrido(ctx, alTerminar, desde = 0) {
+  quitarCartel();
   const pasos = PASOS(ctx.negocio?.nombre || 'tu negocio');
-  let k = 0;
+  let k = Math.min(Math.max(0, desde), pasos.length - 1);
   const m = modal('', `<div class="rec" id="rec"></div>`, { alCerrar: () => alTerminar?.() });
   $('.modal', m.el).classList.add('rec-modal');
   $('.modal h2', m.el)?.remove();
@@ -104,7 +105,8 @@ export function verRecorrido(ctx, alTerminar) {
     $$('#rec [data-cerrar]', m.el).forEach(b => b.onclick = () => m.cerrar());   // Saltear (se dibuja después de abrir la ventana)
     if ($('#rec-ant', m.el)) $('#rec-ant', m.el).onclick = () => { k--; pintar(); };
     $('#rec-sig', m.el).onclick = () => { if (ultimo) { m.cerrar(); location.replace('#/vender'); } else { k++; pintar(); } };
-    if ($('#rec-ir', m.el)) $('#rec-ir', m.el).onclick = () => { m.cerrar(); location.replace(ruta); };
+    // Ir ahí: abre esa pantalla y deja un cartel para seguir el recorrido en el paso siguiente cuando quiera
+    if ($('#rec-ir', m.el)) $('#rec-ir', m.el).onclick = () => { m.cerrar(); location.replace(ruta); cartel(ctx, k + 1, pasos.length); };
     $('#rec-sig', m.el).focus();
   };
   // flechas del teclado: anterior y siguiente
@@ -114,6 +116,19 @@ export function verRecorrido(ctx, alTerminar) {
   });
   pintar();
 }
+
+// El cartel de abajo a la derecha ("Recorrido 4 de 7 · Seguir · ✕"): queda aunque se cambie de pantalla, hasta seguir o cerrarlo
+function cartel(ctx, siguiente, total) {
+  quitarCartel();
+  const c = document.createElement('div');
+  c.className = 'rec-cartel'; c.id = 'rec-cartel'; c.setAttribute('role', 'status');
+  c.innerHTML = `<span>📍 Recorrido <b>${siguiente + 1} de ${total}</b></span>
+    <button class="btn primario chico" id="rec-seguir">Seguir</button><button class="link" id="rec-dejar" aria-label="Terminar el recorrido" title="Terminar el recorrido">✕</button>`;
+  document.body.append(c);
+  c.querySelector('#rec-seguir').onclick = () => verRecorrido(ctx, null, siguiente);
+  c.querySelector('#rec-dejar').onclick = quitarCartel;
+}
+const quitarCartel = () => document.getElementById('rec-cartel')?.remove();
 
 // La primera vez que entra el dueño: el recorrido, y queda anotado para todo el negocio (aunque lo saltee)
 export function recorridoPrimeraVez(ctx) {

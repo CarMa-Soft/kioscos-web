@@ -125,7 +125,7 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
 
 ## Inicio y Reportes (etapa 4e)
 - **Recorrido de bienvenida** (`recorrido.js`, solo el dueño): 7 pasos con un dibujo SVG (en los colores de la app, sin capturas) y
-  dos o tres líneas, "Siguiente"/"Anterior" (y flechas), puntos, "Ir ahí" y "Saltear". Sale solo una vez: `recorridoPrimeraVez`
+  dos o tres líneas, "Siguiente"/"Anterior" (y flechas), puntos, "Ir ahí" (abre esa pantalla y deja abajo a la derecha el cartel "Recorrido N de 7 · Seguir · ✕", que sigue en el paso siguiente) y "Saltear". Sale solo una vez: `recorridoPrimeraVez`
   (app.js, al entrar) si la config `recorrido_visto` no es true, y la guarda al cerrarlo. Después, en Ayuda: "▶ Ver el recorrido".
   (`inicio().arranque` quedó de los "primeros pasos" que se sacaron de Hoy; no se usa.)
 - `inicio()`: ventas de hoy, últimas ventas, caja y fiado pendiente. El empleado ve solo sus ventas y no la ganancia.
