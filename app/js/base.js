@@ -94,6 +94,17 @@ export async function funcion(nombre, cuerpo) {
   return r.data;
 }
 
+// "¿Olvidaste la contraseña?": Supabase manda un mail con un enlace a recuperar.html (la página para elegir la nueva).
+// Con un cliente aparte y flujo "implicit": el enlace trae la sesión de recuperación en la dirección, así sirve aunque se
+// abra en otro dispositivo (el celular del dueño), y no toca la cuenta iniciada en esta PC.
+export async function mandarRecuperacion(email) {
+  const aparte = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, flowType: 'implicit', storageKey: 'kioscos-recupero' } });
+  const destino = new URL('recuperar.html', location.href.split('#')[0]).href;
+  let r;
+  try { r = await conLimite(aparte.auth.resetPasswordForEmail(email, { redirectTo: destino })); } catch (e) { throw traducir(e); }
+  if (r.error) throw new ErrorBase(/rate|seconds|security purposes/i.test(r.error.message) ? 'Ya se mandó un mail hace muy poco: esperá un minuto y probá de nuevo' : r.error.message);
+}
+
 // Llama a una función de la base con OTRA cuenta (la del dueño, para "¿Olvidaste tu PIN?"): la inicia aparte, solo para esta
 // llamada, sin tocar la sesión de la PC ni guardar nada (sin persistir, sin el token del usuario con PIN), y después la cierra.
 export async function llamarComoDueno(email, clave, funcion, args = {}) {
