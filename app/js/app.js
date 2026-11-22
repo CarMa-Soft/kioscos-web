@@ -1,5 +1,5 @@
 // Arranque: entrar con la cuenta (una vez por PC), elegir el usuario y poner el PIN, y después las secciones.
-import { sb, llamar, guardarToken, conLimite, llamarComoDueno } from './base.js';
+import { sb, llamar, guardarToken, conLimite, llamarComoDueno, mandarRecuperacion } from './base.js';
 import * as cat from './catalogo.js';
 import { $, $$, esc, ROL, aviso, correr, modal, siVenceLaSesion, hayCargaSinGuardar } from './ui.js';
 import { pantallaVender } from './vender.js';
@@ -122,7 +122,9 @@ function pantallaCuenta() {
       <label>Email<input class="input" name="email" type="email" autocomplete="username" required autofocus></label>
       <label>Contraseña<input class="input" name="clave" type="password" autocomplete="current-password" required></label>
       <button class="btn primario entrada-boton">Entrar</button>
-    </form>`);
+    </form>
+    <p class="pie"><button type="button" class="link" id="olvide-clave">¿Olvidaste la contraseña?</button></p>`);
+  $('#olvide-clave').onclick = () => olvideClave($('#f-cuenta [name=email]').value);
   $('#f-cuenta').onsubmit = e => {
     e.preventDefault();
     const f = new FormData(e.target);
@@ -212,11 +214,16 @@ function olvidePin(u, alTerminar) {
   const m = modal('¿Olvidaste tu PIN?', `<form class="form" id="f-olvido">
     <p class="muted">Para ponerle un PIN nuevo a <b>${esc(u.nombre)}</b>, entrá con la <b>cuenta del dueño</b> (su email y contraseña). No es la cuenta
       con la que está abierta esta PC. No queda guardada.</p>
+    <p class="chico pista-dueno" id="pista-dueno" hidden></p>
     <label>Email del dueño<input class="input" name="email" type="email" autocomplete="off" required autofocus></label>
     <label>Contraseña<input class="input" name="clave" type="password" autocomplete="off" required></label>
     <div class="fila"><label class="crece">PIN nuevo <span class="muted">(4 a 8 números)</span><input class="input pin" name="pin" type="password" inputmode="numeric" maxlength="8" pattern="\\d{4,8}" required></label>
       <label class="crece">Repetilo<input class="input pin" name="pin2" type="password" inputmode="numeric" maxlength="8" pattern="\\d{4,8}" required></label></div>
+    <p class="chico"><button type="button" class="link" id="olvide-clave-dueno">¿Olvidaste la contraseña de la cuenta del dueño?</button></p>
     <div class="fila fin"><button type="button" class="btn" data-cerrar>Cancelar</button><button class="btn primario">Poner PIN nuevo</button></div></form>`);
+  // la pista: el email del dueño a medias (h•••••@gmail.com)
+  llamar('pista_cuenta_dueno').then(p => { if (p) { $('#pista-dueno', m.el).innerHTML = `La cuenta del dueño es <b>${esc(p)}</b>`; $('#pista-dueno', m.el).hidden = false; } }).catch(() => {});
+  $('#olvide-clave-dueno', m.el).onclick = () => olvideClave($('[name=email]', m.el).value);
   $('#f-olvido', m.el).onsubmit = e => {
     e.preventDefault();
     const f = new FormData(e.target);
@@ -224,6 +231,24 @@ function olvidePin(u, alTerminar) {
     correr(async () => {
       await llamarComoDueno(String(f.get('email')).trim(), f.get('clave'), 'restablecer_pin', { p_usuario_id: u.id, p_pin: f.get('pin') });
       m.cerrar(); aviso(`Listo: ${u.nombre} ya puede entrar con el PIN nuevo`, 'ok'); alTerminar();
+    });
+  };
+}
+
+// "¿Olvidaste la contraseña?": se manda un mail con un enlace para elegir una nueva (recuperar.html). Es la contraseña de
+// la app, no la del mail. No se dice si el email existe o no (Supabase tampoco).
+function olvideClave(email = '') {
+  const m = modal('¿Olvidaste la contraseña?', `<form class="form" id="f-olvide-clave">
+    <p class="muted">Escribí el email de la cuenta. Te llega un mail con un enlace para elegir una contraseña nueva (es la de la app, no la de tu mail).</p>
+    <label>Email<input class="input" name="email" type="email" autocomplete="email" required autofocus value="${esc(email)}"></label>
+    <div class="fila fin"><button type="button" class="btn" data-cerrar>Cancelar</button><button class="btn primario">Mandar el mail</button></div></form>`);
+  $('#f-olvide-clave', m.el).onsubmit = e => {
+    e.preventDefault();
+    const mail = String(new FormData(e.target).get('email')).trim();
+    correr(async () => {
+      await mandarRecuperacion(mail);
+      m.cerrar();
+      aviso(`Listo: si ${mail} es de una cuenta, en unos minutos llega el mail (mirá también en "Correo no deseado")`, 'ok');
     });
   };
 }

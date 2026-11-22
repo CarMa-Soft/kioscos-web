@@ -72,6 +72,11 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   **¿Olvidaste tu PIN?** (pantalla del PIN, solo usuarios Dueño): pide el email y la contraseña de la **cuenta del dueño** (`miembros.rol = dueno`,
   no la de la PC), la inicia aparte solo para esa llamada (`llamarComoDueno` de base.js: otro cliente, sin persistir ni token de usuario)
   y llama a `restablecer_pin(p_usuario_id, p_pin)` (desbloquea y cierra las otras sesiones de ese usuario). tests/35.
+  Muestra la pista del email del dueño a medias (`pista_cuenta_dueno()`, con la cuenta de la PC; tests/36).
+  **¿Olvidaste la contraseña?** (pantalla de la cuenta y "¿Olvidaste tu PIN?"): `mandarRecuperacion(email)` (base.js, cliente aparte, flujo
+  implicit) manda el mail de Supabase con un enlace a `recuperar.html` + `recuperar.js`: conexión propia que no se guarda (no toca la
+  cuenta de la PC), elige la contraseña nueva (`updateUser`) y cierra. **En Supabase → Authentication → URL Configuration → Redirect URLs
+  tiene que estar `https://carma-soft.github.io/kioscos-web/recuperar.html`** (si no, el enlace no vuelve a la app).
   **Un solo usuario:** no se elige el nombre, va directo al PIN. Si además el dueño activó **Entrar sin PIN** (Usuarios; config
   `entrar_sin_pin`), al abrir la app entra solo (`iniciar_usuario` con PIN vacío; la base lo acepta solo si `entra_sin_pin`: la config
   activada, un único usuario activo y que sea dueño; con un segundo usuario se vuelve a pedir). Después de "Cambiar de usuario" no entra

@@ -555,3 +555,6 @@ details.pagadas summary h3 { display: inline-block; }
 
 /* "¿Olvidaste tu PIN?" debajo de Entrar */
 .pin-olvido { margin: .8rem 0 0; text-align: center; font-size: .9rem; }
+
+/* "¿Olvidaste tu PIN?": la pista del email del dueño */
+.pista-dueno { margin: 0; padding: .5rem .7rem; border-radius: 8px; background: #f0fdf4; color: #05603a; }
