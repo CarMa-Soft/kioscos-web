@@ -245,6 +245,17 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   La ficha saca el **estado de cuenta** en PDF (jsPDF, con los productos de cada compra, `llamar('venta')`) o arma el texto para
   **WhatsApp** (`telefonoWhatsApp` de ui.js, también lo usa Pedidos: saca el 0 y el 15). Como el Fichero de GSCom.
 
+## Copia de seguridad (.github/workflows/copia.yml)
+- Todas las noches (4 h de Argentina, y a mano con "Run workflow"): `pg_dump` de `public` (toda la app y los datos de todos los
+  negocios) y de los datos de `auth.users`, `auth.identities` y `supabase_migrations.schema_migrations`. Se cifra con **gpg AES-256** con
+  la clave del secreto **`BACKUP_CLAVE`** y se guarda 30 días como artifact de la acción. **El repositorio es público: nunca se guarda
+  nada sin cifrar.** Sin la clave la copia no sirve: guardarla en un lugar seguro fuera de GitHub (si se pierde, no hay forma de abrirlas).
+- **Recuperar:** Actions → "Copia de seguridad" → la corrida del día → bajar el artifact (zip) y descomprimirlo. En Git Bash:
+  `gpg --decrypt copia-AAAA-MM-DD.tar.gz.gpg > copia.tar.gz` (pide la clave) y `tar -xzf copia.tar.gz` → `public.dump`, `cuentas.dump`,
+  `fecha.txt`. Lo más seguro es restaurar en un **proyecto nuevo** de Supabase: `pg_restore --no-owner --no-privileges -d "<url nueva>" public.dump`
+  y `pg_restore --data-only -d "<url nueva>" cuentas.dump`; después se apunta `app/js/config.js` al proyecto nuevo. Para ver un dato puntual
+  alcanza con `pg_restore -f datos.sql public.dump` (lo pasa a texto).
+
 ## Forma de trabajo
 - **Nunca commitear ni hacer push directo a `main`** (GitHub lo impide). Todo va en una rama y entra por pull request.
   Cada uno une sus propios PR sin esperar la aprobación del otro (regla "Proteger main": 0 aprobaciones), pero **solo
