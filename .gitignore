@@ -16,3 +16,7 @@ node_modules/
 .claude/
 .DS_Store
 Thumbs.db
+
+# imágenes sueltas en la raíz (logos de negocios, capturas): no van al repositorio
+/*.png
+/*.jpg
