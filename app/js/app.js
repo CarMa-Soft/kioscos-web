@@ -240,6 +240,7 @@ function olvidePin(u, alTerminar) {
 function olvideClave(email = '') {
   const m = modal('¿Olvidaste la contraseña?', `<form class="form" id="f-olvide-clave">
     <p class="muted">Escribí el email de la cuenta. Te llega un mail con un enlace para elegir una contraseña nueva (es la de la app, no la de tu mail).</p>
+    <p class="chico pista-dueno">📬 Si no lo ves en unos minutos, revisá <b>Spam</b> o <b>Correo no deseado</b>. El mail llega de Supabase y puede venir en inglés ("Reset Password").</p>
     <label>Email<input class="input" name="email" type="email" autocomplete="email" required autofocus value="${esc(email)}"></label>
     <div class="fila fin"><button type="button" class="btn" data-cerrar>Cancelar</button><button class="btn primario">Mandar el mail</button></div></form>`);
   $('#f-olvide-clave', m.el).onsubmit = e => {
