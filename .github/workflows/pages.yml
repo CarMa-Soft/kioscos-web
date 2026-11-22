@@ -85,7 +85,7 @@ jobs:
           printf '\n.cinta-prueba { position: fixed; left: 0; right: 0; bottom: 0; z-index: 200; background: #f79009; color: #fff; text-align: center; font: 600 .78rem system-ui, sans-serif; padding: .25rem .5rem; letter-spacing: .03em; pointer-events: none; }\n' >> "$P/css/app.css"
 
       - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: ${{ runner.temp }}/sitio
       - id: deploy
