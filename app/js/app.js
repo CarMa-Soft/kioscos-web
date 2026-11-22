@@ -105,17 +105,24 @@ function quitarBienvenida() {
 }
 
 // ---------- Cuenta y usuario ----------
+// Las pantallas de entrada: fondo verde, una tarjeta al centro con el logo (el del negocio, si tiene; si no, el de la app)
+// y la firma abajo
+const marcoEntrada = (contenido, logo = '') => {
+  raiz.className = 'entrada';
+  raiz.innerHTML = `<div class="entrada-caja"><img class="entrada-logo" src="${esc(logo || 'img/icon-192.png')}" alt="">${contenido}</div>
+    <p class="entrada-firma">Powered by <b>Car-Ma Soft</b></p>`;
+};
+const inicial = nombre => esc(String(nombre || '?').trim().charAt(0).toUpperCase());
 
 function pantallaCuenta() {
   quitarBienvenida();
-  raiz.className = 'caja-sola';
-  raiz.innerHTML = `<h1>Gestión de ventas</h1>
+  marcoEntrada(`<h1>Gestión de ventas</h1>
     <p class="muted">Entrá con la cuenta del negocio. En la PC del local se hace una sola vez.</p>
     <form id="f-cuenta" class="form">
       <label>Email<input class="input" name="email" type="email" autocomplete="username" required autofocus></label>
       <label>Contraseña<input class="input" name="clave" type="password" autocomplete="current-password" required></label>
-      <button class="btn primario">Entrar</button>
-    </form>`;
+      <button class="btn primario entrada-boton">Entrar</button>
+    </form>`);
   $('#f-cuenta').onsubmit = e => {
     e.preventDefault();
     const f = new FormData(e.target);
@@ -129,9 +136,8 @@ function pantallaCuenta() {
 
 function pantallaSinNegocio(mensaje) {
   quitarBienvenida();
-  raiz.className = 'caja-sola';
-  raiz.innerHTML = `<h1>Gestión de ventas</h1><p class="aviso mal">${esc(mensaje)}</p>
-    <div class="fila"><button class="btn" id="reintentar">Reintentar</button><button class="btn" id="salir">Salir de esta cuenta</button></div>`;
+  marcoEntrada(`<h1>Gestión de ventas</h1><p class="aviso mal">${esc(mensaje)}</p>
+    <div class="fila entrada-fila"><button class="btn primario" id="reintentar">Reintentar</button><button class="btn" id="salir">Salir de esta cuenta</button></div>`);
   $('#reintentar').onclick = () => iniciar();
   $('#salir').onclick = () => salirDeLaCuenta();
 }
@@ -142,29 +148,38 @@ let entradaAutomatica = true;
 const soloUno = () => datos.usuarios.length === 1 ? datos.usuarios[0] : null;
 const sinPin = () => soloUno()?.rol === 'admin' && datos.config?.entrar_sin_pin === true;
 function pantallaElegir() {
-  raiz.className = 'caja-sola';
-  raiz.innerHTML = `${logoNegocio() ? `<img class="elegir-logo" src="${esc(logoNegocio())}" alt="">` : ''}<h1>${esc(datos.negocio.nombre)}</h1><p class="muted">¿Quién sos?</p>
-    <div class="usuarios">${datos.usuarios.map(u => `<button class="usuario" data-id="${u.id}"><b>${esc(u.nombre)}</b><span>${ROL[u.rol]}</span></button>`).join('')}</div>
+  marcoEntrada(`<h1>${esc(datos.negocio.nombre)}</h1><p class="muted">¿Quién sos?</p>
+    <div class="usuarios">${datos.usuarios.map(u => `<button class="usuario" data-id="${u.id}"><span class="usuario-ini">${inicial(u.nombre)}</span>
+      <span class="usuario-txt"><b>${esc(u.nombre)}</b><small>${ROL[u.rol]}</small></span><span class="usuario-flecha" aria-hidden="true">›</span></button>`).join('')}</div>
     <form id="f-pin" class="form" hidden>
-      <label><span id="pin-de"></span><input class="input pin" name="pin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" pattern="\\d{4,8}" required></label>
-      <div class="fila"><button type="button" class="btn" id="volver">Volver</button><button class="btn primario">Entrar</button></div>
+      <div class="pin-quien"><span class="usuario-ini grande" id="pin-ini"></span><b id="pin-de"></b></div>
+      <label class="pin-campo"><span class="pin-ayuda">Tu PIN</span><input class="input pin" name="pin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" pattern="\\d{4,8}" required></label>
+      <div class="teclado-pin" aria-label="Teclado numérico">${[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => `<button type="button" data-tecla="${n}">${n}</button>`).join('')}
+        <button type="button" data-tecla="borrar" aria-label="Borrar">⌫</button><button type="button" data-tecla="0">0</button><button type="button" data-tecla="limpiar" aria-label="Borrar todo">C</button></div>
+      <div class="fila entrada-fila"><button type="button" class="btn" id="volver">Volver</button><button class="btn primario">Entrar</button></div>
     </form>
-    <p class="pie"><button class="link" id="salir">Salir de la cuenta de esta PC</button></p>`;
+    <p class="pie"><button class="link" id="salir">Salir de la cuenta de esta PC</button></p>`, logoNegocio());
   let elegido = null;
   $$('.usuario').forEach(b => b.onclick = () => {
     elegido = datos.usuarios.find(u => u.id === +b.dataset.id);
-    $('.usuarios').hidden = true; $('#f-pin').hidden = false;
-    $('#pin-de').textContent = `PIN de ${elegido.nombre}`;
+    $('.usuarios').hidden = true; $('#f-pin').hidden = false; $('p.muted', raiz).hidden = true;   // ya eligió: fuera el '¿Quién sos?'
+    $('#pin-de').textContent = elegido.nombre;
+    $('#pin-ini').textContent = elegido.nombre.trim().charAt(0).toUpperCase();
     $('#f-pin [name=pin]').focus();
   });
   $('#volver').onclick = () => pantallaElegir();
+  $$('[data-tecla]').forEach(b => b.onclick = () => {
+    const pin = $('#f-pin [name=pin]'), t = b.dataset.tecla;
+    pin.value = t === 'borrar' ? pin.value.slice(0, -1) : t === 'limpiar' ? '' : (pin.value + t).slice(0, 8);
+    pin.focus();
+  });
   $('#f-pin').onsubmit = e => {
     e.preventDefault();
     const pin = new FormData(e.target).get('pin');
     correr(async () => {
       const r = await llamar('iniciar_usuario', { p_usuario_id: elegido.id, p_pin: pin });
       if (r.error) {   // (si entraba sin PIN y ya no se puede, por ejemplo porque se agregó otro usuario, aparece el campo)
-        e.target.reset(); const pin = $('#f-pin [name=pin]'); pin.required = true; pin.closest('label').hidden = false; pin.focus(); return aviso(r.error);
+        e.target.reset(); const pin = $('#f-pin [name=pin]'); pin.required = true; pin.closest('label').hidden = false; $('.teclado-pin').hidden = false; pin.focus(); return aviso(r.error);
       }
       guardarToken(r.token);
       await iniciar();
@@ -178,7 +193,7 @@ function pantallaElegir() {
     $('.usuario').click();   // el formulario del PIN, ya con su nombre
     if (sinPin()) {
       const pin = $('#f-pin [name=pin]');
-      pin.required = false; pin.closest('label').hidden = true;
+      pin.required = false; pin.closest('label').hidden = true; $('.teclado-pin').hidden = true;
       $('#f-pin .btn.primario').textContent = `Entrar como ${soloUno().nombre}`;
       if (entradaAutomatica) { $('#f-pin').requestSubmit(); return; }   // la bienvenida sigue hasta que aparece Hoy
     }
