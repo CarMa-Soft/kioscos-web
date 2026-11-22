@@ -69,6 +69,9 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
 - **Usuarios** (`usuarios`, como en la app local): personas con PIN de 4 a 8 números, rol `admin` (Dueño) o `empleado`.
   En la PC se entra una vez con la cuenta; después cada uno elige su nombre y pone su PIN (`iniciar_usuario`).
   5 PIN incorrectos seguidos bloquean a ese usuario 5 minutos.
+  **¿Olvidaste tu PIN?** (pantalla del PIN, solo usuarios Dueño): pide el email y la contraseña de la **cuenta del dueño** (`miembros.rol = dueno`,
+  no la de la PC), la inicia aparte solo para esa llamada (`llamarComoDueno` de base.js: otro cliente, sin persistir ni token de usuario)
+  y llama a `restablecer_pin(p_usuario_id, p_pin)` (desbloquea y cierra las otras sesiones de ese usuario). tests/35.
   **Un solo usuario:** no se elige el nombre, va directo al PIN. Si además el dueño activó **Entrar sin PIN** (Usuarios; config
   `entrar_sin_pin`), al abrir la app entra solo (`iniciar_usuario` con PIN vacío; la base lo acepta solo si `entra_sin_pin`: la config
   activada, un único usuario activo y que sea dueño; con un segundo usuario se vuelve a pedir). Después de "Cambiar de usuario" no entra

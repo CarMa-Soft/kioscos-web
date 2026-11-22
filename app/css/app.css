@@ -552,3 +552,6 @@ details.pagadas summary h3 { display: inline-block; }
 .teclado-pin [data-tecla="borrar"], .teclado-pin [data-tecla="limpiar"] { font-size: 1.1rem; color: var(--suave); }
 @keyframes entrada-aparecer { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .entrada-caja { animation: none; } }
+
+/* "¿Olvidaste tu PIN?" debajo de Entrar */
+.pin-olvido { margin: .8rem 0 0; text-align: center; font-size: .9rem; }

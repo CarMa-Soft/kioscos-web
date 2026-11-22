@@ -94,6 +94,20 @@ export async function funcion(nombre, cuerpo) {
   return r.data;
 }
 
+// Llama a una función de la base con OTRA cuenta (la del dueño, para "¿Olvidaste tu PIN?"): la inicia aparte, solo para esta
+// llamada, sin tocar la sesión de la PC ni guardar nada (sin persistir, sin el token del usuario con PIN), y después la cierra.
+export async function llamarComoDueno(email, clave, funcion, args = {}) {
+  const aparte = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, storageKey: 'kioscos-dueno' } });
+  try {
+    let r;
+    try { r = await conLimite(aparte.auth.signInWithPassword({ email, password: clave })); } catch (e) { throw traducir(e); }
+    if (r.error) throw new ErrorBase(/invalid/i.test(r.error.message) ? 'Email o contraseña incorrectos' : r.error.message);
+    try { r = await conLimite(aparte.rpc(funcion, args)); } catch (e) { throw traducir(e); }
+    if (r.error) throw traducir(r.error);
+    return r.data;
+  } finally { aparte.auth.signOut({ scope: 'local' }).catch(() => {}); }
+}
+
 // Llama a una función de la base (las operaciones que tocan varias tablas son funciones SQL atómicas)
 export async function llamar(funcion, args = {}) {
   let r;

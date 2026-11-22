@@ -1,7 +1,7 @@
 // Arranque: entrar con la cuenta (una vez por PC), elegir el usuario y poner el PIN, y después las secciones.
-import { sb, llamar, guardarToken, conLimite } from './base.js';
+import { sb, llamar, guardarToken, conLimite, llamarComoDueno } from './base.js';
 import * as cat from './catalogo.js';
-import { $, $$, esc, ROL, aviso, correr, siVenceLaSesion, hayCargaSinGuardar } from './ui.js';
+import { $, $$, esc, ROL, aviso, correr, modal, siVenceLaSesion, hayCargaSinGuardar } from './ui.js';
 import { pantallaVender } from './vender.js';
 import { pantallaCaja } from './caja.js';
 import { pantallaProductos } from './productos.js';
@@ -157,6 +157,7 @@ function pantallaElegir() {
       <div class="teclado-pin" aria-label="Teclado numérico">${[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => `<button type="button" data-tecla="${n}">${n}</button>`).join('')}
         <button type="button" data-tecla="borrar" aria-label="Borrar">⌫</button><button type="button" data-tecla="0">0</button><button type="button" data-tecla="limpiar" aria-label="Borrar todo">C</button></div>
       <div class="fila entrada-fila"><button type="button" class="btn" id="volver">Volver</button><button class="btn primario">Entrar</button></div>
+      <p class="pin-olvido"><button type="button" class="link" id="olvide">¿Olvidaste tu PIN?</button></p>
     </form>
     <p class="pie"><button class="link" id="salir">Salir de la cuenta de esta PC</button></p>`, logoNegocio());
   let elegido = null;
@@ -168,6 +169,10 @@ function pantallaElegir() {
     $('#f-pin [name=pin]').focus();
   });
   $('#volver').onclick = () => pantallaElegir();
+  $('#olvide').onclick = () => {
+    if (elegido?.rol !== 'admin') return aviso(`El PIN de ${elegido?.nombre || 'un empleado'} lo cambia el dueño, en Usuarios`, 'info');
+    olvidePin(elegido, () => { const pin = $('#f-pin [name=pin]'); pin.value = ''; pin.focus(); });
+  };
   $$('[data-tecla]').forEach(b => b.onclick = () => {
     const pin = $('#f-pin [name=pin]'), t = b.dataset.tecla;
     pin.value = t === 'borrar' ? pin.value.slice(0, -1) : t === 'limpiar' ? '' : (pin.value + t).slice(0, 8);
@@ -193,12 +198,34 @@ function pantallaElegir() {
     $('.usuario').click();   // el formulario del PIN, ya con su nombre
     if (sinPin()) {
       const pin = $('#f-pin [name=pin]');
-      pin.required = false; pin.closest('label').hidden = true; $('.teclado-pin').hidden = true;
+      pin.required = false; pin.closest('label').hidden = true; $('.teclado-pin').hidden = true; $('.pin-olvido').hidden = true;
       $('#f-pin .btn.primario').textContent = `Entrar como ${soloUno().nombre}`;
       if (entradaAutomatica) { $('#f-pin').requestSubmit(); return; }   // la bienvenida sigue hasta que aparece Hoy
     }
   }
   quitarBienvenida();
+}
+
+// "¿Olvidaste tu PIN?" (solo para un dueño): con el email y la contraseña de la cuenta del dueño (no la de esta PC) se pone
+// un PIN nuevo. Esa cuenta se inicia aparte, solo para esto (llamarComoDueno): la PC sigue con su cuenta.
+function olvidePin(u, alTerminar) {
+  const m = modal('¿Olvidaste tu PIN?', `<form class="form" id="f-olvido">
+    <p class="muted">Para ponerle un PIN nuevo a <b>${esc(u.nombre)}</b>, entrá con la <b>cuenta del dueño</b> (su email y contraseña). No es la cuenta
+      con la que está abierta esta PC. No queda guardada.</p>
+    <label>Email del dueño<input class="input" name="email" type="email" autocomplete="off" required autofocus></label>
+    <label>Contraseña<input class="input" name="clave" type="password" autocomplete="off" required></label>
+    <div class="fila"><label class="crece">PIN nuevo <span class="muted">(4 a 8 números)</span><input class="input pin" name="pin" type="password" inputmode="numeric" maxlength="8" pattern="\\d{4,8}" required></label>
+      <label class="crece">Repetilo<input class="input pin" name="pin2" type="password" inputmode="numeric" maxlength="8" pattern="\\d{4,8}" required></label></div>
+    <div class="fila fin"><button type="button" class="btn" data-cerrar>Cancelar</button><button class="btn primario">Poner PIN nuevo</button></div></form>`);
+  $('#f-olvido', m.el).onsubmit = e => {
+    e.preventDefault();
+    const f = new FormData(e.target);
+    if (f.get('pin') !== f.get('pin2')) return aviso('Los dos PIN no son iguales');
+    correr(async () => {
+      await llamarComoDueno(String(f.get('email')).trim(), f.get('clave'), 'restablecer_pin', { p_usuario_id: u.id, p_pin: f.get('pin') });
+      m.cerrar(); aviso(`Listo: ${u.nombre} ya puede entrar con el PIN nuevo`, 'ok'); alTerminar();
+    });
+  };
 }
 
 async function cambiarDeUsuario() {
