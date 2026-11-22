@@ -61,9 +61,9 @@ jobs:
         run: |
           source "$RUNNER_TEMP/marcar.sh"
           N="$PEDIDO"
-          # sin número: el último PR abierto (de este repositorio, no de forks) que se actualizó
-          [ -z "$N" ] && N=$(gh pr list --state open --json number,updatedAt,isCrossRepository \
-            -q 'map(select(.isCrossRepository | not)) | sort_by(.updatedAt) | last | .number // empty')
+          # sin número: el último PR abierto que se actualizó (de este repositorio: ni forks ni Dependabot, que no toca la app)
+          [ -z "$N" ] && N=$(gh pr list --state open --json number,updatedAt,isCrossRepository,author \
+            -q 'map(select((.isCrossRepository | not) and (.author.login | test("bot") | not))) | sort_by(.updatedAt) | last | .number // empty')
           ESTADO=$([ -n "$N" ] && gh pr view "$N" --json state,isCrossRepository -q 'if .isCrossRepository then "FORK" else .state end' || true)
           if [ "$ESTADO" = "OPEN" ]; then
             git fetch -q origin "pull/$N/head:pr-$N"
@@ -80,7 +80,8 @@ jobs:
           # la cinta naranja, el título y que no la indexen los buscadores
           CINTA="<div class=\"cinta-prueba\">VERSIÓN DE PRUEBA · $ETIQUETA · usar solo con el Negocio de prueba</div>"
           for h in "$P"/*.html; do
-            sed -i "s#<body>#<body>$CINTA#; s#<title>#<title>PRUEBA · #; s#<head>#<head><meta name=\"robots\" content=\"noindex\">#" "$h"
+            # (con | como separador: la cinta lleva # y /)
+            sed -i "s|<body>|<body>$CINTA|; s|<title>|<title>PRUEBA · |; s|<head>|<head><meta name=\"robots\" content=\"noindex\">|" "$h"
           done
           printf '\n.cinta-prueba { position: fixed; left: 0; right: 0; bottom: 0; z-index: 200; background: #f79009; color: #fff; text-align: center; font: 600 .78rem system-ui, sans-serif; padding: .25rem .5rem; letter-spacing: .03em; pointer-events: none; }\n' >> "$P/css/app.css"
 
