@@ -1,0 +1,80 @@
+# Copia de seguridad de la base, todas las noches (el plan gratis de Supabase no tiene copias propias).
+# Baja los datos con pg_dump, los cifra con la clave del secreto BACKUP_CLAVE (AES-256, gpg) y los guarda 30 días como
+# "artifact" de esta acción. El repositorio es público: lo que se guarda va SIEMPRE cifrado; sin la clave no sirve.
+# Cómo recuperar una copia: ver CLAUDE.md → "Copia de seguridad".
+name: Copia de seguridad
+
+on:
+  schedule:
+    - cron: '0 7 * * *'   # 4 de la mañana en Argentina
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: copia
+  cancel-in-progress: false
+
+jobs:
+  copia:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Revisar los secretos
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          BACKUP_CLAVE: ${{ secrets.BACKUP_CLAVE }}
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ]; then echo "::error::Falta el secreto SUPABASE_DB_URL."; exit 1; fi
+          if [ ${#BACKUP_CLAVE} -lt 20 ]; then echo "::error::Falta el secreto BACKUP_CLAVE (o tiene menos de 20 caracteres)."; exit 1; fi
+
+      # pg_dump tiene que ser de la misma versión que la base (o más nueva): se instala la de la base
+      - name: Cliente de Postgres de la versión de la base
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          command -v psql >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
+          version=$(psql "$SUPABASE_DB_URL" -Atc "select current_setting('server_version_num')::int / 10000")
+          echo "Base: Postgres $version"
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update -qq && sudo apt-get install -y -qq "postgresql-client-$version"
+          echo "/usr/lib/postgresql/$version/bin" >> "$GITHUB_PATH"
+
+      # public: toda la app (tablas, funciones y datos de todos los negocios). De auth, solo los datos de las cuentas
+      # (para que los negocios sigan unidos a sus cuentas). Y qué migraciones tiene aplicadas la base.
+      - name: Bajar los datos
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          umask 077
+          mkdir -p "$RUNNER_TEMP/copia"
+          cd "$RUNNER_TEMP/copia"
+          pg_dump "$SUPABASE_DB_URL" --schema=public --no-owner --no-privileges -Fc -f public.dump
+          pg_dump "$SUPABASE_DB_URL" --data-only --table=auth.users --table=auth.identities \
+            --table=supabase_migrations.schema_migrations -Fc -f cuentas.dump
+          date -u +"%Y-%m-%dT%H:%M:%SZ" > fecha.txt
+          ls -l
+
+      - name: Cifrar
+        env:
+          BACKUP_CLAVE: ${{ secrets.BACKUP_CLAVE }}
+        run: |
+          umask 077
+          cd "$RUNNER_TEMP"
+          tar -czf copia.tar.gz -C copia .
+          gpg --batch --yes --pinentry-mode loopback --symmetric --cipher-algo AES256 \
+            --passphrase-fd 3 -o "copia-$(date +%F).tar.gz.gpg" copia.tar.gz 3<<< "$BACKUP_CLAVE"
+          rm -rf copia copia.tar.gz   # solo queda lo cifrado
+          ls -l *.gpg
+
+      - name: Guardar (30 días)
+        uses: actions/upload-artifact@v4
+        with:
+          name: copia-${{ github.run_number }}
+          path: ${{ runner.temp }}/*.gpg
+          retention-days: 30
+          if-no-files-found: error
