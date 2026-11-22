@@ -1,4 +1,10 @@
-# Publica la carpeta app/ en GitHub Pages cuando se une un cambio a main.
+# Publica la app en GitHub Pages:
+#   - en la raíz (https://carma-soft.github.io/kioscos-web/), la versión de main: la que usan los negocios;
+#   - en /prueba/, la versión del PR abierto (el que se pida, o el último que se actualizó; si no hay ninguno, la de main),
+#     con una cinta "VERSIÓN DE PRUEBA": para probarla con el Negocio de prueba ANTES de unirla.
+# Corre al unir un cambio a main y cuando un PR se abre o cambia (lo dispara prueba-pr.yml). El entorno github-pages solo
+# deja publicar desde main: por eso siempre corre en main y trae el PR con git.
+# Ojo: /prueba/ usa la MISMA base. Si el PR cambia la base (migraciones), lo nuevo de la base recién existe al unirlo.
 name: Publicar la app
 
 on:
@@ -6,11 +12,17 @@ on:
     branches: [main]
     paths: ['app/**']
   workflow_dispatch:
+    inputs:
+      pr:
+        description: 'Número del PR para /prueba/ (vacío = el último PR abierto que se actualizó)'
+        required: false
+        default: ''
 
 permissions:
   contents: read
   pages: write
   id-token: write
+  pull-requests: read
 
 concurrency:
   group: pages
@@ -24,19 +36,57 @@ jobs:
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      # Marca la versión: ?v=<commit> en el CSS y en cada import de JS (así el navegador no usa archivos viejos guardados)
-      # y version.json, que la app consulta para avisar que hay una versión nueva.
-      - name: Marcar la versión
+        with:
+          fetch-depth: 0
+
+      # Marca la versión de una carpeta de la app: ?v=<commit> en el CSS y en cada import de JS (así el navegador no usa
+      # archivos viejos guardados) y version.json, que la app consulta para avisar que hay una versión nueva.
+      - name: La versión de main, en la raíz
         run: |
-          V="${GITHUB_SHA::7}"
-          echo "{\"version\": \"$V\"}" > app/version.json
-          sed -i "s/'desarrollo'/'$V'/" app/js/version.js
-          sed -i -E "s#(from '\./[a-z_]+\.js)'#\1?v=$V'#g" app/js/*.js
-          sed -i -E "s#(src=\"js/[a-z_]+\.js)\"#\1?v=$V\"#; s#(href=\"css/[a-z_]+\.css)\"#\1?v=$V\"#g" app/*.html
-          grep -c "?v=$V" app/*.html app/js/*.js
+          marcar() {   # marcar <carpeta> <versión>
+            echo "{\"version\": \"$2\"}" > "$1/version.json"
+            sed -i "s/'desarrollo'/'$2'/" "$1/js/version.js"
+            sed -i -E "s#(from '\./[a-z_]+\.js)'#\1?v=$2'#g" "$1"/js/*.js
+            sed -i -E "s#(src=\"js/[a-z_]+\.js)\"#\1?v=$2\"#; s#(href=\"css/[a-z_]+\.css)\"#\1?v=$2\"#g" "$1"/*.html
+          }
+          declare -f marcar > "$RUNNER_TEMP/marcar.sh"
+          mkdir -p "$RUNNER_TEMP/sitio"
+          cp -r app/. "$RUNNER_TEMP/sitio/"
+          marcar "$RUNNER_TEMP/sitio" "${GITHUB_SHA::7}"
+
+      - name: La versión de prueba, en /prueba/
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PEDIDO: ${{ inputs.pr }}
+        run: |
+          source "$RUNNER_TEMP/marcar.sh"
+          N="$PEDIDO"
+          # sin número: el último PR abierto (de este repositorio, no de forks) que se actualizó
+          [ -z "$N" ] && N=$(gh pr list --state open --json number,updatedAt,isCrossRepository \
+            -q 'map(select(.isCrossRepository | not)) | sort_by(.updatedAt) | last | .number // empty')
+          ESTADO=$([ -n "$N" ] && gh pr view "$N" --json state,isCrossRepository -q 'if .isCrossRepository then "FORK" else .state end' || true)
+          if [ "$ESTADO" = "OPEN" ]; then
+            git fetch -q origin "pull/$N/head:pr-$N"
+            git worktree add -q "$RUNNER_TEMP/pr" "pr-$N"
+            ORIGEN="$RUNNER_TEMP/pr/app"; V=$(git rev-parse --short=7 "pr-$N"); ETIQUETA="PR #$N"
+          else
+            ORIGEN="app"; V="${GITHUB_SHA::7}"; ETIQUETA="igual a la de los negocios (no hay PR abierto)"
+          fi
+          echo "/prueba/: $ETIQUETA ($V)"
+          P="$RUNNER_TEMP/sitio/prueba"
+          mkdir -p "$P" && cp -r "$ORIGEN"/. "$P/"
+          rm -rf "$P/prueba"
+          marcar "$P" "p$V"
+          # la cinta naranja, el título y que no la indexen los buscadores
+          CINTA="<div class=\"cinta-prueba\">VERSIÓN DE PRUEBA · $ETIQUETA · usar solo con el Negocio de prueba</div>"
+          for h in "$P"/*.html; do
+            sed -i "s#<body>#<body>$CINTA#; s#<title>#<title>PRUEBA · #; s#<head>#<head><meta name=\"robots\" content=\"noindex\">#" "$h"
+          done
+          printf '\n.cinta-prueba { position: fixed; left: 0; right: 0; bottom: 0; z-index: 200; background: #f79009; color: #fff; text-align: center; font: 600 .78rem system-ui, sans-serif; padding: .25rem .5rem; letter-spacing: .03em; pointer-events: none; }\n' >> "$P/css/app.css"
+
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: app
+          path: ${{ runner.temp }}/sitio
       - id: deploy
         uses: actions/deploy-pages@v4

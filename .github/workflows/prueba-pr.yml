@@ -1,0 +1,27 @@
+# Cuando un PR se abre, cambia o se cierra, vuelve a publicar la app (pages.yml, que corre en main) para que /prueba/
+# muestre la versión de ese PR (al cerrarse, la del siguiente PR abierto, o la de main).
+name: Versión de prueba
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+permissions:
+  actions: write
+
+jobs:
+  publicar-prueba:
+    # solo PRs de este repositorio (no forks ni Dependabot)
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publicar /prueba/
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          N: ${{ github.event.pull_request.number }}
+          ACCION: ${{ github.event.action }}
+        run: |
+          if [ "$ACCION" = "closed" ]; then N=""; fi
+          gh workflow run pages.yml --ref main -f pr="$N"
+          echo "Se pidió publicar /prueba/ ${N:+con el PR #$N}"

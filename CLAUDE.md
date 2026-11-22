@@ -245,6 +245,15 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   La ficha saca el **estado de cuenta** en PDF (jsPDF, con los productos de cada compra, `llamar('venta')`) o arma el texto para
   **WhatsApp** (`telefonoWhatsApp` de ui.js, también lo usa Pedidos: saca el 0 y el 15). Como el Fichero de GSCom.
 
+## Versión de prueba (/prueba/)
+- **https://carma-soft.github.io/kioscos-web/prueba/** publica la versión del **PR abierto** (el último que se actualizó; si no hay, la de
+  main), con una cinta naranja "VERSIÓN DE PRUEBA". Se prueba ahí, **con el Negocio de prueba**, antes de decir "Unilo": los negocios
+  siguen en la raíz con main. `pages.yml` siempre corre en main (el entorno github-pages solo deja main) y trae el PR con git;
+  `prueba-pr.yml` lo dispara cuando un PR se abre, cambia o se cierra (`gh workflow run pages.yml -f pr=N`). Con varios PR abiertos,
+  se elige cuál con "Run workflow" en "Publicar la app" y el número.
+- **Ojo:** /prueba/ usa la **misma base**: lo nuevo de una migración recién existe al unir. Las pantallas que dependen de ella se prueban
+  con el backend falso (local) y, ya unidas, en el Negocio de prueba. No abrir /prueba/ en la PC de un negocio (comparte la sesión del navegador).
+
 ## Copia de seguridad (.github/workflows/copia.yml)
 - Todas las noches (4 h de Argentina, y a mano con "Run workflow"): `pg_dump` de `public` (toda la app y los datos de todos los
   negocios) y de los datos de `auth.users`, `auth.identities` y `supabase_migrations.schema_migrations`. Se cifra con **gpg AES-256** con
