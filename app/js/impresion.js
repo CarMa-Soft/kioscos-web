@@ -28,11 +28,13 @@ export function ticketVenta(v, cfg) {
     <div>Ticket #${v.numero} · ${fechaHora(v.fecha)}</div>${v.cliente ? `<div>Cliente: ${esc(v.cliente.nombre)}</div>` : ''}
     <div class="c chico">Comprobante no válido como factura</div><hr>
     <table>${v.items.map(i => `<tr><td colspan="2">${esc(i.nombre)}</td></tr>
-      <tr><td>&nbsp;${cant(i.cantidad)}${i.por_peso ? ' kg' : ''} x ${plata(i.precio)}</td><td class="n">${plata(i.importe)}</td></tr>`).join('')}</table><hr>
+      <tr><td>&nbsp;${cant(i.cantidad)}${i.por_peso ? ' kg' : ''} x ${plata(i.precio)}</td><td class="n">${plata(+i.importe + +(i.promo || 0))}</td></tr>${+i.promo
+      ? `<tr><td>&nbsp;Promo ${esc(i.promo_nombre || '')}</td><td class="n">-${plata(i.promo)}</td></tr>` : ''}`).join('')}</table><hr>
     <table>${+v.descuento || +v.recargo ? `<tr><td>Subtotal</td><td class="n">${plata(v.subtotal)}</td></tr>` : ''}
       ${+v.descuento ? `<tr><td>Descuento</td><td class="n">-${plata(v.descuento)}</td></tr>` : ''}
       ${v.pagos.filter(p => +p.recargo).map(p => `<tr><td>Recargo ${esc(p.forma)} ${+p.pct_recargo}%</td><td class="n">+${plata(p.recargo)}</td></tr>`).join('')}
       <tr class="grande"><td>TOTAL</td><td class="n">${plata(v.total)}</td></tr>
+      ${+v.descuento_promos ? `<tr><td colspan="2" class="c">Ahorraste ${plata(v.descuento_promos)} en promociones</td></tr>` : ''}
       ${v.pagos.map(p => `<tr><td>${esc(p.forma)}</td><td class="n">${plata(p.monto)}</td></tr>`).join('')}
       ${efectivo && +v.paga_con > +efectivo.monto ? `<tr><td>Paga con</td><td class="n">${plata(v.paga_con)}</td></tr><tr><td>Vuelto</td><td class="n">${plata(v.paga_con - efectivo.monto)}</td></tr>` : ''}</table>
     ${v.pendientes?.length ? `<hr><div class="c">PENDIENTE DE ENTREGA</div>${v.pendientes.map(e => `<div>&nbsp;${cant(e.cantidad)} x ${esc(e.nombre)}</div>`).join('')}

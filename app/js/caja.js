@@ -223,7 +223,7 @@ export function verVenta(id, ctx, alCambiar = () => ctx.recargar()) {
     const queda = i => Math.round((+i.cantidad - +i.devuelto) * 1000) / 1000;
     const puedeDevolver = !v.anulada && v.items.some(i => queda(i) > 0.0005);
     const m = modal(`Venta #${v.numero}`, `<p class="muted">${fecha(v.fecha)} · ${esc(v.usuario)}${v.cliente ? ' · cliente ' + esc(v.cliente.nombre) : ''}${v.anulada ? ` · <b class="mal">Anulada</b> por ${esc(v.anulada_por)}${v.motivo_anulacion ? ': ' + esc(v.motivo_anulacion) : ''}` : ''}</p>
-      <table class="tabla"><tbody>${v.items.map(i => `<tr><td>${esc(i.nombre)}</td><td class="num">${cant(i.cantidad)}${i.por_peso ? ' kg' : ''}${+i.devuelto ? `<div class="aviso-chico">devuelto ${cant(i.devuelto)}</div>` : ''}</td><td class="num">${plata(i.importe)}</td></tr>`).join('')}</tbody>
+      <table class="tabla"><tbody>${v.items.map(i => `<tr><td>${esc(i.nombre)}${+i.promo ? `<div class="muted chico">🎁 ${esc(i.promo_nombre || 'Promoción')} −${plata(i.promo)}</div>` : ''}</td><td class="num">${cant(i.cantidad)}${i.por_peso ? ' kg' : ''}${+i.devuelto ? `<div class="aviso-chico">devuelto ${cant(i.devuelto)}</div>` : ''}</td><td class="num">${plata(i.importe)}</td></tr>`).join('')}</tbody>
       <tfoot>${+v.descuento || +v.recargo ? `<tr><td colspan="2">Subtotal</td><td class="num">${plata(v.subtotal)}</td></tr>` : ''}
         ${+v.descuento ? `<tr><td colspan="2">Descuento</td><td class="num">−${plata(v.descuento)}</td></tr>` : ''}
         ${+v.recargo ? `<tr><td colspan="2">Recargo</td><td class="num">+${plata(v.recargo)}</td></tr>` : ''}
