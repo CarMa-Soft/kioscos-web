@@ -18,6 +18,7 @@ import { pantallaRemitos } from './remitos.js';
 import { VERSION } from './version.js';
 import { recorridoPrimeraVez } from './recorrido.js';
 import { atajoDe, textoAtajo, esAtajo } from './teclado.js';
+import { esWindows, ventanaInstalar } from './instalador.js';
 
 const raiz = $('#app');
 let datos = null;            // lo que devuelve datos_inicio()
@@ -53,16 +54,22 @@ window.addEventListener('unhandledrejection', ev => {
 });
 
 // Instalar como app: el service worker (sw.js, no guarda nada) y el botón "Instalar la app" del menú, que aparece cuando el
-// navegador ofrece instalarla (Chrome y Edge; ya instalada, no aparece)
+// navegador ofrece instalarla (Chrome y Edge; ya instalada, no aparece) y siempre en Windows (salvo en una ventana de app):
+// ahí ofrece el instalador con impresión directa (instalador.js) y, si el navegador la ofrece, la instalación de Chrome.
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
 let pedidoInstalar = null;
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); pedidoInstalar = e; if ($('#instalar')) $('#instalar').hidden = false; });
-window.addEventListener('appinstalled', () => { pedidoInstalar = null; if ($('#instalar')) $('#instalar').hidden = true; aviso('Listo: la app quedó instalada', 'ok'); });
-async function instalar() {
+window.addEventListener('appinstalled', () => { pedidoInstalar = null; if ($('#instalar')) $('#instalar').hidden = !conBotonInstalar(); aviso('Listo: la app quedó instalada', 'ok'); });
+const conBotonInstalar = () => !!pedidoInstalar || (esWindows() && !matchMedia('(display-mode: standalone)').matches);
+async function instalarChrome() {
   if (!pedidoInstalar) return aviso('Para instalarla, abrí el menú del navegador (⋮) y elegí "Instalar" o "Agregar a la pantalla de inicio"', 'info');
   pedidoInstalar.prompt();
   await pedidoInstalar.userChoice.catch(() => {});
-  pedidoInstalar = null; $('#instalar').hidden = true;
+  pedidoInstalar = null; $('#instalar').hidden = !conBotonInstalar();
+}
+function instalar() {
+  if (esWindows()) return ventanaInstalar(pedidoInstalar ? instalarChrome : null);
+  instalarChrome();
 }
 document.addEventListener('keydown', e => { if (!sinRecargar(e) && !irAlMenu(e)) teclas?.(e); });
 // Con algo cargado sin guardar, si igual se recarga o se cierra la pestaña, el navegador pregunta "¿Salir del sitio?"
@@ -288,7 +295,7 @@ function menuPorGrupos(yo) {
         <a href="#/ayuda" data-ruta="#/ayuda" title="Ayuda: cómo hacer cada cosa"><span class="menu-ico" aria-hidden="true">?</span><span class="menu-txt">Ayuda</span></a>
         <div class="menu-quien" title="${esc(quien)}"><span class="menu-ico" aria-hidden="true">👤</span><span class="menu-txt">${esc(quien)}</span></div>
         ${yo.rol === 'admin' ? '' : `<button class="menu-accion" id="mi-pin-menu" title="Cambiar mi PIN"><span class="menu-ico" aria-hidden="true">🔑</span><span class="menu-txt">Cambiar mi PIN</span></button>`}
-        <button class="menu-accion" id="instalar" title="Instalar la app en esta PC o celular: ícono propio y ventana sin la barra del navegador" ${pedidoInstalar ? '' : 'hidden'}><span class="menu-ico" aria-hidden="true">⬇️</span><span class="menu-txt">Instalar la app</span></button>
+        <button class="menu-accion" id="instalar" title="Instalar la app en esta PC o celular: ícono propio y ventana sin la barra del navegador" ${conBotonInstalar() ? '' : 'hidden'}><span class="menu-ico" aria-hidden="true">⬇️</span><span class="menu-txt">Instalar la app</span></button>
         <button class="menu-accion" id="cambiar" title="Cambiar de usuario"><span class="menu-ico" aria-hidden="true">🔁</span><span class="menu-txt">Cambiar de usuario</span></button>
       </div>
       <div class="menu-firma" title="Powered by Car-Ma Soft"><span class="menu-txt">Powered by <b>Car-Ma Soft</b></span><span class="menu-firma-corta" aria-hidden="true">CM</span></div></div>`;
