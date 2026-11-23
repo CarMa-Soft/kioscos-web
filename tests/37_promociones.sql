@@ -118,7 +118,8 @@ select pruebas.falla(format($$select public.guardar_promocion('{"id": %s, "nombr
 \echo == Borrar: las ventas quedan con el nombre de la promo
 select pruebas.como('d0000000-0000-4000-8000-0000000000c3', current_setting('prueba.t_carla'));
 select public.borrar_promocion(current_setting('prueba.p3x2')::bigint);
-select pruebas.ok(public.venta_json((current_setting('prueba.v1')::jsonb ->> 'id')::bigint) -> 'items' -> 1 ->> 'promo_nombre' = '3x2 alfajores', 'la venta conserva la promo');
 reset role;
+select pruebas.ok((select promo_nombre = '3x2 alfajores' and promocion_id is null and promo = 800 from public.venta_items
+  where venta_id = (current_setting('prueba.v1')::jsonb ->> 'id')::bigint and producto_id = current_setting('prueba.alf2')::bigint), 'la venta conserva el nombre y lo descontado');
 
 \echo == Todas las pruebas de promociones dieron bien
