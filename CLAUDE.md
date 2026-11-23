@@ -121,7 +121,7 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   los datos de Ajustes (`config.negocio`: nombre, CUIT, dirección, teléfono, pie) y `config.ticket`
   (`preguntar` | `siempre` | `nunca`). Se arma en `#print-area` y `@media print` esconde el resto. Para imprimir sin
   ventana: Chrome con `--kiosk-printing` y la impresora de tickets como predeterminada.
-  Ancho del papel: `config.papel` (`58` | `76`, por defecto 58). Con 76 el ticket lleva `.p76` (64 mm de ancho, letra más
+  Ancho del papel: `config.papel` (`58` | `76`, por defecto 58). Con 76 el ticket lleva `.p76` (60 mm de ancho corrido 11 mm a la derecha, 9 mm libres al final, letra más
   grande, para comanderas de matriz de puntos como la Epson TM-U220) y `#print-area:has(.p76)` usa la página con nombre
   `@page t76` (76 mm). Ojo: el servidor de prueba local saca la CSP; las imágenes elegidas con `blob:` necesitan `img-src blob:`.
 - **Versión** (`version.js`): al publicar, `pages.yml` pone el commit en `VERSION`, agrega `?v=<commit>` al CSS y a
