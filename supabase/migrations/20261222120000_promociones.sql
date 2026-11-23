@@ -258,9 +258,9 @@ begin
   end if;
   t := public.requiere_turno();
   -- formas de pago de la venta (sin la seña): para las promociones que valen solo con ciertas formas
-  v_fp := array(select distinct pg ->> 'forma' from jsonb_array_elements(p_pagos) pg
-    where coalesce(pg ->> 'forma', '') <> 'Seña'
-      and coalesce(public.num(pg, 'base', 'Monto del pago'), public.num(pg, 'monto', 'Monto del pago')) >= 0.005);
+  v_fp := array(select distinct x.value ->> 'forma' from jsonb_array_elements(p_pagos) x(value)
+    where coalesce(x.value ->> 'forma', '') <> 'Seña'
+      and coalesce(public.num(x.value, 'base', 'Monto del pago'), public.num(x.value, 'monto', 'Monto del pago')) >= 0.005);
   -- encargos que se entregan con esta venta: su seña (que ya entró a la caja) se puede usar como pago "Seña"
   if p_encargos is not null and jsonb_typeof(p_encargos) <> 'null' then
     if jsonb_typeof(p_encargos) <> 'array' then raise exception 'Encargos inválidos' using errcode = '22023'; end if;
