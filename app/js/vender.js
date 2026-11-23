@@ -674,4 +674,8 @@ export async function pantallaVender(vista, ctx) {
   });
   pintar();
   cargarEntregas();
+  // Al entrar, listo para escanear: el cursor en el buscador. (autofocus solo anda la primera vez que se abre la página; al
+  // volver a Vender desde otra sección no.) Si se llegó pasando por el menú con las flechas, app.js deja el foco en el menú;
+  // con una ventana abierta (el recorrido de bienvenida, por ejemplo) el foco queda en ella.
+  if (!document.querySelector('.modal-fondo')) enfocar();
 }
