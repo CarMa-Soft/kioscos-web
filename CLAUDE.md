@@ -518,7 +518,8 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
     Se arman tantos combos como alcance la parte que menos tiene. Dentro de cada combo, las unidades van en el orden de las partes.
     Con precio fijo se reparte en proporción y la última unidad se lleva el redondeo; con %, se redondea por unidad.
   - Sugerencia en Vender: si ya hay algo del próximo combo y faltan hasta 3 unidades ("Con 1 Coca más: …").
-- Pendiente: Reportes todavía no muestra las promociones aparte (quedan dentro de lo vendido).
+- **Reportes:** `reporte_promos(desde, hasta)` (aparte de `reporte()`, que no se tocó) da lo descontado, en cuántas ventas y por promoción
+  (agrupado por `promo_nombre`: sigue aunque se borre). Tarjeta "Promociones" en Descuentos y recargos y la tabla "Promociones".
 
 ## Ayuda
 - `ayuda.js`: preguntas frecuentes y cómo hacer cada cosa (array `TEMAS`, por sección; `a: true` = solo el dueño), con

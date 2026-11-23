@@ -1,4 +1,4 @@
-// Reportes (solo dueño): ventas, ganancia, devoluciones, desgloses, descuentos y recargos, mercadería y fiado.
+// Reportes (solo dueño): ventas, ganancia, devoluciones, desgloses, promociones, descuentos y recargos, mercadería y fiado.
 // Todos los números los calcula la base (reporte): el empleado no puede pedirlos.
 import { llamar } from './base.js';
 import { $, $$, esc, plata, cant, fecha, correr } from './ui.js';
@@ -41,6 +41,7 @@ const ICO = {
   reloj: svg('<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>'),
   tarjeta: svg('<rect x="2.5" y="5.5" width="19" height="13" rx="2"/><path d="M2.5 10h19M6.5 15h4"/>'),
   persona: svg('<circle cx="12" cy="8" r="3.6"/><path d="M5 20c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5"/>'),
+  regalo: svg('<rect x="3.5" y="8" width="17" height="4" rx="1"/><path d="M5 12v8h14v-8M12 8v12M12 8c-1.5-3.5-5.5-3.5-5.5-1.2S9.5 8 12 8zM12 8c1.5-3.5 5.5-3.5 5.5-1.2S14.5 8 12 8z"/>'),
   etiqueta: svg('<path d="M3.5 12.5V4.5h8l9 9-8 8z"/><circle cx="8" cy="9" r="1.3"/>'),
   paquete: svg('<path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/>'),
   porciento: svg('<path d="M19 5 5 19"/><circle cx="7" cy="7" r="2.2"/><circle cx="17" cy="17" r="2.2"/>'),
@@ -57,8 +58,9 @@ let rango = { tipo: 'hoy', desde: dia(new Date()), hasta: dia(new Date()) };
 export async function pantallaReportes(vista) {
   if (rango.tipo !== 'otro') { const [a, b] = RANGOS[rango.tipo](); rango.desde = dia(a); rango.hasta = dia(b); }
   const [pd, ph, contra] = anterior(rango.tipo, rango.desde, rango.hasta);
-  const [r, a] = await Promise.all([llamar('reporte', { p_desde: rango.desde, p_hasta: rango.hasta }),
-    llamar('reporte', { p_desde: pd, p_hasta: ph }).catch(() => null)]);   // si falla la comparación, se muestra igual sin ella
+  const [r, a, promos] = await Promise.all([llamar('reporte', { p_desde: rango.desde, p_hasta: rango.hasta }),
+    llamar('reporte', { p_desde: pd, p_hasta: ph }).catch(() => null),   // si falla la comparación, se muestra igual sin ella
+    llamar('reporte_promos', { p_desde: rango.desde, p_hasta: rango.hasta }).catch(() => null)]);   // las promociones (aparte de reporte)
   const gananciaAnt = a ? +a.total - +a.costo : 0;
   const total = +r.total, costo = +r.costo, ganancia = total - costo;
   const margen = total > 0 ? ganancia / total * 100 : 0;
@@ -89,11 +91,13 @@ export async function pantallaReportes(vista) {
     ${titulo(ICO.paquete, 'Productos más vendidos')}${tabla(['Producto', 'Cantidad', 'Vendido', 'Ganancia'], r.productos.slice(0, 50).map(x => [esc(x.nombre), cant(x.cantidad) + (x.por_peso ? ' kg' : ''), plata(x.importe), plata(x.importe - x.costo)]))}
     ${titulo(ICO.porciento, 'Descuentos y recargos')}
     <div class="c-tarjetas r-tarjetas">
+      ${promos ? tarjeta(+promos.total ? 'violeta' : 'gris', ICO.regalo, 'Promociones', plata(promos.total), +promos.ventas ? `en ${promos.ventas} venta${promos.ventas === 1 ? '' : 's'}` : 'ninguna en el período') : ''}
       ${tarjeta(+r.descuentos.general ? 'naranja' : 'gris', ICO.porciento, 'Descuento general', plata(r.descuentos.general))}
       ${tarjeta(+r.descuentos.renglones ? 'naranja' : 'gris', ICO.etiqueta, 'Rebajado en renglones', plata(r.descuentos.renglones))}
       ${tarjeta(+r.descuentos.ventas_con_descuento ? 'naranja' : 'gris', ICO.candado, 'Ventas con descuento', r.descuentos.ventas_con_descuento, `${r.descuentos.autorizadas} autorizada(s) por un dueño`)}
       ${tarjeta(+r.descuentos.recargo ? 'verde' : 'gris', ICO.tarjeta, 'Recargos cobrados', plata(r.descuentos.recargo), r.recargos_por_forma.map(x => `${esc(x.forma)} ${plata(x.recargo)}`).join(' · '))}
     </div>
+    ${promos?.por_promo.length ? `${titulo(ICO.regalo, 'Promociones')}${tabla(['Promoción', 'Ventas', 'Unidades con descuento', 'Descontado'], promos.por_promo.map(x => [esc(x.nombre), x.ventas, cant(x.unidades), plata(x.descuento)]))}` : ''}
     ${r.descuentos_por_usuario.length ? `${titulo(ICO.persona, 'Descuentos por vendedor')}${tabla(['Vendedor', 'Ventas', 'General', 'Renglones'], r.descuentos_por_usuario.map(x => [esc(x.nombre), x.ventas, plata(x.general), plata(x.renglones)]))}` : ''}
     ${r.autorizaciones.length ? `${titulo(ICO.candado, 'Descuentos autorizados')}${tabla(['Venta', 'Fecha', 'Vendió', 'Autorizó', 'Descuento'], r.autorizaciones.map(x => [`#${x.numero}`, fecha(x.fecha), esc(x.vendio), esc(x.autorizo), plata(x.descuento)]))}` : ''}
     ${titulo(ICO.caja, 'Hoy')}
