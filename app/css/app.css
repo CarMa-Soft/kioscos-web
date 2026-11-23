@@ -243,11 +243,11 @@ html { scroll-padding-top: var(--alto-barra, 0px); }
 .ticket td { padding: .3mm 0; vertical-align: top; word-break: break-word; }
 .ticket td.n { white-space: nowrap; text-align: right; padding-left: 1.5mm; }
 /* 76 mm: letra más grande, que en matriz de puntos se lee mejor. La Epson TM-U220 imprime unos 63 mm y su driver corre la
-   página unos 3,5 mm a la izquierda (centrado se comía la primera letra): 60 mm de ancho, empezando a 11 mm del borde.
+   página unos 3,5 mm a la izquierda (centrado se comía la primera letra; con 11 mm, el último dígito): 59 mm de ancho, empezando a 9 mm del borde.
    Abajo: no tiene cortador y se corta a mano, así que hace falta espacio después de la última línea. El driver de Epson
    borra el blanco del final de la página ("reducción del margen inferior"), así que el espacio solo se respeta si termina en algo
    impreso: un puntito, unos 8 mm más abajo. */
-.ticket.p76 { width: 60mm; margin: 0 0 0 11mm; padding-bottom: 0; font-size: 9pt; }
+.ticket.p76 { width: 59mm; margin: 0 0 0 9mm; padding-bottom: 0; font-size: 9pt; }
 .ticket.p76::after { content: '.'; display: block; text-align: center; margin-top: 8mm; font-size: 6pt; line-height: 1; }
 .ticket.p76 table { font-size: 9pt; }
 .ticket.p76 .grande, .ticket.p76 tr.grande td { font-size: 11.5pt; }
