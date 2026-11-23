@@ -511,6 +511,13 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   - Arriba de la venta, `#sugerencias` muestra las que se completan con hasta 3 unidades más, las que valen con otra forma de pago y las
     quitadas ("Volver a aplicarla").
   - El ticket muestra cada promo debajo de su renglón y "Ahorraste $X en promociones".
+- **Combos** (`tipo = 'combo'`, migración 20261223120000_combos.sql):
+  - `componentes`: [{ productos: [id], cantidad }], de 2 a 10. Cada parte es un producto o varios que valen igual; un producto va en una sola parte.
+  - `precio` fijo o `pct` (uno de los dos). `productos` tiene todos los productos de las partes y `cantidad` las unidades del combo.
+  - La cuenta está en `promo_combo` (base) y `descuentosCombo` (promos.js). De cada parte, sus unidades de la más cara a la más barata.
+    Se arman tantos combos como alcance la parte que menos tiene. Dentro de cada combo, las unidades van en el orden de las partes.
+    Con precio fijo se reparte en proporción y la última unidad se lleva el redondeo; con %, se redondea por unidad.
+  - Sugerencia en Vender: si ya hay algo del próximo combo y faltan hasta 3 unidades ("Con 1 Coca más: …").
 - Pendiente: Reportes todavía no muestra las promociones aparte (quedan dentro de lo vendido).
 
 ## Ayuda

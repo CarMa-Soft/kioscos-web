@@ -584,6 +584,11 @@ details.pagadas summary h3 { display: inline-block; }
 .pr-estado.azul { background: #e0f2fe; color: #026aa2; }
 .pr-estado.gris { background: #f2f4f7; color: #475467; }
 .tabla tr.pr-apagada td { color: var(--suave); }
+.pr-parte { border: 1px solid var(--borde); border-radius: 10px; padding: .6rem .8rem; margin-top: .5rem; background: #fcfcfd; }
+.pr-parte .fila.entre { align-items: center; }
+.pr-cant { display: flex !important; align-items: center; gap: .4rem; font-weight: normal !important; }
+.pr-cant .input { width: 4.5rem; }
+#pr-otra { margin-top: .5rem; }
 
 /* "¿Olvidaste tu PIN?": la pista del email del dueño */
 .pista-dueno { margin: 0; padding: .5rem .7rem; border-radius: 8px; background: #f0fdf4; color: #05603a; }
