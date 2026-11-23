@@ -66,6 +66,16 @@
 .v-nom { min-width: 0; }
 .v-nom b { display: block; font-weight: 600; font-size: 1.18rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .v-nom small { color: var(--suave); font-size: .9rem; }
+/* Promociones: la aplicada en el renglón (con × para quitarla) y las sugerencias arriba de la venta */
+.v-promo { display: flex; width: fit-content; max-width: 100%; align-items: center; gap: .3rem; margin-top: .25rem; padding: .05rem .2rem .05rem .55rem; border-radius: 999px; background: #dcfae6; color: #067647; font-size: .78rem; font-weight: 600; }
+.v-promo span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.v-promo button { flex: none; border: 0; background: none; color: inherit; font: inherit; font-size: 1rem; line-height: 1; cursor: pointer; padding: 0 .3rem; border-radius: 999px; }
+.v-promo button:hover { background: #abefc6; }
+.v-imp s { display: block; color: var(--suave); font-size: .8rem; font-weight: normal; }
+.v-sugerencias { display: grid; gap: .4rem; }
+.v-sugerencias:not(:empty) { margin: .6rem 0; }
+.v-sugerencia { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .45rem .9rem; border: 1px solid #fedf89; border-radius: 10px; background: #fffaeb; color: #93370d; font-size: .95rem; }
+.v-sugerencia.quitada { border-color: var(--borde); background: #f9fafb; color: var(--suave); }
 .v-sin-stock { display: inline-block; margin-left: .5rem; padding: .05rem .55rem; border-radius: 999px; background: #fef0c7; color: #93370d; font-size: .78rem; font-weight: 600; }
 .v-der-txt { text-align: right; white-space: nowrap; }
 .v-imp { font-weight: 700; font-size: 1.05rem; }

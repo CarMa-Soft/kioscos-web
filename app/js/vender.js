@@ -1,5 +1,5 @@
 // Vender: escanear o buscar (con resultados mientras se escribe), armar la venta y cobrar desde el panel de la derecha.
-// La cuenta (descuentos, recargos, dos medios de pago) es la misma que hace la base; la que vale es la de la base.
+// La cuenta (promociones, descuentos, recargos, dos medios de pago) es la misma que hace la base; la que vale es la de la base.
 import { llamar } from './base.js';
 import * as cat from './catalogo.js';
 import { $, $$, esc, plata, cant, numero, aviso, correr, modal, confirmar, pedirAutorizacion, cargaSinGuardar } from './ui.js';
@@ -8,6 +8,7 @@ import { formCliente, textoSaldo } from './clientes.js';
 import { imprimir, ticketVenta } from './impresion.js';
 import { abrirCaja } from './caja.js';
 import { nuevoEncargo, verEncargos } from './encargos.js';
+import { calcularPromos, sugerencias, textoPromo } from './promos.js';
 
 // Íconos (trazos SVG, toman el color del texto)
 const svg = d => `<svg viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
@@ -91,12 +92,15 @@ const r3 = n => Math.round((+n || 0) * 1000) / 1000;
 
 // La venta en curso sobrevive a cambiar de sección. 'clave' identifica el intento de cobro: si se corta internet
 // y se vuelve a cobrar, la base reconoce la misma venta y no la registra dos veces.
-const vacia = () => ({ items: [], clave: crypto.randomUUID(), cliente: null, forma: 'Efectivo', dos: null, desc: '', descPct: true, pagaCon: '' });   // el descuento arranca en %
+// sinPromos: las promociones que el cajero quitó de esta venta
+const vacia = () => ({ items: [], clave: crypto.randomUUID(), cliente: null, forma: 'Efectivo', dos: null, desc: '', descPct: true, pagaCon: '', sinPromos: [] });   // el descuento arranca en %
 let venta = vacia();
 cargaSinGuardar(() => venta.items.length);
 
 export async function pantallaVender(vista, ctx) {
-  const caja = await llamar('estado_caja');
+  const [caja, promosHoy] = await Promise.all([llamar('estado_caja'), llamar('promociones_vigentes').catch(() => [])]);
+  let promos = promosHoy;   // las de hoy (se vuelven a pedir si la base avisa que cambiaron)
+  venta.sinPromos ??= [];
   const pct = f => f === 'Efectivo' ? 0 : +(caja.recargos?.[f] || 0);
   const formas = () => venta.cliente ? [...caja.formas_pago, 'Fiado'] : caja.formas_pago;
   if (!formas().includes(venta.forma)) venta.forma = 'Efectivo';
@@ -120,6 +124,7 @@ export async function pantallaVender(vista, ctx) {
           <button class="v-btn" id="sonido" aria-pressed="${conSonido()}" title="Sonido al agregar un producto (en esta PC)">${conSonido() ? '🔊' : '🔇'}</button>
           <span class="v-atajos"><kbd>F2</kbd> cobrar <kbd>F1</kbd> efectivo <kbd>F3</kbd> fiado <kbd>Esc</kbd> limpiar</span>
         </div>
+        <div id="sugerencias" class="v-sugerencias"></div>
         <div class="v-renglones" id="renglones"></div>
       </section>
       <aside class="v-der" id="panel"></aside>
@@ -286,13 +291,29 @@ export async function pantallaVender(vista, ctx) {
   const precioDe = i => i.precio ?? cat.producto(i.producto_id)?.precio ?? 0;
   // con etiqueta de balanza que trae el importe, vale ese importe (la base controla que coincida con kilos × precio)
   const importe = i => i.producto_id ? (i.etiqueta != null ? i.etiqueta : r2(i.cantidad * precioDe(i))) : i.importe;
+  // Promociones: entran los renglones de productos por unidad a precio de lista (k = posición en la venta, desde 1)
+  const lineasPromo = () => venta.items.map((i, k) => ({ i, k: k + 1 })).filter(({ i }) => i.producto_id && !i.por_peso && i.precio == null && cat.producto(i.producto_id))
+    .map(({ i, k }) => ({ k, producto_id: i.producto_id, cantidad: +i.cantidad, precio: +cat.producto(i.producto_id).precio }));
+  // lo que descuenta la promoción en cada renglón (índice de venta.items → { descuento, nombre, promocion_id })
+  const promoDe = (aplicadas, k) => aplicadas.find(a => a.k === k + 1 && a.descuento > 0);
   const lineaPago = (forma, base) => { const p = pct(forma), rec = p ? Math.round(base * p / 100) : 0; return { forma, base: r2(base), recargo: rec, monto: r2(base + rec) }; };
+  // Las promociones dependen de las formas de pago, y lo que va a cada forma, del total: se calcula con las formas elegidas
+  // y, si con dos medios alguno queda en 0 (la base no lo cuenta), otra vez sin ese.
   function totales() {
-    const subtotal = r2(venta.items.reduce((s, i) => s + importe(i), 0));
+    const elegidas = venta.dos ? [venta.dos.forma1, venta.dos.forma2] : [venta.forma];
+    let t = cuenta(elegidas);
+    const usadas = [...new Set(t.pagos.filter(p => p.base > 0).map(p => p.forma))];
+    if (usadas.length !== new Set(elegidas).size) t = cuenta(usadas);
+    return t;
+  }
+  function cuenta(formasPromo) {
+    const aplicadas = venta.items.length ? calcularPromos(promos, lineasPromo(), formasPromo, venta.sinPromos) : [];
+    const promo = r2(aplicadas.reduce((s, a) => s + a.descuento, 0));
+    const subtotal = r2(venta.items.reduce((s, i) => s + importe(i), 0) - promo);
     const dv = Math.max(0, numero(venta.desc) || 0);
     const descuento = venta.descPct ? r2(subtotal * Math.min(dv, 100) / 100) : Math.min(r2(dv), subtotal);
     const base = r2(subtotal - descuento);
-    const sena = Math.min(r2(venta.items.reduce((s, i) => s + (i.encargo ? Math.min(+i.encargo.sena, importe(i)) : 0), 0)), base);   // ya pagada al encargar
+    const sena = Math.min(r2(venta.items.reduce((s, i, k) => s + (i.encargo ? Math.min(+i.encargo.sena, importe(i) - (promoDe(aplicadas, k)?.descuento || 0)) : 0), 0)), base);   // ya pagada al encargar
     const resto = r2(base - sena);
     let pagos;
     if (!venta.dos) pagos = [lineaPago(venta.forma, resto)];
@@ -303,7 +324,7 @@ export async function pantallaVender(vista, ctx) {
       pagos = [lineaPago(venta.dos.forma1, b1), lineaPago(venta.dos.forma2, r2(resto - b1))];
     }
     const recargo = r2(pagos.reduce((s, p) => s + p.recargo, 0));
-    return { subtotal, descuento, base, sena, pagos, recargo, total: r2(resto + recargo) };
+    return { subtotal, descuento, base, sena, pagos, recargo, total: r2(resto + recargo), promo, aplicadas };
   }
 
   // ---------- Accesos rápidos ----------
@@ -333,6 +354,7 @@ export async function pantallaVender(vista, ctx) {
   function pintar() {
     pintarAccesos();
     const t = $('#renglones');
+    const { aplicadas } = totales();
     // cuánto se lleva de cada producto en toda la venta, para avisar en el renglón si es más de lo que hay en stock
     const lleva = {};
     venta.items.forEach(i => { if (i.producto_id) lleva[i.producto_id] = (lleva[i.producto_id] || 0) + +i.cantidad; });
@@ -343,15 +365,18 @@ export async function pantallaVender(vista, ctx) {
         <div class="v-nom"><b title="${esc(i.nombre)}">${esc(i.nombre)}</b><small>${i.producto_id && !p ? '<span class="mal">ya no está en el catálogo</span>'
           : i.encargo ? `📋 Encargo #${i.encargo.numero} de ${esc(i.encargo.a_nombre)}${+i.encargo.sena ? ` · seña ${plata(i.encargo.sena)}` : ''}`
           : !i.producto_id ? 'Varios · precio libre' : i.por_peso ? (i.etiqueta != null ? 'Etiqueta de balanza' : 'Por kilo') : esc(p?.codigo || '')}</small>${falta
-          ? `<span class="v-sin-stock" title="Se lleva más de lo que hay: al cobrar se puede dejar para entregar después">Stock en sistema: ${cant(Math.max(0, +p.stock))}${p.por_peso ? ' kg' : ''}</span>` : ''}</div>
+          ? `<span class="v-sin-stock" title="Se lleva más de lo que hay: al cobrar se puede dejar para entregar después">Stock en sistema: ${cant(Math.max(0, +p.stock))}${p.por_peso ? ' kg' : ''}</span>` : ''}${(pr => pr
+          ? `<span class="v-promo" title="Promoción aplicada: ${esc(pr.nombre)}"><span>🎁 ${esc(pr.nombre)} −${plata(pr.descuento)}</span><button data-sin-promo="${pr.promocion_id}" title="Quitar la promoción de esta venta" tabindex="-1">×</button></span>` : '')(promoDe(aplicadas, k))}</div>
         ${!i.producto_id ? '<span class="v-der-txt">1</span>' : i.por_peso
           ? `<input class="v-kg" data-cant="${k}" value="${cant(i.cantidad)}" inputmode="decimal" title="Kilos">`
           : `<span class="v-paso"><button data-menos="${k}" title="Uno menos" tabindex="-1">−</button><input data-cant="${k}" value="${cant(i.cantidad)}" inputmode="decimal" title="Cantidad"><button data-mas="${k}" title="Uno más" tabindex="-1">+</button></span>`}
         <div class="v-der-txt v-precio">${i.producto_id ? `<button class="link" data-precio="${k}" title="Cambiar el precio para esta venta">${plata(precioDe(i))}${i.por_peso ? '/kg' : ''}</button>${i.precio != null && p ? `<s>${plata(p.precio)}</s>` : ''}` : ''}</div>
-        <div class="v-der-txt v-imp">${plata(importe(i))}</div>
+        <div class="v-der-txt v-imp">${(pr => pr ? `${plata(importe(i) - pr.descuento)}<s>${plata(importe(i))}</s>` : plata(importe(i)))(promoDe(aplicadas, k))}</div>
         <button class="v-quitar" data-quitar="${k}" title="Quitar">×</button></div>`; }).reverse().join('')}</div>`   /* el último que se agrega va arriba (en la venta y el ticket quedan en el orden en que se cargaron) */
       : `<div class="v-vacio">${DIBUJO_VACIO}<b>Escaneá un producto para empezar</b><span>o buscalo por nombre en la barra de arriba</span></div>`;
     $$('[data-quitar]', t).forEach(b => b.onclick = () => { venta.items.splice(+b.dataset.quitar, 1); pintar(); enfocar(); });
+    $$('[data-sin-promo]', t).forEach(b => b.onclick = () => { venta.sinPromos.push(+b.dataset.sinPromo); pintar(); enfocar(); });
+    pintarSugerencias(aplicadas);
     const kNuevo = venta.items.indexOf(nuevo); nuevo = null;
     if (kNuevo >= 0) { const fila = $$('.v-item', t)[kNuevo]; fila?.classList.add('v-nuevo'); fila?.scrollIntoView({ block: 'nearest' }); }
     $$('[data-precio]', t).forEach(b => b.onclick = () => cambiarPrecio(venta.items[+b.dataset.precio]));
@@ -388,7 +413,8 @@ export async function pantallaVender(vista, ctx) {
       <div class="v-total">
         <div class="v-total-top"><span>Total a cobrar</span><span>${unidades ? `${cant(unidades)} artículo${unidades === 1 ? '' : 's'}` : 'Sin artículos'}</span></div>
         <div class="v-total-num">${plata(tt.total)}</div>
-        ${tt.descuento || tt.recargo || tt.sena ? `<div class="v-cuenta"><div><span>Subtotal</span><span>${plata(tt.subtotal)}</span></div>
+        ${tt.promo || tt.descuento || tt.recargo || tt.sena ? `<div class="v-cuenta"><div><span>Subtotal</span><span>${plata(tt.subtotal + tt.promo)}</span></div>
+          ${tt.promo ? `<div class="ok"><span>Promociones</span><span>−${plata(tt.promo)}</span></div>` : ''}
           ${tt.descuento ? `<div class="ok"><span>Descuento</span><span>−${plata(tt.descuento)}</span></div>` : ''}
           ${tt.sena ? `<div class="ok"><span>Seña ya pagada</span><span>−${plata(tt.sena)}</span></div>` : ''}
           ${tt.pagos.filter(p => p.recargo).map(p => `<div><span>Recargo ${esc(p.forma)} ${pct(p.forma)}%</span><span>+${plata(p.recargo)}</span></div>`).join('')}</div>` : ''}
@@ -421,13 +447,13 @@ export async function pantallaVender(vista, ctx) {
     else $('#nuevo-cliente').onclick = () => formCliente(null, false, nuevo => { venta.cliente = nuevo; pintar(); });
     $$('[data-forma]').forEach(b => b.onclick = () => {
       if (b.dataset.forma === 'Fiado' && !venta.cliente) return elegirCliente(() => { venta.forma = 'Fiado'; });
-      venta.forma = b.dataset.forma; pintarPanel(); enfocar();
+      venta.forma = b.dataset.forma; pintar(); enfocar();   // pintar: las promociones pueden depender de la forma de pago
     });
-    if ($('#dos')) $('#dos').onclick = () => { venta.dos = { forma1: 'Efectivo', monto1: '', forma2: fs.find(f => f !== 'Efectivo') || 'Efectivo' }; pintarPanel(); $('#m1').focus(); };
-    if ($('#uno')) $('#uno').onclick = () => { venta.dos = null; pintarPanel(); };
+    if ($('#dos')) $('#dos').onclick = () => { venta.dos = { forma1: 'Efectivo', monto1: '', forma2: fs.find(f => f !== 'Efectivo') || 'Efectivo' }; pintar(); $('#m1').focus(); };
+    if ($('#uno')) $('#uno').onclick = () => { venta.dos = null; pintar(); };
     if (d) {
-      $('#f1').onchange = e => { d.forma1 = e.target.value; pintarPanel(); };
-      $('#f2').onchange = e => { d.forma2 = e.target.value; pintarPanel(); };
+      $('#f1').onchange = e => { d.forma1 = e.target.value; pintar(); };
+      $('#f2').onchange = e => { d.forma2 = e.target.value; pintar(); };
       $('#m1').oninput = e => { d.monto1 = e.target.value; refrescar('m1'); };
     }
     $('#desc').oninput = e => { venta.desc = e.target.value; refrescar('desc'); };
@@ -439,6 +465,16 @@ export async function pantallaVender(vista, ctx) {
   }
   // Al escribir en un campo del panel se redibuja el panel conservando el cursor en ese campo
   const refrescar = id => { pintarPanel(); const el = $('#' + id); if (el) { el.focus(); el.setSelectionRange?.(el.value.length, el.value.length); } };
+
+  // Sugerencias de promociones: las que están por completarse, las que no valen con la forma de pago elegida y las quitadas
+  function pintarSugerencias(aplicadas) {
+    const cont = $('#sugerencias');
+    const formasV = [...new Set(totales().pagos.filter(p => p.base > 0).map(p => p.forma))];
+    const lista = venta.items.length ? sugerencias(promos, lineasPromo(), formasV, aplicadas, venta.sinPromos).slice(0, 4) : [];
+    cont.innerHTML = lista.map(s => `<div class="v-sugerencia ${s.quitada ? 'quitada' : ''}"><span>🎁 ${esc(s.texto)}</span>${s.quitada
+      ? `<button class="btn chico" data-volver-promo="${s.promo.id}">Volver a aplicarla</button>` : ''}</div>`).join('');
+    $$('[data-volver-promo]', cont).forEach(b => b.onclick = () => { venta.sinPromos = venta.sinPromos.filter(id => id !== +b.dataset.volverPromo); pintar(); enfocar(); });
+  }
 
   // ---------- Cliente ----------
   function elegirCliente(despues) {
@@ -611,7 +647,7 @@ export async function pantallaVender(vista, ctx) {
       p_pagos: [...(tt.sena ? [{ forma: 'Seña', base: tt.sena }] : []), ...tt.pagos.filter(p => p.base > 0).map(p => ({ forma: p.forma, base: p.base }))],
       p_encargos: venta.items.filter(i => i.encargo).map(i => ({ id: i.encargo.id, cantidad: i.cantidad })),
       p_paga_con: pc > 0 ? pc : null, p_cliente_id: venta.cliente?.id ?? null, p_forzar_limite: false,
-      p_descuento: tt.descuento, p_autorizacion: null,
+      p_descuento: tt.descuento, p_autorizacion: null, p_sin_promos: venta.sinPromos, p_promos: tt.promo,
     };
     cobrando = true;
     try {
@@ -628,6 +664,9 @@ export async function pantallaVender(vista, ctx) {
             if (err.codigo === 'limite') {   // pasaría el límite de fiado: no se registró nada
               if (!await confirmar('Límite de fiado', err.message + '. ¿Fiar igual?', 'Fiar igual')) return;
               args.p_forzar_limite = true;
+            } else if (err.codigo === 'promos') {   // cambió una promoción (o el día): se vuelven a pedir y se revisa la venta
+              promos = await llamar('promociones_vigentes').catch(() => promos);
+              pintar(); aviso(err.message, 'info'); return;
             } else if (err.codigo === 'autorizacion') {   // descuento por encima del tope del empleado
               const token = await pedirAutorizacion(ctx.usuarios, err.message);
               if (!token) return;
@@ -663,13 +702,13 @@ export async function pantallaVender(vista, ctx) {
   ctx.alTeclear(e => {
     if (accesoRapido(e)) return;
     if (e.key === 'F2') { e.preventDefault(); cobrar(); }
-    if (e.key === 'F1') { e.preventDefault(); venta.forma = 'Efectivo'; venta.dos = null; pintarPanel(); }
+    if (e.key === 'F1') { e.preventDefault(); venta.forma = 'Efectivo'; venta.dos = null; pintar(); }
     // F3: Fiado (en esta sección no abre el "buscar en la página" del navegador). Sin cliente, primero lo pide.
     if (e.key === 'F3') {
       e.preventDefault();
       if (document.querySelector('.modal-fondo')) return;
       if (!venta.cliente) return elegirCliente(() => { venta.forma = 'Fiado'; venta.dos = null; });
-      venta.forma = 'Fiado'; venta.dos = null; pintarPanel(); enfocar();
+      venta.forma = 'Fiado'; venta.dos = null; pintar(); enfocar();
     }
   });
   pintar();

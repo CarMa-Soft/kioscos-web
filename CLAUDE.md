@@ -477,6 +477,42 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   y `sena` son lo que falta entregar y la seña que queda (`encargado`, `entregado`, `sena_dejada` aparte). Vender pasa solo
   lo que llegó ("Pasar 10 a la venta") y sin stock no deja pasarlo. Anular la venta devuelve al encargo lo de esa venta.
 
+## Promociones por cantidad (Productos → 🎁 Promociones)
+- Tabla `promociones` (solo por funciones). `tipo`:
+  - `lleva_paga`: lleva N, paga M.
+  - `precio`: N por $X.
+  - `unidad_pct`: la N-ésima con % menos.
+  - `desde_pct`: llevando N o más, % menos; con N = 1 es una oferta simple.
+- Otras columnas:
+  - `productos` (bigint[]): las unidades se juntan; no entran productos por kilo.
+  - `desde` / `hasta`: fecha del negocio.
+  - `dias`: 1 = lunes … 7; vacío = todos.
+  - `formas`: vacío = todas; si no, todos los pagos de la venta (sin la seña) tienen que ser de esas.
+  - `activa`.
+  - El % es entero, para redondear igual en la base y en el navegador.
+- Funciones:
+  - Dueño: `promociones()` (con `hoy`), `guardar_promocion(p)` y `borrar_promocion(id)`. Al borrar, las ventas guardan el nombre.
+  - Todos: `promociones_vigentes()`, las de hoy; Vender las pide al entrar.
+- **La cuenta está dos veces y tiene que dar igual:** `promo_descuentos` / `promos_venta` en la base (la que vale) y `calcularPromos` de `promos.js`.
+  - Entran los renglones de productos por unidad a precio de lista. Un precio cambiado a mano o un producto por kilo no entran.
+  - Las unidades van de la más cara a la más barata; a igual precio, en el orden de los renglones. Los grupos de N se arman desde la más cara.
+  - Todo se calcula en centavos.
+  - En "N por $X", lo descontado se reparte en proporción al precio; la última unidad del grupo se lleva el redondeo.
+  - Con varias promociones, primero va la que más descuenta, y sus renglones ya no entran en otra.
+- **En la venta:**
+  - El descuento queda en cada renglón (`venta_items.promo`, `promocion_id`, `promo_nombre`; el `importe` ya rebajado) y en
+    `ventas.descuento_promos`. El `subtotal` es después de promociones. Así devoluciones, reportes por producto y ganancia lo toman solos.
+  - No cuenta para el tope de descuento del empleado.
+  - `registrar_venta(..., p_sin_promos, p_promos)` recibe las que quitó el cajero y lo que calculó Vender. Si la base calcula otra cosa,
+    corta con hint `promos` y Vender vuelve a pedir las vigentes.
+- **Vender:**
+  - Como dependen de la forma de pago, `totales()` calcula con las formas elegidas; con dos medios, si uno queda en 0, recalcula sin ese.
+  - En el renglón aparece 🎁 con lo descontado y una × para quitarla.
+  - Arriba de la venta, `#sugerencias` muestra las que se completan con hasta 3 unidades más, las que valen con otra forma de pago y las
+    quitadas ("Volver a aplicarla").
+  - El ticket muestra cada promo debajo de su renglón y "Ahorraste $X en promociones".
+- Pendiente: Reportes todavía no muestra las promociones aparte (quedan dentro de lo vendido).
+
 ## Ayuda
 - `ayuda.js`: preguntas frecuentes y cómo hacer cada cosa (array `TEMAS`, por sección; `a: true` = solo el dueño), con
   buscador sin acentos. Sin IA ni base. Se abre con "? Ayuda" del bloque del usuario, abajo del menú (sección `#/ayuda`,
