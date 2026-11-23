@@ -4,6 +4,13 @@
 // Chrome ("Instalar la app") no puede imprimir directo: una página no puede saltearse la vista previa.
 import { $, modal } from './ui.js';
 
+// La ventana que abre el ícono del instalador: su URL lleva ?pc=1. Como ese ícono usa un perfil de Chrome propio, se anota
+// en su localStorage (por si la URL lo pierde) y ahí no se ofrece instalar de nuevo.
+export function enVentanaInstalada() {
+  if (new URLSearchParams(location.search).get('pc') === '1') { try { localStorage.setItem('ventana-pc', '1'); } catch { /* sin almacenamiento */ } return true; }
+  try { return localStorage.getItem('ventana-pc') === '1'; } catch { return false; }
+}
+
 export const esWindows = () => /Windows/i.test(navigator.userAgentData?.platform || navigator.userAgent);
 export const ARCHIVO = 'instalar-gestion-de-ventas.bat';
 
@@ -30,6 +37,7 @@ export function ventanaInstalar(chrome) {
 }
 
 // Para Ajustes → Impresión: el enlace al instalador, con los pasos
-export const ayudaInstalador = () => `<details class="inst-ajustes"><summary>Imprimir directo, sin la ventana de impresión (Windows)</summary>
+export const ayudaInstalador = () => `${enVentanaInstalada() ? '<p class="ok chico">✓ Esta ventana está instalada con impresión directa: los tickets salen en la impresora predeterminada de Windows.</p>' : ''}
+  <details class="inst-ajustes"><summary>${enVentanaInstalada() ? 'Instalarla en otra PC' : 'Imprimir directo, sin la ventana de impresión (Windows)'}</summary>
     <p class="muted chico">Instalá la app con este instalador y abrila siempre con su ícono:</p>${PASOS}
     <a class="btn" href="${ARCHIVO}" download>⬇️ Descargar el instalador</a></details>`;

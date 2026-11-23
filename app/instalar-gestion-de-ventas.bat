@@ -44,23 +44,28 @@ try {
   foreach ($a in $accesos) {
     $lnk = $shell.CreateShortcut($a)
     $lnk.TargetPath = $nav
-    $lnk.Arguments = "--kiosk-printing --user-data-dir=`"$perfil`" --no-first-run --no-default-browser-check --app=$url"
+    $lnk.Arguments = "--kiosk-printing --user-data-dir=`"$perfil`" --no-first-run --no-default-browser-check --app=${url}?pc=1"
     $lnk.WorkingDirectory = $base
     $lnk.IconLocation = $icono
     $lnk.Description = 'Gestión de ventas'
     $lnk.Save()
   }
 
+  $pred = Get-CimInstance Win32_Printer -ErrorAction SilentlyContinue | Where-Object Default | Select-Object -First 1
+  $impresora = if ($pred) { $pred.Name } else { '(ninguna)' }
   Write-Host ''
   Write-Host ' Listo: Gestión de ventas quedó instalada.' -ForegroundColor Green
   Write-Host ' Abrila siempre con el acceso directo "Gestión de ventas" del Escritorio o del menú Inicio.'
   Write-Host ' La primera vez hay que entrar con la cuenta del negocio (después la recuerda).'
   Write-Host ''
-  $pred = Get-CimInstance Win32_Printer -ErrorAction SilentlyContinue | Where-Object Default | Select-Object -First 1
-  Write-Host (' Los tickets salen directo en la impresora predeterminada de Windows: ' + $(if ($pred) { $pred.Name } else { '(ninguna)' })) -ForegroundColor Yellow
+  Write-Host (' Los tickets salen directo en la impresora predeterminada de Windows: ' + $impresora) -ForegroundColor Yellow
   Write-Host ' Si no es la de tickets: Configuración de Windows > Impresoras, desactivá "Permitir que Windows administre'
   Write-Host ' mi impresora predeterminada" y poné la de tickets como predeterminada.'
+  # el mismo aviso en una ventana, para que no pase desapercibido
+  Add-Type -AssemblyName System.Windows.Forms
+  [void][System.Windows.Forms.MessageBox]::Show("Gestión de ventas quedó instalada: abrila siempre con el ícono `"Gestión de ventas`" del Escritorio o del menú Inicio (la primera vez, con la cuenta del negocio).`n`nLos tickets van a salir directo en la impresora predeterminada de Windows:`n`n      $impresora`n`nSi no es la de tickets: Configuración de Windows > Impresoras, desactivá `"Permitir que Windows administre mi impresora predeterminada`" y poné la de tickets como predeterminada.", 'Gestión de ventas', 'OK', 'Information')
 } catch {
   Write-Host ''
   Write-Host (' No se pudo instalar: ' + $_.Exception.Message) -ForegroundColor Red
+  try { Add-Type -AssemblyName System.Windows.Forms; [void][System.Windows.Forms.MessageBox]::Show('No se pudo instalar: ' + $_.Exception.Message, 'Gestión de ventas', 'OK', 'Error') } catch { }
 }

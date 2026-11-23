@@ -18,7 +18,7 @@ import { pantallaRemitos } from './remitos.js';
 import { VERSION } from './version.js';
 import { recorridoPrimeraVez } from './recorrido.js';
 import { atajoDe, textoAtajo, esAtajo } from './teclado.js';
-import { esWindows, ventanaInstalar } from './instalador.js';
+import { esWindows, ventanaInstalar, enVentanaInstalada } from './instalador.js';
 
 const raiz = $('#app');
 let datos = null;            // lo que devuelve datos_inicio()
@@ -56,11 +56,12 @@ window.addEventListener('unhandledrejection', ev => {
 // Instalar como app: el service worker (sw.js, no guarda nada) y el botón "Instalar la app" del menú, que aparece cuando el
 // navegador ofrece instalarla (Chrome y Edge; ya instalada, no aparece) y siempre en Windows (salvo en una ventana de app):
 // ahí ofrece el instalador con impresión directa (instalador.js) y, si el navegador la ofrece, la instalación de Chrome.
+// En la ventana que abre el ícono del instalador no aparece.
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
 let pedidoInstalar = null;
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); pedidoInstalar = e; if ($('#instalar')) $('#instalar').hidden = false; });
 window.addEventListener('appinstalled', () => { pedidoInstalar = null; if ($('#instalar')) $('#instalar').hidden = !conBotonInstalar(); aviso('Listo: la app quedó instalada', 'ok'); });
-const conBotonInstalar = () => !!pedidoInstalar || (esWindows() && !matchMedia('(display-mode: standalone)').matches);
+const conBotonInstalar = () => !enVentanaInstalada() && (!!pedidoInstalar || (esWindows() && !matchMedia('(display-mode: standalone)').matches));
 async function instalarChrome() {
   if (!pedidoInstalar) return aviso('Para instalarla, abrí el menú del navegador (⋮) y elegí "Instalar" o "Agregar a la pantalla de inicio"', 'info');
   pedidoInstalar.prompt();
