@@ -11,6 +11,7 @@ export async function pantallaAjustes(vista, ctx) {
   const recargos = { ...c.recargos };
   const n = { nombre: ctx.negocio.nombre, ...(ctx.config.negocio || {}) };
   const modo = ctx.config.ticket || 'preguntar';
+  const papel = String(ctx.config.papel || '58');
   vista.innerHTML = `<h2>Ajustes</h2>
     <form class="form ancho recuadro-blanco" id="f-negocio">
       <h3>Datos del negocio (para el ticket)</h3>
@@ -23,6 +24,8 @@ export async function pantallaAjustes(vista, ctx) {
         ${[['preguntar', 'Preguntar (P imprime)'], ['siempre', 'Imprimir siempre'], ['nunca', 'No imprimir']].map(([v, t]) => `<option value="${v}" ${modo === v ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
       <p class="muted chico">Para que imprima directo, sin la ventana de impresión, abrí Chrome con la opción <span class="mono">--kiosk-printing</span>
         y dejá la impresora de tickets como predeterminada.</p>
+      <label>Ancho del papel<select class="input" name="papel">
+        ${[['58', '58 mm (impresora térmica chica)'], ['76', '76 mm (comandera, como la Epson TM-U220)']].map(([v, t]) => `<option value="${v}" ${papel === v ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
       <div class="fila"><button class="btn primario">Guardar</button><button type="button" class="btn" id="prueba">Imprimir un ticket de prueba</button></div>
     </form>
     <div class="form ancho recuadro-blanco" id="logo-negocio"><h3>Logo del negocio</h3>
@@ -155,7 +158,8 @@ export async function pantallaAjustes(vista, ctx) {
     correr(async () => {
       await llamar('guardar_config', { p_clave: 'negocio', p_valor: datos });
       await llamar('guardar_config', { p_clave: 'ticket', p_valor: f.get('ticket') });
-      ctx.config.negocio = datos; ctx.config.ticket = f.get('ticket');   // las demás secciones lo ven sin recargar
+      await llamar('guardar_config', { p_clave: 'papel', p_valor: f.get('papel') });
+      ctx.config.negocio = datos; ctx.config.ticket = f.get('ticket'); ctx.config.papel = f.get('papel');   // las demás secciones lo ven sin recargar
       aviso('Datos guardados', 'ok');
     });
   };
@@ -163,7 +167,7 @@ export async function pantallaAjustes(vista, ctx) {
     numero: 0, fecha: new Date().toISOString(), cliente: null, subtotal: 1500, descuento: 0, recargo: 0, total: 1500, paga_con: 2000, anulada: false,
     items: [{ nombre: 'Producto de prueba', cantidad: 1, precio: 1000, importe: 1000 }, { nombre: 'Otro producto', cantidad: 2, precio: 250, importe: 500 }],
     pagos: [{ forma: 'Efectivo', monto: 1500, recargo: 0 }],
-  }, { ...ctx.config, negocio: Object.fromEntries(['nombre', 'cuit', 'direccion', 'telefono', 'pie_ticket'].map(k => [k, $(`#f-negocio [name=${k}]`).value])) }));
+  }, { ...ctx.config, papel: $('#f-negocio [name=papel]').value, negocio: Object.fromEntries(['nombre', 'cuit', 'direccion', 'telefono', 'pie_ticket'].map(k => [k, $(`#f-negocio [name=${k}]`).value])) }));
   $('#f-caja').onsubmit = e => {
     e.preventDefault();
     const f = new FormData(e.target);

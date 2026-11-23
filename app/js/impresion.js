@@ -1,4 +1,4 @@
-// Impresión de tickets de 58 mm (venta, devolución, cierre de caja), como en la app local.
+// Impresión de tickets de 58 mm o 76 mm (Ajustes → Ancho del papel; config 'papel'): venta, devolución, cierre de caja, remitos.
 // Se arma el ticket en #print-area y se llama a window.print(); app.css esconde todo lo demás al imprimir.
 // Con Chrome abierto con --kiosk-printing, imprime directo en la impresora predeterminada, sin preguntar.
 import { $, esc, plata, cant } from './ui.js';
@@ -11,6 +11,9 @@ export function imprimir(html) {
   setTimeout(() => window.print(), 100);
 }
 
+// El recuadro del ticket, con el ancho del papel (76 mm: comanderas como la Epson TM-U220; si no, 58 mm)
+const ticket = (cfg, html) => `<div class="ticket${String(cfg.papel) === '76' ? ' p76' : ''}">${html}</div>`;
+
 // Datos del negocio (Ajustes → Datos del negocio)
 function encabezado(cfg) {
   const n = cfg.negocio || {};
@@ -21,7 +24,7 @@ const pie = cfg => cfg.negocio?.pie_ticket ? `<hr><div class="c">${esc(cfg.negoc
 
 export function ticketVenta(v, cfg) {
   const efectivo = v.pagos.find(p => p.forma === 'Efectivo');
-  return `<div class="ticket">${encabezado(cfg)}<hr>
+  return ticket(cfg, `${encabezado(cfg)}<hr>
     <div>Ticket #${v.numero} · ${fechaHora(v.fecha)}</div>${v.cliente ? `<div>Cliente: ${esc(v.cliente.nombre)}</div>` : ''}
     <div class="c chico">Comprobante no válido como factura</div><hr>
     <table>${v.items.map(i => `<tr><td colspan="2">${esc(i.nombre)}</td></tr>
@@ -34,11 +37,11 @@ export function ticketVenta(v, cfg) {
       ${efectivo && +v.paga_con > +efectivo.monto ? `<tr><td>Paga con</td><td class="n">${plata(v.paga_con)}</td></tr><tr><td>Vuelto</td><td class="n">${plata(v.paga_con - efectivo.monto)}</td></tr>` : ''}</table>
     ${v.pendientes?.length ? `<hr><div class="c">PENDIENTE DE ENTREGA</div>${v.pendientes.map(e => `<div>&nbsp;${cant(e.cantidad)} x ${esc(e.nombre)}</div>`).join('')}
       <div>A nombre de: ${esc(v.pendientes[0].a_nombre)}</div>` : ''}
-    ${v.anulada ? '<hr><div class="c grande">ANULADA</div>' : ''}${pie(cfg)}</div>`;
+    ${v.anulada ? '<hr><div class="c grande">ANULADA</div>' : ''}${pie(cfg)}`);
 }
 
 export function ticketDevolucion(d, v, cfg) {
-  return `<div class="ticket">${encabezado(cfg)}<hr>
+  return ticket(cfg, `${encabezado(cfg)}<hr>
     <div class="c grande">DEVOLUCIÓN ${esc(d.etiqueta)}</div>
     <div>${fechaHora(d.fecha)} · Ticket #${v.numero} del ${fechaHora(v.fecha)}</div>${v.cliente ? `<div>Cliente: ${esc(v.cliente.nombre)}</div>` : ''}
     <div class="c chico">Comprobante no válido como factura</div><hr>
@@ -48,12 +51,12 @@ export function ticketDevolucion(d, v, cfg) {
       <tr><td>${esc(nombreForma(d.forma, v))}</td><td class="n">${plata(d.total)}</td></tr></table>
     ${d.motivo ? `<div>Motivo: ${esc(d.motivo)}</div>` : ''}
     <div>Atendió: ${esc(d.usuario)}${d.autorizo ? ` · autorizó ${esc(d.autorizo)}` : ''}</div>
-    <br><br><div class="c">______________________</div><div class="c">Firma del cliente</div></div>`;
+    <br><br><div class="c">______________________</div><div class="c">Firma del cliente</div>`);
 }
 
 export function ticketCierre(r, cfg) {
   const b = r.billetes, movs = r.movimientos || [];
-  return `<div class="ticket">${encabezado(cfg)}<hr><div class="c grande">CIERRE DE CAJA</div>
+  return ticket(cfg, `${encabezado(cfg)}<hr><div class="c grande">CIERRE DE CAJA</div>
     <div>Turno de ${esc(r.usuario)}</div><div>Abrió: ${fechaHora(r.apertura)}</div><div>Cerró: ${fechaHora(r.cierre)}</div><hr>
     <table><tr><td>Ventas (${r.ventas})</td><td class="n">${plata(r.total_ventas)}</td></tr>
       ${Object.entries(r.por_forma || {}).map(([f, m]) => `<tr><td>&nbsp;${esc(f)}</td><td class="n">${plata(m)}</td></tr>`).join('')}</table><hr>
@@ -65,16 +68,16 @@ export function ticketCierre(r, cfg) {
       ${+r.retiro ? `<tr><td>Retirado</td><td class="n">${plata(r.retiro)}</td></tr><tr><td>Queda en caja</td><td class="n">${plata(r.contado - r.retiro)}</td></tr>` : ''}</table>
     ${b ? `<hr><div>Conteo de billetes</div><table>${Object.entries(b.detalle || {}).sort((x, y) => +y[0] - +x[0]).map(([val, q]) => `<tr><td>${q} x ${plata(val)}</td><td class="n">${plata(q * val)}</td></tr>`).join('')}
       ${+b.otros ? `<tr><td>Monedas y otros</td><td class="n">${plata(b.otros)}</td></tr>` : ''}</table>` : ''}
-    ${r.notas ? `<hr><div>${esc(r.notas)}</div>` : ''}</div>`;
+    ${r.notas ? `<hr><div>${esc(r.notas)}</div>` : ''}`);
 }
 
 // Entrada o salida de mercadería (RI / RE), con lugar para las firmas
 export function ticketRemito(r, cfg) {
   const signo = r.tipo === 'ingreso' ? '+' : '-';
-  return `<div class="ticket">${encabezado(cfg)}<hr>
+  return ticket(cfg, `${encabezado(cfg)}<hr>
     <div class="c grande">${r.tipo === 'ingreso' ? 'ENTRADA' : 'SALIDA'} ${esc(r.etiqueta)}${r.anulado ? ' (ANULADA)' : ''}</div>
     <div>${fechaHora(r.fecha)} · ${esc(r.usuario)}</div><div>Motivo: ${esc(r.motivo)}</div>${r.notas ? `<div>${esc(r.notas)}</div>` : ''}<hr>
     <table>${r.items.map(x => `<tr><td>${esc(x.nombre)}</td><td class="n">${signo}${cant(x.cantidad)}</td></tr>`).join('')}</table>
     <br><br><div class="c">______________________</div><div class="c">Entregó</div>
-    <br><br><div class="c">______________________</div><div class="c">Recibió</div></div>`;
+    <br><br><div class="c">______________________</div><div class="c">Recibió</div>`);
 }
