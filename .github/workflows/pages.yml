@@ -28,12 +28,11 @@ concurrency:
   group: pages
   cancel-in-progress: false
 
+# En dos tareas, como el modelo de GitHub: armar sube los archivos y publicar los publica después. Todo en una sola tarea
+# fallaba seguido ("No artifacts named github-pages"): publicaba antes de que GitHub listara lo recién subido.
 jobs:
-  publicar:
+  armar:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -89,5 +88,13 @@ jobs:
       - uses: actions/upload-pages-artifact@v5
         with:
           path: ${{ runner.temp }}/sitio
+
+  publicar:
+    needs: armar
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
       - id: deploy
         uses: actions/deploy-pages@v5
