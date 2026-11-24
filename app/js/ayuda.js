@@ -92,7 +92,7 @@ const TEMAS = [
     <li>Conectá la impresora y encendela. Si Windows no la reconoce sola, instalá el programa (driver) de la marca: viene en un CD o en su página web.</li>
     <li>En Windows, <b>Configuración → Dispositivos → Impresoras</b>: clic en la de tickets → <b>Establecer como predeterminada</b>.</li>
     <li>En la app, <b>Ajustes → Imprimir un ticket de prueba</b>. Si sale, ya está.</li>
-    <li>Para que imprima <b>directo, sin la ventana de impresión</b> (en Windows): en el menú, <b>⬇️ Instalar la app → Descargar el instalador</b> (o en <b>Ajustes</b>, debajo de "Ticket después de cada venta"). Abrí el archivo descargado (si Chrome pregunta, <b>Conservar</b>; si Windows muestra "Windows protegió su PC", <b>Más información → Ejecutar de todas formas</b>). Queda el ícono <b>Gestión de ventas</b> en el Escritorio: abrí la app siempre desde ahí (la primera vez, con la cuenta del negocio).</li>
+    <li>Al imprimir se abre la ventana de impresión: elegí la impresora de tickets en <b>Destino</b> y tocá <b>Imprimir</b>. Chrome recuerda la última que usaste.</li>
     <li>En <b>Ajustes → Ticket después de cada venta</b> elegí <b>Imprimir siempre</b>, <b>Preguntar</b> o <b>No imprimir</b>.</li></ol>
     Si la impresora aparece en Windows como "dispositivo no especificado" o como un puerto COM, hay que instalarle el driver y elegir ese puerto: pedí ayuda.` },
   { s: 'Reportes, usuarios y ajustes', a: true, t: 'Poner el logo del negocio', x: 'En <b>Ajustes → Logo del negocio</b>, tocá <b>📷 Elegir imagen</b> y elegí el logo (una foto o un PNG; mejor si es cuadrado). La app lo achica sola. Se ve al abrir la app, arriba en el menú y al elegir el usuario. Con <b>Quitar</b> vuelve el de la app.' },
