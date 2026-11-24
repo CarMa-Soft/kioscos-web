@@ -119,8 +119,9 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
 - **Botón rápido** (`favorito`): aparece en Vender como acceso rápido, en orden alfabético; los primeros 9 con Alt + número.
 - **Impresión** (`impresion.js`): tickets de 58 mm de venta, devolución (con firma del cliente) y cierre de caja, con
   los datos de Ajustes (`config.negocio`: nombre, CUIT, dirección, teléfono, pie) y `config.ticket`
-  (`preguntar` | `siempre` | `nunca`). Se arma en `#print-area` y `@media print` esconde el resto. Para imprimir sin
-  ventana: Chrome con `--kiosk-printing` y la impresora de tickets como predeterminada.
+  (`preguntar` | `siempre` | `nunca`). Se arma en `#print-area` y `@media print` esconde el resto. Siempre pasa por la
+  ventana de impresión: imprimir directo (Chrome con `--kiosk-printing`, con un instalador para Windows, PR #119) se probó y se sacó
+  por engorroso de configurar en cada PC.
   Ancho del papel: `config.papel` (`58` | `76`, por defecto 58). Con 76 el ticket lleva `.p76` (59 mm de ancho, empezando a 9 mm del borde, unos 8 mm al final que terminan en un puntito (el driver borra el blanco final), letra más
   grande, para comanderas de matriz de puntos como la Epson TM-U220) y `#print-area:has(.p76)` usa la página con nombre
   `@page t76` (76 mm). Ojo: el servidor de prueba local saca la CSP; las imágenes elegidas con `blob:` necesitan `img-src blob:`.

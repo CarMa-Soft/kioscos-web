@@ -22,8 +22,7 @@ export async function pantallaAjustes(vista, ctx) {
       <label>Pie del ticket<input class="input" name="pie_ticket" maxlength="120" value="${esc(n.pie_ticket ?? '¡Gracias por su compra!')}"></label>
       <label>Ticket después de cada venta<select class="input" name="ticket">
         ${[['preguntar', 'Preguntar (P imprime)'], ['siempre', 'Imprimir siempre'], ['nunca', 'No imprimir']].map(([v, t]) => `<option value="${v}" ${modo === v ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
-      <p class="muted chico">Para que imprima directo, sin la ventana de impresión, abrí Chrome con la opción <span class="mono">--kiosk-printing</span>
-        y dejá la impresora de tickets como predeterminada.</p>
+      <p class="muted chico">Al imprimir se abre la ventana de impresión: elegí la impresora de tickets y tocá Imprimir (Chrome recuerda la última que usaste).</p>
       <label>Ancho del papel<select class="input" name="papel">
         ${[['58', '58 mm (impresora térmica chica)'], ['76', '76 mm (comandera, como la Epson TM-U220)']].map(([v, t]) => `<option value="${v}" ${papel === v ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
       <div class="fila"><button class="btn primario">Guardar</button><button type="button" class="btn" id="prueba">Imprimir un ticket de prueba</button></div>

@@ -1,6 +1,7 @@
 // Impresión de tickets de 58 mm o 76 mm (Ajustes → Ancho del papel; config 'papel'): venta, devolución, cierre de caja, remitos.
 // Se arma el ticket en #print-area y se llama a window.print(); app.css esconde todo lo demás al imprimir.
-// Con Chrome abierto con --kiosk-printing, imprime directo en la impresora predeterminada, sin preguntar.
+// Siempre pasa por la ventana de impresión del navegador (se probó imprimir directo con --kiosk-printing y un instalador, y
+// se descartó por engorroso).
 import { $, esc, plata, cant } from './ui.js';
 
 const fechaHora = iso => iso ? new Date(iso).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }) : '';
