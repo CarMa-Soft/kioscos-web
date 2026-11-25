@@ -29,14 +29,14 @@ export async function pantallaInicio(vista, ctx) {
   const [r, ent, encs, venc] = await Promise.all([llamar('inicio'), llamar('entregas_pendientes'), llamar('encargos'),
     admin ? llamar('vencimientos', { p_hasta: sumarDias(hoyDia(), 7) }).catch(() => null) : null]);
   const entregas = [...ent, ...encs];
-  const aRevisar = admin ? cat.productos().filter(p => p.a_revisar).length : 0;   // creados en la caja con lo mínimo
+  const aRevisar = admin ? cat.productos().filter(p => p.a_revisar).length : 0;   // creados en la caja con lo mínimo, o desde el catálogo general sin costo o categoría
   // para reponer: del catálogo del navegador (stock mínimo cargado y stock igual o menor)
   const reponer = admin ? cat.productos().filter(p => p.activo !== false && +p.stock_min > 0 && +p.stock <= +p.stock_min).length : 0;
   const aPagar = venc ? venc.proveedores.reduce((s, x) => s + +x.total, 0) : 0;
   const vencido = venc ? venc.proveedores.reduce((s, x) => s + x.deudas.filter(d => d.vencimiento < venc.hoy).reduce((a, d) => a + +d.pendiente, 0), 0) : 0;
   vista.innerHTML = `<div class="cabecera"><div><h2>Hoy</h2><p class="muted">${new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}</p></div>
       <div class="acciones"><a class="btn primario" href="#/vender">Vender</a>${admin ? '<a class="btn" href="#/reportes">Reportes</a>' : ''}</div></div>
-    ${aRevisar ? `<div class="p-aviso fila-aviso"><span>Hay <b>${aRevisar}</b> producto${aRevisar === 1 ? '' : 's'} creado${aRevisar === 1 ? '' : 's'} en la caja para revisar (costo, categoría y stock).</span>
+    ${aRevisar ? `<div class="p-aviso fila-aviso"><span>Hay <b>${aRevisar}</b> producto${aRevisar === 1 ? '' : 's'} para revisar (creado${aRevisar === 1 ? '' : 's'} en la caja o desde el catálogo sin costo o categoría).</span>
       <button class="btn chico" id="ir-revisar">Revisarlos</button></div>` : ''}
     <div class="c-tarjetas de-a-tres">
       <div class="c-tarjeta verde" id="t-ventas" title="Ver las ventas del turno en Caja"><span class="c-ico">${ICO.ventas}</span><div><div class="etq">Ventas de hoy${r.propias ? ' (tuyas)' : ''}</div><div class="valor">${plata(r.total)}</div>
