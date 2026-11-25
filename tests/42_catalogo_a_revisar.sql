@@ -17,7 +17,7 @@ select pruebas.ok((select (x ->> 'a_revisar')::boolean from jsonb_array_elements
   'sin costo, a revisar');
 select pruebas.ok((select (x ->> 'a_revisar')::boolean from jsonb_array_elements(current_setting('prueba.rv')::jsonb -> 'productos') x where x ->> 'codigo' = '99990000000086'),
   'sin categoría (la sugerida no existe), a revisar');
-select public.guardar_producto(format('{"id": %s, "nombre": "PRUEBA REVISAR SIN COSTO", "precio": 150, "costo": 90}',
+select public.guardar_producto(format('{"id": %s, "nombre": "PRUEBA REVISAR SIN COSTO", "codigo": "99990000000079", "precio": 150, "costo": 90}',
   (select x ->> 'id' from jsonb_array_elements(current_setting('prueba.rv')::jsonb -> 'productos') x where x ->> 'codigo' = '99990000000079'))::jsonb);
 reset role;
 select pruebas.ok((select not a_revisar from public.productos where codigo = '99990000000079'), 'al guardarlo desde la ficha deja de estar a revisar');
