@@ -541,8 +541,13 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
 - **Productos:** `marca`, y `contenido` + `unidad` (g, kg, ml, l, un, m), opcionales. `leer_contenido` acepta "lts", "cc", "gr"…
   `guardar_producto` cambia marca y contenido solo si vienen en el pedido. El buscador del navegador también busca por marca.
 - **Pantallas** (`catalogo_general.js`):
-  - Productos → **📚 Agregar desde el catálogo general**: buscar, tildar, poner costo y precio (margen % opcional, con el redondeo
-    de Ajustes; "Usar los precios de referencia"), categoría (de fábrica, "la sugerida de cada uno"), Agregar.
+  - Productos → **📦 Cargar productos** (`pantallaCatalogoGeneral`), pensada para recorrer la góndola: un código escaneado (o escrito +
+    Enter) va directo a la lista: del catálogo general si está; si no, como **nuevo** (`{ nuevo: true, nombre, codigo, categoria_id }`,
+    el nombre se escribe en la fila); si el negocio ya lo tiene, avisa. Buscando por nombre: tildar resultados, o "＋ No está: cargar
+    … como producto nuevo". Lo último agregado va arriba con el foco (nombre o precio); Enter pasa al campo siguiente y en el stock
+    vuelve al buscador. Costo y precio (margen % opcional, con el redondeo de Ajustes; "Usar los precios de referencia"), categoría
+    (de fábrica, "la sugerida de cada uno"; los nuevos llevan la suya en la fila), Agregar: todo en un solo `agregar_desde_catalogo`
+    (los nuevos: código que ya tiene el negocio → error; sin costo o categoría → a revisar).
   - Al completar desde el catálogo general (ficha, Compras), si el negocio ya tiene una categoría con el nombre de la sugerida, la elige.
   - `delCatalogoGeneral(codigo)` completa nombre, marca y contenido al crear con código: ficha de Producto nuevo, Vender
     ("No está cargado": el nombre ya viene y el foco va al precio) y Compras / Entradas y salidas (`alta-producto.js`).

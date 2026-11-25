@@ -575,6 +575,28 @@ details.pagadas summary h3 { display: inline-block; }
 .cg-tengo { display: inline-block; padding: .05rem .5rem; border-radius: 999px; background: #f2f4f7; color: #475467; font-size: .78rem; white-space: nowrap; }
 .cg-num { width: 7.5rem; }
 .cg-stock { width: 5rem; }
+/* Cargar productos: los nuevos (no están en el catálogo general) y el recién agregado */
+.cg-manual { margin: .6rem 0 1rem; }
+.cg-propios { margin: 0 0 .5rem; }
+.cg-nuevo-tag { display: inline-block; margin-bottom: .25rem; padding: .05rem .5rem; border-radius: 999px; background: #ecfdf3; color: #067647; font-size: .75rem; font-weight: 600; }
+.cg-nombre { width: 100%; min-width: 12rem; }
+.cg-nuevo-datos { display: flex; gap: .4rem; margin-top: .3rem; flex-wrap: wrap; }
+.cg-nuevo-datos .input { flex: 1; min-width: 8rem; font-size: .85rem; padding-top: .3rem; padding-bottom: .3rem; }
+.tabla tr.cg-recien td { background: #fffbeb; }
+/* En el celular, cada producto de la lista es una tarjeta (sin correr la tabla de costado) */
+@media (max-width: 800px) {
+  .cg-lista thead { display: none; }
+  .cg-lista, .cg-lista tbody { display: block; }
+  .cg-lista tr { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: .35rem .5rem; align-items: end; padding: .7rem .6rem; border-bottom: 1px solid var(--borde); }
+  .cg-lista tr.cg-recien { background: #fffbeb; }
+  .cg-lista td { display: block; padding: 0; border: 0; text-align: left; }
+  .cg-lista td:first-child, .cg-lista td.cg-ref { grid-column: 1 / -1; }
+  .cg-lista td.cg-ref { font-size: .82rem; text-align: left; }
+  .cg-lista td.cg-ref-sin { display: none; }
+  .cg-lista td.cg-ref::before { content: 'Precio de referencia: '; }
+  .cg-lista td[data-t]::before { content: attr(data-t); display: block; font-size: .75rem; color: var(--suave); margin-bottom: .15rem; }
+  .cg-lista .cg-num, .cg-lista .cg-stock { width: 100%; }
+}
 .p-contenido .fila { flex-wrap: nowrap; gap: .4rem; }
 .p-contenido .input[name=contenido] { width: 6rem; }
 .p-contenido select { width: auto; }

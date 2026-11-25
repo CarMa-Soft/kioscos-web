@@ -14,7 +14,7 @@ import { UNIDADES, CATEGORIAS, idCategoria, delCatalogoGeneral, pantallaCatalogo
 let filtro = '', grupo = 'todos', categoria = '', orden = { col: 'nombre', asc: true };
 let enLista = false;   // mostrando la lista de precios para imprimir
 let enPromos = false;  // mostrando las promociones
-let enGeneral = false; // agregando desde el catálogo general
+let enGeneral = false; // en Cargar productos (catálogo general y nuevos)
 // Desde Inicio: abrir la lista con los productos a revisar
 export function verARevisar() { grupo = 'revisar'; filtro = ''; categoria = ''; }
 export function verParaReponer() { grupo = 'reponer'; filtro = ''; categoria = ''; }   // desde Inicio
@@ -58,7 +58,7 @@ export async function pantallaProductos(vista, ctx) {
   const valorVenta = activos.reduce((s, p) => s + Math.max(0, +p.stock) * +p.precio, 0);
   const nReponer = cuenta('reponer'), nSinStock = cuenta('sin-stock');
   vista.innerHTML = `<div class="cabecera"><h2>Productos <span class="muted">(${activos.length})</span></h2>
-      <div class="acciones p-acciones"><button class="btn" id="lista-precios">🏷️ Lista de precios</button><button class="btn" id="promociones" title="3x2, 2 por $X, la 2ª al 50%…: se aplican solas en Vender">🎁 Promociones</button><button class="btn" id="aumento">Precios y márgenes</button><button class="btn" id="categorias">Categorías</button><button class="btn" id="general" title="Agregar desde el catálogo general: más de 60.000 productos con código de barras, nombre, marca y contenido. Elegí los que vendés">📚 Agregar desde catálogo</button><button class="btn" id="importar" title="Cargar o actualizar muchos productos desde una planilla de Excel o CSV">📥 Importar</button><button class="btn primario" id="nuevo">＋ Nuevo producto</button></div></div>
+      <div class="acciones p-acciones"><button class="btn" id="lista-precios">🏷️ Lista de precios</button><button class="btn" id="promociones" title="3x2, 2 por $X, la 2ª al 50%…: se aplican solas en Vender">🎁 Promociones</button><button class="btn" id="aumento">Precios y márgenes</button><button class="btn" id="categorias">Categorías</button><button class="btn" id="general" title="Recorré la góndola escaneando: los que están en el catálogo general (más de 60.000) vienen con nombre, marca y contenido; los que no, los cargás ahí mismo">📦 Cargar productos</button><button class="btn" id="importar" title="Cargar o actualizar muchos productos desde una planilla de Excel o CSV">📥 Importar</button><button class="btn primario" id="nuevo">＋ Nuevo producto</button></div></div>
     <div class="c-tarjetas">
       <div class="c-tarjeta verde"><span class="c-ico">${ICO.productos}</span><div><div class="etq">Productos activos</div><div class="valor">${activos.length}</div>
         <div class="c-sub">${bajas.length ? `${bajas.length} desactivado${bajas.length === 1 ? '' : 's'}` : 'ninguno desactivado'}</div></div></div>
@@ -156,7 +156,7 @@ export async function pantallaProductos(vista, ctx) {
             ? `<span title="Margen automático: el precio sigue al costo${m != null && Math.round(m) !== Math.round(+p.margen) ? `. Real: ${Math.round(m)}%, por el redondeo del precio` : ''}">${String(+p.margen).replace('.', ',')}% <span class="etiqueta info">auto</span></span>`
             : m == null ? '<span class="muted">—</span>' : `${Math.round(m)}%`}</td></tr>`; }).join('')
         : `<tr><td class="muted vacio" colspan="6">${!(grupo === 'desactivados' ? bajas : activos).length
-            ? (grupo === 'desactivados' ? 'No hay productos desactivados.' : 'Todavía no hay productos: cargá el primero con "Nuevo producto", o muchos juntos con "Importar" (planilla) o "Agregar desde catálogo".')
+            ? (grupo === 'desactivados' ? 'No hay productos desactivados.' : 'Todavía no hay productos: cargá el primero con "Nuevo producto", o muchos juntos con "Importar" (planilla) o "Cargar productos" (escaneando la góndola).')
             : 'Ningún producto coincide con los filtros.'}</td></tr>`}</tbody>
       ${ver.length > 300 ? `<tfoot><tr><td class="muted" colspan="6">Se muestran 300 de ${ver.length}: usá la búsqueda o los filtros para ver los demás.</td></tr></tfoot>` : ''}`;
     $$('[data-orden]').forEach(b => b.onclick = () => {
