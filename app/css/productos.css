@@ -73,3 +73,13 @@
 tr.p-guardado td { animation: p-destello 1.2s ease-out; }
 @keyframes p-destello { from { background: #d1fadf; } to { background: transparent; } }
 @media (prefers-reduced-motion: reduce) { tr.p-guardado td { animation: none; } }
+/* Cabecera de Productos en la PC: botones un poco más angostos, para que entren todos (con Nuevo producto) en un renglón */
+.p-acciones { gap: .5rem; }
+.p-acciones .btn { padding-left: .8rem; padding-right: .8rem; }
+/* Cabecera de Productos en el celular: los botones en dos columnas parejas, y Nuevo producto arriba de todo, a lo ancho */
+@media (max-width: 800px) {
+  .p-acciones { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
+  .p-acciones .btn { width: 100%; padding-left: .5rem; padding-right: .5rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .p-acciones .btn.primario { grid-column: 1 / -1; order: -1; }
+  .p-acciones #general, .p-acciones #importar { grid-column: 1 / -1; }   /* los de texto largo, a lo ancho */
+}

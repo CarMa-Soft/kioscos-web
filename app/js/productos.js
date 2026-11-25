@@ -15,14 +15,14 @@ let filtro = '', grupo = 'todos', categoria = '', orden = { col: 'nombre', asc: 
 let enLista = false;   // mostrando la lista de precios para imprimir
 let enPromos = false;  // mostrando las promociones
 let enGeneral = false; // agregando desde el catálogo general
-// Desde Inicio: abrir la lista con los productos creados en la caja
+// Desde Inicio: abrir la lista con los productos a revisar
 export function verARevisar() { grupo = 'revisar'; filtro = ''; categoria = ''; }
 export function verParaReponer() { grupo = 'reponer'; filtro = ''; categoria = ''; }   // desde Inicio
 
 // Botones de filtro: cada uno con su condición. "Desactivados" muestra los dados de baja (los demás, solo activos).
 const GRUPOS = [
   ['todos', 'Todos', () => true],
-  ['revisar', 'A revisar', p => p.a_revisar],   // creados en la caja con lo mínimo
+  ['revisar', 'A revisar', p => p.a_revisar],   // creados en la caja con lo mínimo, o del catálogo sin costo o categoría
   ['reponer', 'Para reponer', p => +p.stock_min > 0 && +p.stock <= +p.stock_min],
   ['sin-stock', 'Sin stock', p => +p.stock <= 0],
   ['peso', 'Por peso', p => p.por_peso],
@@ -58,7 +58,7 @@ export async function pantallaProductos(vista, ctx) {
   const valorVenta = activos.reduce((s, p) => s + Math.max(0, +p.stock) * +p.precio, 0);
   const nReponer = cuenta('reponer'), nSinStock = cuenta('sin-stock');
   vista.innerHTML = `<div class="cabecera"><h2>Productos <span class="muted">(${activos.length})</span></h2>
-      <div class="acciones"><button class="btn" id="lista-precios">🏷️ Lista de precios</button><button class="btn" id="promociones" title="3x2, 2 por $X, la 2ª al 50%…: se aplican solas en Vender">🎁 Promociones</button><button class="btn" id="aumento">Precios y márgenes</button><button class="btn" id="categorias">Categorías</button><button class="btn" id="general" title="Más de 60.000 productos con código de barras, nombre, marca y contenido: elegí los que vendés">📚 Agregar desde el catálogo general</button><button class="btn" id="importar" title="Cargar o actualizar muchos productos desde una planilla de Excel o CSV">📥 Importar planilla</button><button class="btn primario" id="nuevo">＋ Nuevo producto</button></div></div>
+      <div class="acciones p-acciones"><button class="btn" id="lista-precios">🏷️ Lista de precios</button><button class="btn" id="promociones" title="3x2, 2 por $X, la 2ª al 50%…: se aplican solas en Vender">🎁 Promociones</button><button class="btn" id="aumento">Precios y márgenes</button><button class="btn" id="categorias">Categorías</button><button class="btn" id="general" title="Agregar desde el catálogo general: más de 60.000 productos con código de barras, nombre, marca y contenido. Elegí los que vendés">📚 Agregar desde catálogo</button><button class="btn" id="importar" title="Cargar o actualizar muchos productos desde una planilla de Excel o CSV">📥 Importar</button><button class="btn primario" id="nuevo">＋ Nuevo producto</button></div></div>
     <div class="c-tarjetas">
       <div class="c-tarjeta verde"><span class="c-ico">${ICO.productos}</span><div><div class="etq">Productos activos</div><div class="valor">${activos.length}</div>
         <div class="c-sub">${bajas.length ? `${bajas.length} desactivado${bajas.length === 1 ? '' : 's'}` : 'ninguno desactivado'}</div></div></div>
@@ -156,7 +156,7 @@ export async function pantallaProductos(vista, ctx) {
             ? `<span title="Margen automático: el precio sigue al costo${m != null && Math.round(m) !== Math.round(+p.margen) ? `. Real: ${Math.round(m)}%, por el redondeo del precio` : ''}">${String(+p.margen).replace('.', ',')}% <span class="etiqueta info">auto</span></span>`
             : m == null ? '<span class="muted">—</span>' : `${Math.round(m)}%`}</td></tr>`; }).join('')
         : `<tr><td class="muted vacio" colspan="6">${!(grupo === 'desactivados' ? bajas : activos).length
-            ? (grupo === 'desactivados' ? 'No hay productos desactivados.' : 'Todavía no hay productos: cargá el primero con "Nuevo producto", o muchos juntos con "Importar planilla".')
+            ? (grupo === 'desactivados' ? 'No hay productos desactivados.' : 'Todavía no hay productos: cargá el primero con "Nuevo producto", o muchos juntos con "Importar" (planilla) o "Agregar desde catálogo".')
             : 'Ningún producto coincide con los filtros.'}</td></tr>`}</tbody>
       ${ver.length > 300 ? `<tfoot><tr><td class="muted" colspan="6">Se muestran 300 de ${ver.length}: usá la búsqueda o los filtros para ver los demás.</td></tr></tfoot>` : ''}`;
     $$('[data-orden]').forEach(b => b.onclick = () => {
@@ -188,7 +188,7 @@ export async function pantallaProductos(vista, ctx) {
     const v = p || { por_peso: false, favorito: false, activo: true, margen: +(ctx.config.margen ?? 40) > 0 ? +(ctx.config.margen ?? 40) : null };
     const m = modal(p ? 'Editar producto' : 'Nuevo producto', `<form class="form ancho" id="f-prod">
       ${p && entregas[p.id] ? `<div class="p-aviso">📦 Para entregar (ventas ya cobradas y encargos): ${entregas[p.id].map(aQuien).join('; ')}</div>` : ''}
-      ${p?.a_revisar ? '<div class="p-aviso">Se creó en la caja con lo mínimo. Completá el nombre, el costo, la categoría y el stock real (contalo); al guardarlo deja de estar a revisar.</div>' : ''}
+      ${p?.a_revisar ? '<div class="p-aviso">Se creó con lo mínimo (en la caja, o desde el catálogo general sin costo o sin categoría). Completá lo que falte (costo, categoría, stock real); al guardarlo deja de estar a revisar.</div>' : ''}
       <label>Nombre<input class="input" name="nombre" maxlength="120" required value="${esc(v.nombre || '')}" autofocus></label>
       <div class="fila"><label class="crece">Código de barras<input class="input mono" name="codigo" maxlength="40" value="${esc(v.codigo || '')}" autocomplete="off"></label>
         <label class="crece">Categoría<select class="input" name="categoria_id"><option value="">Sin categoría</option>${cats.map(c => `<option value="${c.id}" ${c.id === v.categoria_id ? 'selected' : ''}>${esc(c.nombre)}</option>`).join('')}</select></label></div>

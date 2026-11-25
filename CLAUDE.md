@@ -403,7 +403,7 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
 ## Lista de precios (para imprimir y etiquetar)
 - Productos: **precio y stock en la tabla** (`enLinea`): tocar el valor abre un campo; Enter o salir guarda, Esc cancela. Precio con
   `cambiar_precio(p_id, p_precio)` (dueño; deja el producto sin margen automático; tests/33), stock con `ajustar_stock` ("Corrección desde la lista").
-- Productos → "Importar planilla" (`importar.js`, solo dueño): lee .xlsx (a mano: zip con fflate + DOMParser, la primera hoja;
+- Productos → "📥 Importar" (`importar.js`, solo dueño): lee .xlsx (a mano: zip con fflate + DOMParser, la primera hoja;
   sin librerías de planillas) o CSV (; , o tab, UTF-8 o Windows-1252). Adivina las columnas por el título (`CAMPOS`, sin tildes), muestra
   las primeras filas y manda de a 1000 a `importar_productos(p_filas, p_actualizar)`: por código (o alternativo; sin código, por
   nombre) actualiza precio/costo/categoría (con precio, deja de tener margen automático; el stock no se toca) o crea con stock
@@ -533,7 +533,8 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   - `catalogo_general_buscar(texto, límite)`: por código (con `codigo_variantes`: el UPC con o sin el 0 de adelante) o por palabras
     (todas tienen que estar). Marca `ya` si el negocio tiene ese código (principal u otro).
   - `agregar_desde_catalogo(items)` (dueño, hasta 500): crea los productos con nombre, marca y contenido; saltea los que ya tiene.
-    `stock` (entero, opcional): queda como "Stock inicial" en movimientos_stock, como desde la ficha.
+    `stock` (entero, opcional): queda como "Stock inicial" en movimientos_stock, como desde la ficha. Sin costo o sin categoría, el
+    producto queda `a_revisar` (Productos → A revisar), como lo creado en la caja.
     Con `categoria: 'sugerida'` usa la categoría del negocio que se llama igual, y si no la tiene la crea (`categoria_por_nombre`).
   - `crear_categorias(nombres)`: Productos → Categorías → "Crear las categorías sugeridas" (`CATEGORIAS` de catalogo_general.js,
     la misma lista que categorias.js: si se cambia una, cambiar la otra).
