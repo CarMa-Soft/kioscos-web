@@ -6,8 +6,8 @@ const [, , ENTRADA, SALIDA] = process.argv;
 const datos = JSON.parse(fs.readFileSync(ENTRADA, 'utf8'));
 
 // cadenas (id_comercio) de la que mejor describe a la que peor: 12 y 10 nombre completo con marca y presentación;
-// 2 completo con comas; 11 corto; 9 con agregados ("PAQ-20-gr."); 15 abreviado
-const PREFERENCIA = ['12', '10', '2', '11', '9', '15'];
+// 2 completo con comas; 11 corto; 9 con agregados ("PAQ-20-gr."); 3 completo (mucho de kiosco); 15 abreviado; 13 corto, sin presentación
+const PREFERENCIA = ['12', '10', '2', '11', '9', '3', '15', '13'];
 const rango = cadenas => Math.min(...cadenas.map(c => { const i = PREFERENCIA.indexOf(c); return i < 0 ? 99 : i; }));
 
 function limpiar(t) {
