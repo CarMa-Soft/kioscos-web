@@ -9,6 +9,7 @@ import { imprimir, ticketVenta } from './impresion.js';
 import { abrirCaja } from './caja.js';
 import { nuevoEncargo, verEncargos } from './encargos.js';
 import { calcularPromos, sugerencias, textoPromo } from './promos.js';
+import { delCatalogoGeneral, datosDelGeneral, textoContenido } from './catalogo_general.js';
 
 // Íconos (trazos SVG, toman el color del texto)
 const svg = d => `<svg viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
@@ -212,17 +213,28 @@ export async function pantallaVender(vista, ctx) {
       <label>Nombre <span class="muted">(si lo dejás vacío, se completa después)</span><input class="input" name="nombre" maxlength="120" value="${esc(nombre || (esCodigo ? '' : texto))}" autocomplete="off"></label>
       <div class="fila"><label class="crece">Código de barras<input class="input mono" name="codigo" maxlength="40" value="${esCodigo ? esc(texto) : ''}" autocomplete="off"></label>
         <label class="crece">Precio<input class="input" name="precio" inputmode="decimal" autocomplete="off" required value="${esc(precio)}"></label></div>
+      <p class="muted chico cg-ayuda" id="alta-general" hidden></p>
       <p class="muted chico">Queda <b>a revisar</b> en Productos, para completar el costo, la categoría y el stock.</p>
       <div class="fila fin"><button type="button" class="btn" data-cerrar>Cancelar</button><button class="btn primario">Crear y agregar</button></div></form>`,
       { alCerrar: () => enfocar() });
     const f = $('#f-alta-caja', m.el);
     (esCodigo || !texto ? f.elements.nombre : f.elements.precio).focus();
+    // un código que está en el catálogo general: el nombre ya viene (y la marca y el contenido); falta solo el precio
+    let general = null;
+    if (esCodigo) delCatalogoGeneral(texto, g => {
+      general = g;
+      if (!f.elements.nombre.value.trim()) f.elements.nombre.value = g.nombre;
+      const ay = $('#alta-general', m.el); ay.hidden = false;
+      ay.innerHTML = `📚 Del catálogo general${[g.marca, textoContenido(g)].filter(Boolean).length ? ` (${esc([g.marca, textoContenido(g)].filter(Boolean).join(' · '))})` : ''}${+g.precio_ref ? ` · precio de referencia en las cadenas: <b>${plata(g.precio_ref)}</b>` : ''}`;
+      setTimeout(() => { if (!document.activeElement || document.activeElement === f.elements.nombre || document.activeElement === document.body) f.elements.precio.focus(); }, 60);   // después del foco de la ventana
+    });
     f.onsubmit = e => {
       e.preventDefault();
       const precioN = numero(f.elements.precio.value);
       if (!(precioN > 0)) { f.elements.precio.focus(); return aviso('Poné el precio'); }
       correr(async () => {
-        const p = await llamar('alta_desde_caja', { p: { nombre: f.elements.nombre.value.trim(), codigo: f.elements.codigo.value.trim(), precio: precioN } });
+        const p = await llamar('alta_desde_caja', { p: { nombre: f.elements.nombre.value.trim(), codigo: f.elements.codigo.value.trim(), precio: precioN,
+          ...(general && f.elements.codigo.value.trim() === texto ? datosDelGeneral(general) : {}) } });   // si no cambiaron el código
         await cat.actualizar().catch(() => {});
         m.cerrar();
         agregar(cat.producto(p.id) || p, n);

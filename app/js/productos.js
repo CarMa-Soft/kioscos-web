@@ -8,11 +8,13 @@ import { pantallaPromociones } from './promociones.js';
 import { preciosModal } from './precios.js';
 import { porProducto, aQuien } from './entregas.js';
 import { importarProductos } from './importar.js';
+import { UNIDADES, delCatalogoGeneral, pantallaCatalogoGeneral } from './catalogo_general.js';
 
 // Lo que se eligió en la lista se mantiene al ir y volver de la sección
 let filtro = '', grupo = 'todos', categoria = '', orden = { col: 'nombre', asc: true };
 let enLista = false;   // mostrando la lista de precios para imprimir
 let enPromos = false;  // mostrando las promociones
+let enGeneral = false; // agregando desde el catálogo general
 // Desde Inicio: abrir la lista con los productos creados en la caja
 export function verARevisar() { grupo = 'revisar'; filtro = ''; categoria = ''; }
 export function verParaReponer() { grupo = 'reponer'; filtro = ''; categoria = ''; }   // desde Inicio
@@ -43,6 +45,7 @@ const sinAcentos = s => String(s ?? '').toLowerCase().normalize('NFD').replace(/
 export async function pantallaProductos(vista, ctx) {
   if (enLista) return pantallaListaPrecios(vista, ctx, () => { enLista = false; ctx.recargar(); });
   if (enPromos) return pantallaPromociones(vista, ctx, () => { enPromos = false; ctx.recargar(); });
+  if (enGeneral) return pantallaCatalogoGeneral(vista, ctx, () => { enGeneral = false; ctx.recargar(); });
   // el catálogo trae solo los activos (con costos: solo el dueño los recibe); los dados de baja vienen aparte
   const [r, bajas, entregas] = await Promise.all([llamar('catalogo'), llamar('productos_de_baja'), porProducto()]);
   const aEntregar = id => (entregas[id] || []).reduce((s, e) => s + +e.cantidad, 0);
@@ -55,7 +58,7 @@ export async function pantallaProductos(vista, ctx) {
   const valorVenta = activos.reduce((s, p) => s + Math.max(0, +p.stock) * +p.precio, 0);
   const nReponer = cuenta('reponer'), nSinStock = cuenta('sin-stock');
   vista.innerHTML = `<div class="cabecera"><h2>Productos <span class="muted">(${activos.length})</span></h2>
-      <div class="acciones"><button class="btn" id="lista-precios">🏷️ Lista de precios</button><button class="btn" id="promociones" title="3x2, 2 por $X, la 2ª al 50%…: se aplican solas en Vender">🎁 Promociones</button><button class="btn" id="aumento">Precios y márgenes</button><button class="btn" id="categorias">Categorías</button><button class="btn" id="importar" title="Cargar o actualizar muchos productos desde una planilla de Excel o CSV">📥 Importar planilla</button><button class="btn primario" id="nuevo">＋ Nuevo producto</button></div></div>
+      <div class="acciones"><button class="btn" id="lista-precios">🏷️ Lista de precios</button><button class="btn" id="promociones" title="3x2, 2 por $X, la 2ª al 50%…: se aplican solas en Vender">🎁 Promociones</button><button class="btn" id="aumento">Precios y márgenes</button><button class="btn" id="categorias">Categorías</button><button class="btn" id="general" title="Más de 60.000 productos con código de barras, nombre, marca y contenido: elegí los que vendés">📚 Agregar desde el catálogo general</button><button class="btn" id="importar" title="Cargar o actualizar muchos productos desde una planilla de Excel o CSV">📥 Importar planilla</button><button class="btn primario" id="nuevo">＋ Nuevo producto</button></div></div>
     <div class="c-tarjetas">
       <div class="c-tarjeta verde"><span class="c-ico">${ICO.productos}</span><div><div class="etq">Productos activos</div><div class="valor">${activos.length}</div>
         <div class="c-sub">${bajas.length ? `${bajas.length} desactivado${bajas.length === 1 ? '' : 's'}` : 'ninguno desactivado'}</div></div></div>
@@ -178,6 +181,7 @@ export async function pantallaProductos(vista, ctx) {
   $('#aumento').onclick = () => correr(() => preciosModal({ productos: activos, categorias: cats, visibles: hayFiltros() ? visibles().filter(p => p.activo !== false) : null, ctx, alTerminar: () => ctx.recargar() }));
   $('#lista-precios').onclick = () => { enLista = true; ctx.recargar(); };
   $('#promociones').onclick = () => { enPromos = true; ctx.recargar(); };
+  $('#general').onclick = () => { enGeneral = true; ctx.recargar(); };
   pintar();
 
   function ficha(p) {
@@ -188,6 +192,10 @@ export async function pantallaProductos(vista, ctx) {
       <label>Nombre<input class="input" name="nombre" maxlength="120" required value="${esc(v.nombre || '')}" autofocus></label>
       <div class="fila"><label class="crece">Código de barras<input class="input mono" name="codigo" maxlength="40" value="${esc(v.codigo || '')}" autocomplete="off"></label>
         <label class="crece">Categoría<select class="input" name="categoria_id"><option value="">Sin categoría</option>${cats.map(c => `<option value="${c.id}" ${c.id === v.categoria_id ? 'selected' : ''}>${esc(c.nombre)}</option>`).join('')}</select></label></div>
+      <div class="fila"><label class="crece">Marca <span class="muted">(opcional)</span><input class="input" name="marca" maxlength="80" value="${esc(v.marca || '')}" autocomplete="off"></label>
+        <label class="p-contenido">Contenido <span class="muted">(opcional)</span><span class="fila"><input class="input" name="contenido" inputmode="decimal" value="${v.contenido != null ? String(+v.contenido).replace('.', ',') : ''}" placeholder="500">
+          <select class="input" name="unidad">${UNIDADES.map(([u, t]) => `<option value="${u}" ${(v.unidad || 'g') === u ? 'selected' : ''}>${t}</option>`).join('')}</select></span></label></div>
+      <p class="muted chico" id="del-general" hidden></p>
       ${p ? `<div class="otros-codigos"><div><b>Otros códigos</b> <span class="muted chico">(el mismo producto con otro envase: cualquiera lo encuentra)</span></div>
         <div class="chips" id="oc-lista"></div>
         <div class="fila"><input class="input mono crece" id="oc-nuevo" maxlength="40" placeholder="Agregar otro código" autocomplete="off">
@@ -226,7 +234,17 @@ export async function pantallaProductos(vista, ctx) {
     cPrecio.oninput = margenDesdePrecio;
     cCosto.oninput = () => { if (cMargen.value.trim() !== '') precioDesdeMargen(); else margenDesdePrecio(); };
     const campoCodigo = $('[name=codigo]', m.el);
-    botonCamara(campoCodigo, { continuo: false, alLeer: c => { campoCodigo.value = c; } });   // 📷: el código del producto con la cámara
+    botonCamara(campoCodigo, { continuo: false, alLeer: c => { campoCodigo.value = c; completarDelGeneral(); } });   // 📷: el código del producto con la cámara
+    // Producto nuevo con un código del catálogo general: completa lo que esté vacío (nombre, marca, contenido) y muestra el precio de referencia
+    const completarDelGeneral = () => { if (!p) delCatalogoGeneral(campoCodigo.value, g => {
+      const f = $('#f-prod', m.el).elements;
+      if (!f.nombre.value.trim()) f.nombre.value = g.nombre;
+      if (!f.marca.value.trim() && g.marca) f.marca.value = g.marca;
+      if (!f.contenido.value.trim() && g.contenido) { f.contenido.value = String(+g.contenido).replace('.', ','); f.unidad.value = g.unidad; }
+      const ay = $('#del-general', m.el); ay.hidden = false;
+      ay.textContent = `Completado desde el catálogo general${+g.precio_ref ? ` · precio de referencia en las cadenas: ${plata(g.precio_ref)}` : ''}`;
+    }); };
+    campoCodigo.addEventListener('change', completarDelGeneral);
     // Otros códigos (producto_codigos): se agregan y se quitan al momento, sin esperar a Guardar
     if (p) {
       const pintarOtros = () => {
@@ -258,7 +276,8 @@ export async function pantallaProductos(vista, ctx) {
       const datos = { id: p?.id ?? null, nombre: f.get('nombre'), codigo: f.get('codigo'), categoria_id: f.get('categoria_id') || null,
         costo: numero(f.get('costo')) || 0, precio: numero(f.get('precio')), stock: numero(f.get('stock')) || 0,
         stock_min: numero(f.get('stock_min')) || 0, por_peso: f.get('por_peso') === 'on', plu: f.get('por_peso') === 'on' ? f.get('plu') : '',
-        favorito: f.get('favorito') === 'on', ...(p ? { activo: f.get('activo') === 'on' } : {}) };
+        favorito: f.get('favorito') === 'on', ...(p ? { activo: f.get('activo') === 'on' } : {}),
+        marca: f.get('marca').trim(), contenido: numero(f.get('contenido')) > 0 ? numero(f.get('contenido')) : null, unidad: f.get('unidad') };
       if (!(datos.precio >= 0)) return aviso('Revisá el precio');
       if (datos.costo > datos.precio && !confirm('El costo es mayor que el precio de venta. ¿Guardar igual?')) return;
       // margen automático: hace falta el costo; sin costo, se guarda con precio fijo (y se avisa)

@@ -6,6 +6,7 @@ import { llamar } from './base.js';
 import * as cat from './catalogo.js';
 import { $, $$, esc, plata, numero, aviso, correr, modal, confirmar } from './ui.js';
 import { botonCamara } from './escaner.js';
+import { delCatalogoGeneral, datosDelGeneral, textoContenido } from './catalogo_general.js';
 
 const pareceCodigo = t => /^\S{4,40}$/.test(t) && /\d/.test(t);
 
@@ -35,10 +36,21 @@ function formNuevo(v, categorias, alElegir, config) {
       <label class="crece">Precio de venta<input class="input" name="precio" inputmode="decimal" required></label></div>
     <label class="check"><input type="checkbox" name="margen_auto" ${mgDef > 0 ? 'checked' : ''}> Margen automático <span class="muted">(el precio sigue al costo)</span></label>
     <label class="check"><input type="checkbox" name="por_peso"> Se vende por kilo</label>
+    <p class="muted chico" id="alta-general" hidden></p>
     <p class="muted chico">El stock lo suma la compra. El stock mínimo y lo demás se completan después en Productos.</p>
     <div class="fila fin"><button type="button" class="btn" data-cerrar>Cancelar</button><button class="btn primario">Crear y agregar</button></div></form>`, { ancho: true });
   const campo = $('[name=codigo]', m.el);
-  botonCamara(campo, { continuo: false, alLeer: c => { campo.value = c; } });
+  // un código del catálogo general completa el nombre (y la marca y el contenido, que se guardan con el producto)
+  let general = null;
+  const completar = () => delCatalogoGeneral(campo.value, g => {
+    general = g;
+    const nom = $('[name=nombre]', m.el); if (!nom.value.trim()) nom.value = g.nombre;
+    const ay = $('#alta-general', m.el); ay.hidden = false;
+    ay.textContent = `📚 Del catálogo general${[g.marca, textoContenido(g)].filter(Boolean).length ? ` (${[g.marca, textoContenido(g)].filter(Boolean).join(' · ')})` : ''}${+g.precio_ref ? ` · precio de referencia en las cadenas: ${plata(g.precio_ref)}` : ''}`;
+  });
+  botonCamara(campo, { continuo: false, alLeer: c => { campo.value = c; completar(); } });
+  campo.addEventListener('change', completar);
+  if (v.codigo) completar();
   // costo, margen y precio conectados (como en la ficha del producto)
   const [cCosto, cMargen, cPrecio] = ['costo', 'margen', 'precio'].map(n => $(`[name=${n}]`, m.el));
   const precioDesdeMargen = () => {
@@ -53,7 +65,8 @@ function formNuevo(v, categorias, alElegir, config) {
     e.preventDefault();
     const f = new FormData(e.target);
     const datos = { nombre: f.get('nombre'), codigo: f.get('codigo'), categoria_id: f.get('categoria_id') || null,
-      costo: numero(f.get('costo')) || 0, precio: numero(f.get('precio')), por_peso: f.get('por_peso') === 'on' };
+      costo: numero(f.get('costo')) || 0, precio: numero(f.get('precio')), por_peso: f.get('por_peso') === 'on',
+      ...(general ? datosDelGeneral(general) : {}) };
     if (!(datos.precio >= 0)) return aviso('Revisá el precio de venta');
     const auto = f.get('margen_auto') === 'on' && datos.costo > 0 && numero(f.get('margen')) >= 0;
     correr(async () => {

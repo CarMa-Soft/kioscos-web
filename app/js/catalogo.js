@@ -18,7 +18,7 @@ function indexar() {
   for (const p of Object.values(estado.productos)) {
     for (const c of codigosDe(p)) porCodigo.set(c.toLowerCase(), p);
     if (p.plu) porPlu.set(p.plu, p);
-    p._busca = normalizar(p.nombre + ' ' + codigosDe(p).join(' '));
+    p._busca = normalizar(p.nombre + ' ' + (p.marca || '') + ' ' + codigosDe(p).join(' '));
   }
 }
 function guardar() {

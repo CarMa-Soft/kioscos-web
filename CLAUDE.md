@@ -522,6 +522,24 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
 - **Reportes:** `reporte_promos(desde, hasta)` (aparte de `reporte()`, que no se tocó) da lo descontado, en cuántas ventas y por promoción
   (agrupado por `promo_nombre`: sigue aunque se borre). Tarjeta "Promociones" en Descuentos y recargos y la tabla "Promociones".
 
+## Catálogo general de productos (compartido)
+- `catalogo_general`: unos 64.600 productos con código de barras de **Precios Claros (SEPA)**, datos abiertos de la Secretaría de Comercio,
+  unificados por código con `tools/catalogo-general` (ver su LEEME). Los datos van en la migración `…_catalogo_general_datos.sql`, que es generada.
+  Los CSV originales (1,5 GB) no se suben: quedan en `Bases productos/`, excluida en `.git/info/exclude`.
+- Columnas: `codigo`, `nombre`, `marca`, `contenido` + `unidad`, `precio_ref` (mediana de las cadenas, noviembre 2026, solo como guía),
+  `cadenas` (para ordenar) y `busca` (generada: sin mayúsculas ni acentos). Solo de lectura, por funciones:
+  - `catalogo_general_buscar(texto, límite)`: por código (con `codigo_variantes`: el UPC con o sin el 0 de adelante) o por palabras
+    (todas tienen que estar). Marca `ya` si el negocio tiene ese código (principal u otro).
+  - `agregar_desde_catalogo(items)` (dueño, hasta 500): crea los productos con nombre, marca y contenido; saltea los que ya tiene.
+- **Productos:** `marca`, y `contenido` + `unidad` (g, kg, ml, l, un, m), opcionales. `leer_contenido` acepta "lts", "cc", "gr"…
+  `guardar_producto` cambia marca y contenido solo si vienen en el pedido. El buscador del navegador también busca por marca.
+- **Pantallas** (`catalogo_general.js`):
+  - Productos → **📚 Agregar desde el catálogo general**: buscar, tildar, poner costo y precio (margen % opcional, con el redondeo
+    de Ajustes; "Usar los precios de referencia"), una categoría para todos, Agregar.
+  - `delCatalogoGeneral(codigo)` completa nombre, marca y contenido al crear con código: ficha de Producto nuevo, Vender
+    ("No está cargado": el nombre ya viene y el foco va al precio) y Compras / Entradas y salidas (`alta-producto.js`).
+- El módulo se llama `catalogo_general.js`, con guion bajo: `pages.yml` solo marca la versión de los nombres `[a-z_]+.js`.
+
 ## Ayuda
 - `ayuda.js`: preguntas frecuentes y cómo hacer cada cosa (array `TEMAS`, por sección; `a: true` = solo el dueño), con
   buscador sin acentos. Sin IA ni base. Se abre con "? Ayuda" del bloque del usuario, abajo del menú (sección `#/ayuda`,
