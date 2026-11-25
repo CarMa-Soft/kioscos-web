@@ -157,11 +157,25 @@ export async function pantallaVender(vista, ctx) {
     return { p, cantidad: r3(imp / p.precio), importe: r2(imp) };
   }
   const separarCantidad = texto => { const m = texto.match(/^(\d+(?:[.,]\d+)?)\s*\*\s*(.+)$/); return m ? [numero(m[1]), m[2].trim()] : [1, texto]; };
+  // Buscar por nombre: primero los productos del negocio; debajo, los del catálogo general que no tiene (pedidos a la base
+  // con una pausa, desde 3 letras). Elegir uno del catálogo general abre el alta rápida con su código, nombre y precio de referencia.
+  let esperaGeneral = null, pedidoGeneral = 0;
   escaner.oninput = () => {
     const [, texto] = separarCantidad(escaner.value.trim());
+    clearTimeout(esperaGeneral);
     if (texto.length < 2 || /^\d{6,}$/.test(texto)) { res.hidden = true; sugeridos = []; return; }   // un código se agrega con Enter
     sugeridos = cat.buscar(texto, 12); marcado = 0;
     pintarSugeridos(texto);
+    if (texto.length >= 3) esperaGeneral = setTimeout(async () => {
+      const n = ++pedidoGeneral;
+      let r = [];
+      try { r = await llamar('catalogo_general_buscar', { p_texto: texto, p_limite: 8 }); } catch { return; }
+      if (n !== pedidoGeneral || separarCantidad(escaner.value.trim())[1] !== texto) return;   // ya se escribió otra cosa
+      const generales = r.filter(g => !g.ya).map(g => ({ _general: g }));
+      if (!generales.length) return;
+      sugeridos = [...sugeridos.filter(x => !x._general), ...generales];
+      pintarSugeridos(texto);
+    }, 400);
   };
   escaner.onkeydown = e => {
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
@@ -183,6 +197,7 @@ export async function pantallaVender(vista, ctx) {
       bip(); pintar(); return escaner.focus();
     }
     const p = cat.porCodigoDeBarras(texto) || (!res.hidden && sugeridos[marcado]) || (cat.buscar(texto, 2).length === 1 ? cat.buscar(texto, 1)[0] : null);
+    if (p?._general) return delGeneral(p._general, n > 0 ? n : 1);
     if (p) return agregar(p, n > 0 ? n : 1);
     // no existe: suena, y se ofrece crearlo con lo mínimo (queda "a revisar" en Productos)
     sonidoError(); escaner.select(); res.hidden = true;
@@ -190,10 +205,24 @@ export async function pantallaVender(vista, ctx) {
   };
   function pintarSugeridos(texto) {
     res.hidden = false;
-    res.innerHTML = sugeridos.length ? sugeridos.map((p, k) => `<button class="resultado ${k === marcado ? 'marcado' : ''}" data-k="${k}" tabindex="-1"><span>${esc(p.nombre)}</span>
-        <span class="muted">${p.codigo ? esc(p.codigo) + ' · ' : ''}stock ${cant(p.stock)}</span><b>${plata(p.precio)}${p.por_peso ? '/kg' : ''}</b></button>`).join('')
-      : `<p class="muted sin">No hay productos con "${esc(texto ?? escaner.value)}".</p>`;
-    $$('[data-k]', res).forEach(b => b.onmousedown = e => { e.preventDefault(); agregar(sugeridos[+b.dataset.k], separarCantidad(escaner.value.trim())[0] || 1); });
+    const propios = sugeridos.filter(x => !x._general), k0 = propios.length;
+    const fila = (p, k) => p._general
+      ? `<button class="resultado cg-sug ${k === marcado ? 'marcado' : ''}" data-k="${k}" tabindex="-1"><span>${esc(p._general.nombre)}</span>
+        <span class="muted">${esc([p._general.marca, textoContenido(p._general)].filter(Boolean).join(' · '))}</span><b class="muted">${+p._general.precio_ref ? `ref. ${plata(p._general.precio_ref)}` : ''}</b></button>`
+      : `<button class="resultado ${k === marcado ? 'marcado' : ''}" data-k="${k}" tabindex="-1"><span>${esc(p.nombre)}</span>
+        <span class="muted">${p.codigo ? esc(p.codigo) + ' · ' : ''}stock ${cant(p.stock)}</span><b>${plata(p.precio)}${p.por_peso ? '/kg' : ''}</b></button>`;
+    res.innerHTML = (k0 ? propios.map(fila).join('') : `<p class="muted sin">No hay productos con "${esc(texto ?? escaner.value)}".</p>`)
+      + (sugeridos.length > k0 ? `<p class="cg-sug-tit">📚 Del catálogo general (no los tenés cargados: elegí uno y ponele tu precio)</p>${sugeridos.slice(k0).map((p, i) => fila(p, k0 + i)).join('')}` : '');
+    $$('[data-k]', res).forEach(b => b.onmousedown = e => {
+      e.preventDefault();
+      const p = sugeridos[+b.dataset.k], n = separarCantidad(escaner.value.trim())[0] || 1;
+      if (p._general) delGeneral(p._general, n); else agregar(p, n);
+    });
+  }
+  // Uno del catálogo general que el negocio no tiene: el alta rápida con su código (completa nombre, marca y contenido)
+  function delGeneral(g, n = 1) {
+    escaner.value = ''; res.hidden = true; sugeridos = [];
+    altaRapida(g.codigo, n, { delCatalogo: true });
   }
   function agregar(p, n = 1) {
     escaner.value = ''; res.hidden = true; sugeridos = [];
@@ -205,10 +234,10 @@ export async function pantallaVender(vista, ctx) {
   }
   // Alta rápida desde la caja: nombre (opcional), código y precio. El producto queda "a revisar": el dueño completa
   // después en Productos el costo, la categoría y el stock real. La puede usar también el empleado.
-  function altaRapida(texto, n = 1, { nombre = '', precio = '' } = {}) {
+  function altaRapida(texto, n = 1, { nombre = '', precio = '', delCatalogo = false } = {}) {
     const esCodigo = /^\d{6,}$/.test(texto);
     const m = modal('No está cargado', `<form class="form" id="f-alta-caja">
-      <p>${texto ? (esCodigo ? `No hay ningún producto con el código <b>${esc(texto)}</b>.` : `No hay productos con "<b>${esc(texto)}</b>".`) : ''}
+      <p>${delCatalogo ? 'Está en el catálogo general pero no en tus productos.' : texto ? (esCodigo ? `No hay ningún producto con el código <b>${esc(texto)}</b>.` : `No hay productos con "<b>${esc(texto)}</b>".`) : ''}
         Crealo acá con lo mínimo y se agrega a la venta.</p>
       <label>Nombre <span class="muted">(si lo dejás vacío, se completa después)</span><input class="input" name="nombre" maxlength="120" value="${esc(nombre || (esCodigo ? '' : texto))}" autocomplete="off"></label>
       <div class="fila"><label class="crece">Código de barras<input class="input mono" name="codigo" maxlength="40" value="${esCodigo ? esc(texto) : ''}" autocomplete="off"></label>
