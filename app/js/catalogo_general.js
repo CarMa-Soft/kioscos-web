@@ -43,7 +43,7 @@ export async function delCatalogoGeneral(codigo, alEncontrar) {
 export const datosDelGeneral = g => g ? { marca: g.marca || '', contenido: g.contenido, unidad: g.unidad } : {};
 
 // Lo elegido se mantiene al ir y volver de la sección (mientras no se recargue la página)
-const elegidos = new Map();   // codigo -> { g, precio, costo }
+const elegidos = new Map();   // codigo -> { g, precio, costo, stock }
 let texto = '', margenTxt = '', categoriaElegida = 'sugerida';   // 'sugerida', '' (sin categoría) o el id de una
 
 export async function pantallaCatalogoGeneral(vista, ctx, alSalir) {
@@ -51,7 +51,7 @@ export async function pantallaCatalogoGeneral(vista, ctx, alSalir) {
   const redondeo = +(ctx.config.redondeo ?? 10);
   vista.innerHTML = `<div class="cabecera"><h2>Catálogo general</h2><div class="acciones"><button class="btn" id="volver">Volver a Productos</button></div></div>
     <p class="muted">Más de 60.000 productos con código de barras (datos públicos de Precios Claros). Buscá los que vendés, tildalos,
-      poné tu precio y agregalos: quedan en tus productos con su código, nombre, marca y contenido. El precio de referencia es el que
+      poné tu precio (y el stock que tenés, si querés) y agregalos: quedan en tus productos con su código, nombre, marca y contenido. El precio de referencia es el que
       tenían en los supermercados (mediana, noviembre 2026): es solo una guía.</p>
     <div class="recuadro-blanco form ancho cg-buscar">
       <div class="buscador"><label class="v-busca">🔎<input class="input" id="cg-texto" placeholder="Buscá por nombre, marca o código: yerba taragui, coca 2,25…" autocomplete="off" value="${esc(texto)}"></label></div>
@@ -89,7 +89,7 @@ export async function pantallaCatalogoGeneral(vista, ctx, alSalir) {
       ${resultados.length >= 60 ? '<p class="muted chico">Se muestran los primeros 60: agregá otra palabra para afinar.</p>' : ''}`;
     $$('tr[data-cg].clic', cont).forEach(tr => tr.onclick = () => {
       const g = resultados.find(x => x.codigo === tr.dataset.cg);
-      if (elegidos.has(g.codigo)) elegidos.delete(g.codigo); else elegidos.set(g.codigo, { g, precio: '', costo: '' });
+      if (elegidos.has(g.codigo)) elegidos.delete(g.codigo); else elegidos.set(g.codigo, { g, precio: '', costo: '', stock: '' });
       $('input', tr).checked = elegidos.has(g.codigo);
       pintarElegidos();
     });
@@ -112,11 +112,12 @@ export async function pantallaCatalogoGeneral(vista, ctx, alSalir) {
           <label>Margen % sobre el costo <span class="muted">(opcional)</span><input class="input" id="cg-margen" inputmode="decimal" value="${esc(margenTxt)}" placeholder="Ej: 40"></label>
           <button type="button" class="btn" id="cg-ref" title="Pone el precio de referencia en los que no tienen precio">Usar los precios de referencia</button>
         </div>
-        <div class="tabla-caja"><table class="tabla"><thead><tr><th>Producto</th><th class="num">Referencia</th><th>Costo</th><th>Tu precio</th><th></th></tr></thead><tbody>
+        <div class="tabla-caja"><table class="tabla"><thead><tr><th>Producto</th><th class="num">Referencia</th><th>Costo</th><th>Tu precio</th><th title="Lo que hay hoy en el local (queda como stock inicial)">Stock</th><th></th></tr></thead><tbody>
           ${lista.map(x => `<tr data-el="${esc(x.g.codigo)}"><td><b>${esc(x.g.nombre)}</b><div class="muted chico">${[x.g.marca, textoContenido(x.g), x.g.categoria && `📁 ${x.g.categoria}`].filter(Boolean).map(esc).join(' · ')}</div></td>
             <td class="num muted">${+x.g.precio_ref ? plata(x.g.precio_ref) : '—'}</td>
             <td><input class="input cg-num" data-costo inputmode="decimal" value="${esc(x.costo)}" placeholder="Costo"></td>
             <td><input class="input cg-num" data-precio inputmode="decimal" value="${esc(x.precio)}" placeholder="Precio"></td>
+            <td><input class="input cg-stock" data-stock inputmode="numeric" value="${esc(x.stock)}" placeholder="0"></td>
             <td><button type="button" class="btn chico" data-sacar title="Sacar de la lista">×</button></td></tr>`).join('')}</tbody></table></div>
         <div class="fila fin"><button type="button" class="btn" id="cg-limpiar">Vaciar la lista</button><button type="button" class="btn primario" id="cg-agregar">Agregar ${lista.length} producto${lista.length === 1 ? '' : 's'}</button></div>
       </div>`;
@@ -132,15 +133,18 @@ export async function pantallaCatalogoGeneral(vista, ctx, alSalir) {
       const x = elegidos.get(tr.dataset.el);
       $('[data-costo]', tr).oninput = e => { x.costo = e.target.value; const pr = conMargen(x.costo); if (pr != null) { x.precio = String(pr); $('[data-precio]', tr).value = x.precio; } };
       $('[data-precio]', tr).oninput = e => { x.precio = e.target.value; };
+      $('[data-stock]', tr).oninput = e => { x.stock = e.target.value; };
       $('[data-sacar]', tr).onclick = () => { elegidos.delete(x.g.codigo); pintarElegidos(); pintarResultados(); };
     });
     $('#cg-agregar').onclick = () => {
       const items = [...elegidos.values()];
       const sinPrecio = items.filter(x => !(numero(x.precio) > 0));
       if (sinPrecio.length) return aviso(`Falta el precio de ${sinPrecio.length === 1 ? `"${sinPrecio[0].g.nombre}"` : `${sinPrecio.length} productos`}`);
+      const malStock = items.find(x => x.stock.trim() !== '' && !(numero(x.stock) >= 0 && Number.isInteger(numero(x.stock))));
+      if (malStock) return aviso(`El stock de "${malStock.g.nombre}" tiene que ser un número entero (o vacío)`);
       correr(async () => {
         const r = await llamar('agregar_desde_catalogo', { p_items: items.map(x => ({ codigo: x.g.codigo, precio: numero(x.precio),
-          costo: numero(x.costo) > 0 ? numero(x.costo) : 0, ...(categoriaElegida === 'sugerida' ? { categoria: 'sugerida' } : { categoria_id: categoriaElegida || null }) })) });
+          costo: numero(x.costo) > 0 ? numero(x.costo) : 0, stock: numero(x.stock) > 0 ? numero(x.stock) : 0, ...(categoriaElegida === 'sugerida' ? { categoria: 'sugerida' } : { categoria_id: categoriaElegida || null }) })) });
         elegidos.clear();
         await cat.actualizar().catch(() => {});   // trae también las categorías que se crearon
         aviso(`Se agregaron ${r.creados} producto${r.creados === 1 ? '' : 's'}${r.ya.length ? ` (${r.ya.length} ya los tenías)` : ''}`, 'ok');

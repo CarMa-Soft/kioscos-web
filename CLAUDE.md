@@ -533,6 +533,7 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   - `catalogo_general_buscar(texto, límite)`: por código (con `codigo_variantes`: el UPC con o sin el 0 de adelante) o por palabras
     (todas tienen que estar). Marca `ya` si el negocio tiene ese código (principal u otro).
   - `agregar_desde_catalogo(items)` (dueño, hasta 500): crea los productos con nombre, marca y contenido; saltea los que ya tiene.
+    `stock` (entero, opcional): queda como "Stock inicial" en movimientos_stock, como desde la ficha.
     Con `categoria: 'sugerida'` usa la categoría del negocio que se llama igual, y si no la tiene la crea (`categoria_por_nombre`).
   - `crear_categorias(nombres)`: Productos → Categorías → "Crear las categorías sugeridas" (`CATEGORIAS` de catalogo_general.js,
     la misma lista que categorias.js: si se cambia una, cambiar la otra).
