@@ -544,6 +544,12 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   - Al completar desde el catálogo general (ficha, Compras), si el negocio ya tiene una categoría con el nombre de la sugerida, la elige.
   - `delCatalogoGeneral(codigo)` completa nombre, marca y contenido al crear con código: ficha de Producto nuevo, Vender
     ("No está cargado": el nombre ya viene y el foco va al precio) y Compras / Entradas y salidas (`alta-producto.js`).
+- **Marca y contenido en otras pantallas:**
+  - Precios y márgenes → "¿A qué productos?" → **Una marca**: agrupa sin mayúsculas ni acentos ("COCA COLA" = "Coca Cola"), del lado del navegador.
+    La búsqueda de Productos y la de Precios también miran la marca.
+  - **Precio por unidad de medida** (`precioPorUnidad`, obligatorio en góndola): con el contenido, el precio por kg, litro o metro, o "c/u"
+    si el envase trae varias unidades. Va en las etiquetas (abajo a la derecha, debajo del precio) y en la lista de precios en PDF (columna
+    "Por kg / l", solo si alguno tiene contenido). Los productos por kilo no lo llevan: su precio ya es por kg.
 - El módulo se llama `catalogo_general.js`, con guion bajo: `pages.yml` solo marca la versión de los nombres `[a-z_]+.js`.
 
 ## Ayuda

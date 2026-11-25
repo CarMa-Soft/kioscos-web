@@ -5,6 +5,7 @@
 // En PDF (y no con imprimir del navegador): en la PC del local Chrome imprime directo en la comandera.
 import { llamar } from './base.js';
 import { $, $$, esc, plata, cant, dia, hoyDia, sumarDias, correr } from './ui.js';
+import { precioPorUnidad } from './catalogo_general.js';
 
 // Lo elegido se mantiene al ir y volver
 const f = { modo: 'todos', compra: '', comprasDesde: sumarDias(hoyDia(), -7), precioDesde: sumarDias(hoyDia(), -7),
@@ -77,7 +78,10 @@ export async function pantallaListaPrecios(vista, ctx, alSalir) {
     const n = ++pedido;
     const r = await llamar('lista_precios', { p: filtros() });
     if (n !== pedido) return;   // llegó una respuesta vieja
-    lista = r; fuera = new Set(); pintar();
+    // marca y contenido salen del catálogo del negocio (para el precio por kg o litro)
+    const delCat = new Map(cata.productos.map(p => [p.id, p]));
+    lista = r.map(x => { const p = delCat.get(x.id); return p ? { ...x, contenido: p.contenido, unidad: p.unidad } : x; });
+    fuera = new Set(); pintar();
   });
   const elegidos = () => lista.filter(x => !fuera.has(x.id));
   function pintar() {
@@ -139,19 +143,21 @@ async function pdfLista(xs, negocio, filtro) {
   doc.setFontSize(16); doc.text('Lista de precios', 14, 17);
   doc.setFontSize(10); doc.text(`${negocio} · ${dia(hoyDia())} · ${xs.length} producto${xs.length === 1 ? '' : 's'}`, 14, 23);
   if (filtro) doc.text(doc.splitTextToSize(filtro, 180), 14, 28);
-  const cab = ['Producto', 'Código', 'Categoría', ...(f.conCosto ? ['Costo'] : []), ...(conAntes ? ['Antes'] : []), 'Precio'];
+  const porUnidad = xs.some(x => precioPorUnidad(x));   // la columna, solo si alguno tiene contenido cargado
+  const cab = ['Producto', 'Código', 'Categoría', ...(f.conCosto ? ['Costo'] : []), ...(conAntes ? ['Antes'] : []), ...(porUnidad ? ['Por kg / l'] : []), 'Precio'];
   autoTable(doc, {
     startY: filtro ? 33 : 28, head: [cab],
     body: xs.map(x => [x.nombre, x.codigo || '', x.categoria || '', ...(f.conCosto ? [plata(x.costo)] : []),
-      ...(conAntes ? [x.precio_antes != null ? plata(x.precio_antes) : ''] : []), plata(x.precio) + (x.por_peso ? ' /kg' : '')]),
+      ...(conAntes ? [x.precio_antes != null ? plata(x.precio_antes) : ''] : []), ...(porUnidad ? [precioPorUnidad(x)?.texto || ''] : []), plata(x.precio) + (x.por_peso ? ' /kg' : '')]),
     styles: { fontSize: 10, cellPadding: 2 }, headStyles: { fillColor: [31, 41, 51] },
-    columnStyles: Object.fromEntries(cab.map((c, k) => [k, ['Costo', 'Antes', 'Precio'].includes(c) ? { halign: 'right' } : {}])
+    columnStyles: Object.fromEntries(cab.map((c, k) => [k, ['Costo', 'Antes', 'Precio', 'Por kg / l'].includes(c) ? { halign: 'right' } : {}])
       .concat([[cab.length - 1, { halign: 'right', fontStyle: 'bold', fontSize: 11, minCellWidth: 34 }]])),
   });
   doc.save(archivo('Lista de precios'));
 }
 
-// Etiquetas: 3 columnas × 8 filas en A4, con borde para recortar. Nombre (hasta 2 renglones), precio grande y el código.
+// Etiquetas: 3 columnas × 8 filas en A4, con borde para recortar. Nombre (hasta 2 renglones), precio grande, el precio por kg o
+// litro (obligatorio en la góndola, si el producto tiene contenido) y el código.
 async function pdfEtiquetas(xs, negocio) {
   const { jsPDF } = await jspdf();
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
@@ -168,6 +174,8 @@ async function pdfEtiquetas(xs, negocio) {
     const precio = plata(x.precio);
     doc.text(precio, cx + W - 3, cy + H - 9, { align: 'right' });
     if (x.por_peso) { doc.setFontSize(9); doc.text('por kg', cx + W - 3, cy + H - 4, { align: 'right' }); }
+    const pu = precioPorUnidad(x);
+    if (pu) { doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.text(pu.texto, cx + W - 3, cy + H - 3.5, { align: 'right' }); }
     doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(110);
     if (f.conCodigo && x.codigo) doc.text(x.codigo, cx + 3, cy + H - 3);
   });
