@@ -87,7 +87,7 @@ export async function pantallaProductos(vista, ctx) {
     const palabras = sinAcentos(filtro).split(/\s+/).filter(Boolean), cond = GRUPOS.find(x => x[0] === g)[2];
     return (g === 'desactivados' ? bajas : activos).filter(p => cond(p)
       && (categoria === 'sin' ? p.categoria_id == null : !categoria || String(p.categoria_id) === categoria)
-      && palabras.every(w => sinAcentos(p.nombre + ' ' + (p.codigo || '')).includes(w)));
+      && palabras.every(w => sinAcentos(p.nombre + ' ' + (p.marca || '') + ' ' + (p.codigo || '')).includes(w)));
   };
   const contar = g => delGrupo(g).length;
   const visibles = () => {

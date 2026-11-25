@@ -17,6 +17,17 @@ export const idCategoria = nombre => { const n = String(nombre || '').trim().toL
 export const UNIDADES = [['g', 'g'], ['kg', 'kg'], ['ml', 'ml'], ['l', 'l'], ['un', 'unid.'], ['m', 'm']];
 export const textoContenido = p => p?.contenido != null && p.unidad ? `${String(+p.contenido).replace('.', ',')} ${p.unidad === 'un' ? 'unid.' : p.unidad}` : '';
 
+// Precio por unidad de medida (obligatorio en las góndolas): por kg, por litro, por metro, o c/u si el envase trae varias
+// unidades. Con el contenido del producto (500 g → el kg vale precio × 2). null si no tiene contenido o se vende por kilo.
+export function precioPorUnidad(p) {
+  if (!p || p.por_peso || !(+p.contenido > 0) || !p.unidad || !(+p.precio > 0)) return null;
+  const c = +p.contenido, pr = +p.precio;
+  const [cuanto, de] = { g: [c / 1000, 'kg'], kg: [c, 'kg'], ml: [c / 1000, 'l'], l: [c, 'l'], m: [c, 'm'], un: [c, 'unidad'] }[p.unidad] || [];
+  if (!cuanto || (p.unidad === 'un' && c <= 1)) return null;   // 1 unidad: el precio ya es por unidad
+  const valor = Math.round(pr / cuanto * 100) / 100;
+  return { valor, de, texto: de === 'unidad' ? `${plata(valor)} c/u` : `${plata(valor)} el ${de === 'l' ? 'litro' : de === 'm' ? 'metro' : 'kg'}` };
+}
+
 // Lo del catálogo general para un código (si lo tiene): alEncontrar(g) con { codigo, nombre, marca, contenido, unidad, precio_ref }.
 // Sin conexión o sin datos, no hace nada (es solo una ayuda).
 export async function delCatalogoGeneral(codigo, alEncontrar) {

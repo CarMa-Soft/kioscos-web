@@ -2,7 +2,8 @@
 // - Actualizar precios: subir o bajar el precio de venta de los de precio fijo (los de margen siguen al costo), o el costo
 //   (los de margen recalculan su precio; los fijos lo mantienen). Con el redondeo que se elija.
 // - Asignar margen: calcular el precio con un margen, que queda automático (sigue al costo), o quitarlo (precio fijo).
-// A qué productos: los que coinciden con una búsqueda, los que se ven en la lista, todos, una categoría o un proveedor.
+// A qué productos: los que coinciden con una búsqueda, los que se ven en la lista, todos, una categoría, un proveedor o una marca
+// (los proveedores suelen aumentar por marca: "todo lo de Arcor 8%").
 // - Configuración: el redondeo de los precios y el margen automático para productos nuevos (antes estaba en Ajustes).
 // La lista de cómo queda cada uno se ve antes de aplicar (y se pueden destildar). Lo aplica ajustar_precios() en la base,
 // que hace la misma cuenta; los cambios anteriores se pueden deshacer.
@@ -20,6 +21,9 @@ export async function preciosModal({ productos, categorias, visibles, ctx, alTer
   const [provs, previos] = await Promise.all([llamar('proveedores'), llamar('aumentos')]);
   let redAjustes = +(ctx.config.redondeo ?? 10);
   const catNombre = id => categorias.find(c => c.id === id)?.nombre || '';
+  // las marcas de los productos (sin distinguir mayúsculas ni acentos), con cuántos productos tiene cada una
+  const marcas = [...productos.reduce((mp, p) => { const k = norm(p.marca).trim(); if (k) { const x = mp.get(k) || { nombre: p.marca.trim(), n: 0 }; x.n++; mp.set(k, x); } return mp; }, new Map())]
+    .sort((a, b) => a[1].nombre.localeCompare(b[1].nombre, 'es'));
   let tab = 'precios';
   // qué se hace en cada pestaña (la leyenda abajo de las pestañas)
   const LEYENDAS = {
@@ -37,7 +41,8 @@ export async function preciosModal({ productos, categorias, visibles, ctx, alTer
         ${visibles ? `<option value="vista">Los que estás viendo en la lista (${visibles.length})</option>` : ''}
         <option value="todos">Todos los productos (${productos.length})</option>
         <optgroup label="Una categoría">${categorias.map(c => `<option value="cat:${c.id}">${esc(c.nombre)} (${productos.filter(p => p.categoria_id === c.id).length})</option>`).join('')}</optgroup>
-        <optgroup label="Un proveedor">${provs.map(p => `<option value="prov:${p.id}">${esc(p.nombre)} (${productos.filter(x => x.proveedor_id === p.id).length})</option>`).join('')}</optgroup></select></label>
+        <optgroup label="Un proveedor">${provs.map(p => `<option value="prov:${p.id}">${esc(p.nombre)} (${productos.filter(x => x.proveedor_id === p.id).length})</option>`).join('')}</optgroup>
+        ${marcas.length ? `<optgroup label="Una marca">${marcas.map(([k, x]) => `<option value="marca:${esc(k)}">Marca ${esc(x.nombre)} (${x.n})</option>`).join('')}</optgroup>` : ''}</select></label>
       <label class="crece" id="pm-q-l">Que contengan<input class="input" id="pm-q" placeholder="ej: yerba · galletitas · coca" autocomplete="off"></label></div>
     <div id="pm-tab-precios">
       <div class="fila">
@@ -70,10 +75,11 @@ export async function preciosModal({ productos, categorias, visibles, ctx, alTer
 
   const ambito = () => {
     const a = v('#pm-ambito'), t = norm(v('#pm-q')).split(/\s+/).filter(Boolean);
-    if (a === 'buscar') return t.length ? productos.filter(p => { const s = norm(p.nombre + ' ' + cat.codigosDe(p).join(' ') + ' ' + catNombre(p.categoria_id)); return t.every(w => s.includes(w)); }) : [];
+    if (a === 'buscar') return t.length ? productos.filter(p => { const s = norm(p.nombre + ' ' + (p.marca || '') + ' ' + cat.codigosDe(p).join(' ') + ' ' + catNombre(p.categoria_id)); return t.every(w => s.includes(w)); }) : [];
     if (a === 'vista') return visibles;
     if (a.startsWith('cat:')) return productos.filter(p => p.categoria_id === +a.slice(4));
     if (a.startsWith('prov:')) return productos.filter(p => p.proveedor_id === +a.slice(5));
+    if (a.startsWith('marca:')) return productos.filter(p => norm(p.marca).trim() === a.slice(6));
     return productos;
   };
   // Lo que se hace en la solapa activa: a quiénes afecta y cómo queda cada uno (la misma cuenta que hace la base)
