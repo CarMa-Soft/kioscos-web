@@ -546,6 +546,9 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   - Al completar desde el catálogo general (ficha, Compras), si el negocio ya tiene una categoría con el nombre de la sugerida, la elige.
   - `delCatalogoGeneral(codigo)` completa nombre, marca y contenido al crear con código: ficha de Producto nuevo, Vender
     ("No está cargado": el nombre ya viene y el foco va al precio) y Compras / Entradas y salidas (`alta-producto.js`).
+  - **Vender, buscando por nombre** (desde 3 letras, con una pausa de 400 ms): debajo de los productos del negocio, "📚 Del catálogo
+    general" con los que no tiene (hasta 8; `sugeridos` lleva `{ _general }`, se eligen con flechas, Enter o clic). Elegir uno abre el
+    alta rápida con su código (`delGeneral` → `altaRapida(codigo, n, { delCatalogo: true })`), que completa el resto.
 - **Marca y contenido en otras pantallas:**
   - Precios y márgenes → "¿A qué productos?" → **Una marca**: agrupa sin mayúsculas ni acentos ("COCA COLA" = "Coca Cola"), del lado del navegador.
     La búsqueda de Productos y la de Precios también miran la marca.
