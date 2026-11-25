@@ -568,6 +568,16 @@ details.pagadas summary h3 { display: inline-block; }
 /* "¿Olvidaste tu PIN?" debajo de Entrar */
 .pin-olvido { margin: .8rem 0 0; text-align: center; font-size: .9rem; }
 
+/* Catálogo general (catalogo_general.js) y marca/contenido en la ficha */
+.cg-buscar .v-busca { display: flex; align-items: center; gap: .5rem; }
+.cg-buscar .v-busca .input { flex: 1; }
+.tabla tr.cg-ya td { color: var(--suave); }
+.cg-tengo { display: inline-block; padding: .05rem .5rem; border-radius: 999px; background: #f2f4f7; color: #475467; font-size: .78rem; white-space: nowrap; }
+.cg-num { width: 7.5rem; }
+.p-contenido .fila { flex-wrap: nowrap; gap: .4rem; }
+.p-contenido .input[name=contenido] { width: 6rem; }
+.p-contenido select { width: auto; }
+
 /* Promociones (Productos → Promociones) */
 .pr-num { width: 8.5rem; }
 .pr-num[hidden] { display: none; }
