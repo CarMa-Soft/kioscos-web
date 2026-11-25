@@ -8,6 +8,12 @@ import * as cat from './catalogo.js';
 import { $, $$, esc, plata, numero, aviso, correr } from './ui.js';
 import { botonCamara } from './escaner.js';
 
+// Las categorías sugeridas (las mismas que deduce tools/catalogo-general/categorias.js): Productos → Categorías → Crear las sugeridas
+export const CATEGORIAS = ['Almacén', 'Bebidas', 'Bebidas con alcohol', 'Lácteos', 'Fiambres', 'Congelados', 'Panadería', 'Golosinas',
+  'Galletitas y snacks', 'Limpieza', 'Perfumería e higiene', 'Bebés', 'Mascotas', 'Cigarrillos', 'Bazar'];
+// La categoría del negocio que se llama como la sugerida (sin mayúsculas ni espacios de más), si la tiene
+export const idCategoria = nombre => { const n = String(nombre || '').trim().toLowerCase(); return n ? cat.categorias().find(c => c.nombre.trim().toLowerCase() === n)?.id ?? null : null; };
+
 export const UNIDADES = [['g', 'g'], ['kg', 'kg'], ['ml', 'ml'], ['l', 'l'], ['un', 'unid.'], ['m', 'm']];
 export const textoContenido = p => p?.contenido != null && p.unidad ? `${String(+p.contenido).replace('.', ',')} ${p.unidad === 'un' ? 'unid.' : p.unidad}` : '';
 
@@ -27,7 +33,7 @@ export const datosDelGeneral = g => g ? { marca: g.marca || '', contenido: g.con
 
 // Lo elegido se mantiene al ir y volver de la sección (mientras no se recargue la página)
 const elegidos = new Map();   // codigo -> { g, precio, costo }
-let texto = '', margenTxt = '', categoriaElegida = '';
+let texto = '', margenTxt = '', categoriaElegida = 'sugerida';   // 'sugerida', '' (sin categoría) o el id de una
 
 export async function pantallaCatalogoGeneral(vista, ctx, alSalir) {
   const cats = cat.categorias();
@@ -66,7 +72,7 @@ export async function pantallaCatalogoGeneral(vista, ctx, alSalir) {
     cont.innerHTML = `<div class="tabla-caja c-tabla"><table class="tabla">${resultados.length ? `<thead><tr><th></th><th>Producto</th><th>Código</th><th class="num">Precio de referencia</th></tr></thead><tbody>
       ${resultados.map(g => `<tr class="${g.ya ? 'cg-ya' : 'clic'}" data-cg="${esc(g.codigo)}">
         <td>${g.ya ? '<span class="cg-tengo">Ya lo tenés</span>' : `<input type="checkbox" ${elegidos.has(g.codigo) ? 'checked' : ''} tabindex="-1">`}</td>
-        <td><b>${esc(g.nombre)}</b><div class="muted chico">${[g.marca, textoContenido(g)].filter(Boolean).map(esc).join(' · ')}</div></td>
+        <td><b>${esc(g.nombre)}</b><div class="muted chico">${[g.marca, textoContenido(g), g.categoria && `📁 ${g.categoria}`].filter(Boolean).map(esc).join(' · ')}</div></td>
         <td class="mono chico">${esc(g.codigo)}</td><td class="num">${+g.precio_ref ? plata(g.precio_ref) : '—'}</td></tr>`).join('')}</tbody>`
       : `<tbody><tr><td class="vacio muted">No hay productos con "${esc(texto)}" en el catálogo general.</td></tr></tbody>`}</table></div>
       ${resultados.length >= 60 ? '<p class="muted chico">Se muestran los primeros 60: agregá otra palabra para afinar.</p>' : ''}`;
@@ -91,12 +97,12 @@ export async function pantallaCatalogoGeneral(vista, ctx, alSalir) {
     cont.innerHTML = `<div class="c-titulo"><h3>Para agregar (${lista.length})</h3></div>
       <div class="recuadro-blanco form ancho">
         <div class="fila">
-          <label class="crece">Categoría para todos<select class="input" id="cg-cat"><option value="">Sin categoría</option>${cats.map(c => `<option value="${c.id}" ${String(c.id) === categoriaElegida ? 'selected' : ''}>${esc(c.nombre)}</option>`).join('')}</select></label>
+          <label class="crece">Categoría<select class="input" id="cg-cat"><option value="sugerida" ${categoriaElegida === 'sugerida' ? 'selected' : ''}>La sugerida de cada uno (crea las que no tengas)</option><option value="" ${categoriaElegida === '' ? 'selected' : ''}>Sin categoría</option>${cats.map(c => `<option value="${c.id}" ${String(c.id) === categoriaElegida ? 'selected' : ''}>${esc(c.nombre)}</option>`).join('')}</select></label>
           <label>Margen % sobre el costo <span class="muted">(opcional)</span><input class="input" id="cg-margen" inputmode="decimal" value="${esc(margenTxt)}" placeholder="Ej: 40"></label>
           <button type="button" class="btn" id="cg-ref" title="Pone el precio de referencia en los que no tienen precio">Usar los precios de referencia</button>
         </div>
         <div class="tabla-caja"><table class="tabla"><thead><tr><th>Producto</th><th class="num">Referencia</th><th>Costo</th><th>Tu precio</th><th></th></tr></thead><tbody>
-          ${lista.map(x => `<tr data-el="${esc(x.g.codigo)}"><td><b>${esc(x.g.nombre)}</b><div class="muted chico">${[x.g.marca, textoContenido(x.g)].filter(Boolean).map(esc).join(' · ')}</div></td>
+          ${lista.map(x => `<tr data-el="${esc(x.g.codigo)}"><td><b>${esc(x.g.nombre)}</b><div class="muted chico">${[x.g.marca, textoContenido(x.g), x.g.categoria && `📁 ${x.g.categoria}`].filter(Boolean).map(esc).join(' · ')}</div></td>
             <td class="num muted">${+x.g.precio_ref ? plata(x.g.precio_ref) : '—'}</td>
             <td><input class="input cg-num" data-costo inputmode="decimal" value="${esc(x.costo)}" placeholder="Costo"></td>
             <td><input class="input cg-num" data-precio inputmode="decimal" value="${esc(x.precio)}" placeholder="Precio"></td>
@@ -123,9 +129,9 @@ export async function pantallaCatalogoGeneral(vista, ctx, alSalir) {
       if (sinPrecio.length) return aviso(`Falta el precio de ${sinPrecio.length === 1 ? `"${sinPrecio[0].g.nombre}"` : `${sinPrecio.length} productos`}`);
       correr(async () => {
         const r = await llamar('agregar_desde_catalogo', { p_items: items.map(x => ({ codigo: x.g.codigo, precio: numero(x.precio),
-          costo: numero(x.costo) > 0 ? numero(x.costo) : 0, categoria_id: categoriaElegida || null })) });
+          costo: numero(x.costo) > 0 ? numero(x.costo) : 0, ...(categoriaElegida === 'sugerida' ? { categoria: 'sugerida' } : { categoria_id: categoriaElegida || null }) })) });
         elegidos.clear();
-        await cat.actualizar().catch(() => {});
+        await cat.actualizar().catch(() => {});   // trae también las categorías que se crearon
         aviso(`Se agregaron ${r.creados} producto${r.creados === 1 ? '' : 's'}${r.ya.length ? ` (${r.ya.length} ya los tenías)` : ''}`, 'ok');
         pintarElegidos(); buscar();
       });

@@ -2,10 +2,10 @@
 -- Pruebas: catálogo general (compartido) y marca/contenido en los productos. Negocio C: Carla (dueña) y Cami (empleada).
 -- =====================================================================
 -- productos inventados (los reales los carga la migración de datos)
-insert into public.catalogo_general (codigo, nombre, marca, contenido, unidad, precio_ref, cadenas) values
-  ('99990000000017', 'YERBA PRUEBA ÑANDÚ SUAVE 500 GRM', 'ÑANDÚ', 500, 'g', 3600, 4),
-  ('99990000000024', 'YERBA PRUEBA ÑANDÚ COMPUESTA 1 KG', 'ÑANDÚ', 1, 'kg', 6000, 2),
-  ('0999888777665', 'GASEOSA PRUEBA UPC 354 ML', 'PRUEBA', 354, 'ml', 900, 1);
+insert into public.catalogo_general (codigo, nombre, marca, contenido, unidad, precio_ref, cadenas, categoria) values
+  ('99990000000017', 'YERBA PRUEBA ÑANDÚ SUAVE 500 GRM', 'ÑANDÚ', 500, 'g', 3600, 4, 'Prueba Sugerida'),
+  ('99990000000024', 'YERBA PRUEBA ÑANDÚ COMPUESTA 1 KG', 'ÑANDÚ', 1, 'kg', 6000, 2, 'Prueba Sugerida'),
+  ('0999888777665', 'GASEOSA PRUEBA UPC 354 ML', 'PRUEBA', 354, 'ml', 900, 1, null);
 set local role authenticated;
 
 \echo == Buscar (cualquier usuario)
@@ -29,6 +29,14 @@ select pruebas.ok((public.catalogo_general_buscar('99990000000017') -> 0 ->> 'ya
 select pruebas.ok((public.agregar_desde_catalogo('[{"codigo": "99990000000017", "precio": 1}]') -> 'ya') ->> 0 = 'YERBA PRUEBA ÑANDÚ SUAVE 500 GRM',
   'si ya lo tiene, lo saltea');
 select pruebas.falla($$select public.agregar_desde_catalogo('[{"codigo": "11111111", "precio": 1}]')$$, 'no está en el catálogo', 'un código que no está');
+
+\echo == Categoría sugerida
+select pruebas.ok(public.catalogo_general_buscar('99990000000024') -> 0 ->> 'categoria' = 'Prueba Sugerida', 'la búsqueda trae la categoría sugerida');
+select set_config('prueba.sug', public.agregar_desde_catalogo('[{"codigo": "99990000000024", "precio": 6500, "categoria": "sugerida"}]') -> 'productos' -> 0 ->> 'categoria_id', false);
+select pruebas.ok(exists (select 1 from jsonb_array_elements(public.crear_categorias('[]')) x
+    where (x ->> 'id')::bigint = current_setting('prueba.sug')::bigint and x ->> 'nombre' = 'Prueba Sugerida'), 'con "sugerida" crea la categoría y se la pone');
+select pruebas.ok((select count(*) from jsonb_array_elements(public.crear_categorias('["prueba sugerida ", "Otra Prueba"]')) x
+    where lower(btrim(x ->> 'nombre')) in ('prueba sugerida', 'otra prueba')) = 2, 'crear_categorias no repite las que ya están');
 
 \echo == Marca y contenido en la ficha y en el alta desde caja
 select set_config('prueba.mc', public.guardar_producto('{"nombre": "Con marca", "precio": 100, "marca": " Arcor ", "contenido": "2,25", "unidad": "lts"}') ->> 'id', false);

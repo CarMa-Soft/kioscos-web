@@ -1,6 +1,7 @@
 // De juntado.json a una lista única: por código, el mejor nombre, la marca, el contenido y un precio de referencia (mediana).
 // Nombre: de la cadena que mejor describe (orden de preferencia de abajo, mirando los datos); se limpian los agregados raros.
 const fs = require('fs');
+const { categoria } = require('./categorias.js');
 const [, , ENTRADA, SALIDA] = process.argv;
 const datos = JSON.parse(fs.readFileSync(ENTRADA, 'utf8'));
 
@@ -66,12 +67,12 @@ const codigo = e => /^00000\d{8}$/.test(e) && ean8(e.slice(5)) ? e.slice(5) : e;
 const filas = datos.map(p => {
   const desc = [...p.desc].sort((a, b) => rango(a[2]) - rango(b[2]) || b[1] - a[1]);
   return { codigo: codigo(p.ean), nombre: limpiar(desc[0]?.[0] || ''), marca: marca(p.marca),
-    contenido: delNombre(limpiar(desc[0]?.[0] || '')) || contenido(p.pres), precio: p.precio, cadenas: new Set(p.desc.flatMap(d => d[2])).size };
+    contenido: delNombre(limpiar(desc[0]?.[0] || '')) || contenido(p.pres), categoria: categoria(limpiar(desc[0]?.[0] || '')) || '', precio: p.precio, cadenas: new Set(p.desc.flatMap(d => d[2])).size };
 }).filter(f => f.nombre).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
 
 const csv = v => { v = String(v ?? ''); return /[;"\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v; };
-fs.writeFileSync(SALIDA, '﻿' + ['codigo;nombre;marca;contenido;precio_referencia;cadenas',
-  ...filas.map(f => [f.codigo, f.nombre, f.marca, f.contenido, f.precio != null ? String(f.precio).replace('.', ',') : '', f.cadenas].map(csv).join(';'))].join('\r\n'));
+fs.writeFileSync(SALIDA, '﻿' + ['codigo;nombre;marca;contenido;precio_referencia;cadenas;categoria_sugerida',
+  ...filas.map(f => [f.codigo, f.nombre, f.marca, f.contenido, f.precio != null ? String(f.precio).replace('.', ',') : '', f.cadenas, f.categoria].map(csv).join(';'))].join('\r\n'));
 console.log(filas.length, 'productos');
 console.log('en 2+ cadenas:', filas.filter(f => f.cadenas >= 2).length, '· sin marca:', filas.filter(f => !f.marca).length, '· sin contenido:', filas.filter(f => !f.contenido).length);
 for (const ean of ['0000040084107', '7791293046914', '7791540999031']) console.log(JSON.stringify(filas.find(f => f.codigo === ean)));

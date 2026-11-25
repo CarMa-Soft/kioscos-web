@@ -45,6 +45,8 @@ function formNuevo(v, categorias, alElegir, config) {
   const completar = () => delCatalogoGeneral(campo.value, g => {
     general = g;
     const nom = $('[name=nombre]', m.el); if (!nom.value.trim()) nom.value = g.nombre;
+    const sel = $('[name=categoria_id]', m.el), n = String(g.categoria || '').trim().toLowerCase();   // si ya tiene esa categoría
+    const c = n && categorias.find(x => x.nombre.trim().toLowerCase() === n); if (c && !sel.value) sel.value = c.id;
     const ay = $('#alta-general', m.el); ay.hidden = false;
     ay.textContent = `📚 Del catálogo general${[g.marca, textoContenido(g)].filter(Boolean).length ? ` (${[g.marca, textoContenido(g)].filter(Boolean).join(' · ')})` : ''}${+g.precio_ref ? ` · precio de referencia en las cadenas: ${plata(g.precio_ref)}` : ''}`;
   });

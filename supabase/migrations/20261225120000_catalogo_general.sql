@@ -5,7 +5,10 @@
 -- unificados por código (tools/catalogo-general.js; los datos van en la migración siguiente). Solo de lectura, por funciones:
 --   - catalogo_general_buscar(texto): por código (con o sin el 0 de adelante de un UPC) o por palabras del nombre/marca;
 --     marca los que el negocio ya tiene.
---   - agregar_desde_catalogo(items): el dueño crea en su negocio los que eligió, con su precio (y costo, categoría).
+--   - agregar_desde_catalogo(items): el dueño crea en su negocio los que eligió, con su precio (y costo, categoría: una de las
+--     suyas o la sugerida, que se crea si no la tiene).
+-- Categoría sugerida (catalogo_general.categoria): deducida del nombre por palabras (tools/catalogo-general/categorias.js);
+-- crear_categorias(nombres) crea de una vez las que falten (Productos → Categorías → Crear las sugeridas).
 --   - alta_desde_caja y guardar_producto reciben marca y contenido (Vender completa el nombre desde el catálogo general).
 -- productos.marca, productos.contenido + productos.unidad (g, kg, ml, l, un, m): opcionales.
 -- =====================================================================
@@ -17,6 +20,7 @@ create table public.catalogo_general (
   unidad text check (unidad in ('g', 'kg', 'ml', 'l', 'un', 'm')),
   precio_ref numeric(14, 2),            -- mediana del precio de lista en las cadenas (referencia, no se usa sola)
   cadenas integer not null default 1,   -- en cuántas cadenas aparece (para ordenar: los más comunes primero)
+  categoria text check (length(categoria) <= 40),   -- sugerida, deducida del nombre (puede no tener)
   -- para buscar sin mayúsculas ni acentos
   busca text generated always as (lower(translate(nombre || ' ' || coalesce(marca, ''), 'ÁÉÍÓÚÜÑáéíóúüñ', 'AEIOUUNaeiouun'))) stored
 );
@@ -50,7 +54,7 @@ $$;
 create or replace function public.catalogo_general_json(g public.catalogo_general, p_neg uuid)
 returns jsonb language sql stable security definer set search_path = '' as $$
   select jsonb_build_object('codigo', g.codigo, 'nombre', g.nombre, 'marca', g.marca, 'contenido', g.contenido, 'unidad', g.unidad,
-    'precio_ref', g.precio_ref, 'cadenas', g.cadenas,
+    'precio_ref', g.precio_ref, 'cadenas', g.cadenas, 'categoria', g.categoria,
     -- el negocio ya lo tiene (por su código principal o uno alternativo)
     'ya', exists (select 1 from public.productos p where p.negocio_id = p_neg and lower(p.codigo) = any (public.codigo_variantes(g.codigo)))
        or exists (select 1 from public.producto_codigos c where c.negocio_id = p_neg and lower(c.codigo) = any (public.codigo_variantes(g.codigo))));
@@ -76,7 +80,31 @@ begin
 end;
 $$;
 
--- El dueño crea en su negocio productos del catálogo general. p_items: [{ codigo, precio, costo?, categoria_id? }].
+-- La categoría del negocio con ese nombre (sin mayúsculas ni espacios de más); con p_crear, la crea si no está
+create or replace function public.categoria_por_nombre(p_neg uuid, p_nombre text, p_crear boolean)
+returns bigint language plpgsql volatile security definer set search_path = '' as $$
+declare v_id bigint; v_nombre text := left(btrim(coalesce(p_nombre, '')), 60);
+begin
+  if v_nombre = '' then return null; end if;
+  select id into v_id from public.categorias where negocio_id = p_neg and lower(btrim(nombre)) = lower(v_nombre);
+  if v_id is null and p_crear then insert into public.categorias (negocio_id, nombre) values (p_neg, v_nombre) returning id into v_id; end if;
+  return v_id;
+end;
+$$;
+
+-- Crear de una vez varias categorías (las sugeridas): las que ya están no se repiten. Devuelve todas las del negocio.
+create or replace function public.crear_categorias(p_nombres jsonb)
+returns jsonb language plpgsql volatile security definer set search_path = '' as $$
+declare v_neg uuid := public.requiere_negocio(); n text;
+begin
+  perform public.requiere_admin();
+  if jsonb_typeof(p_nombres) is distinct from 'array' or jsonb_array_length(p_nombres) > 50 then raise exception 'Lista de categorías inválida' using errcode = '22023'; end if;
+  for n in select jsonb_array_elements_text(p_nombres) loop perform public.categoria_por_nombre(v_neg, n, true); end loop;
+  return coalesce((select jsonb_agg(jsonb_build_object('id', c.id, 'nombre', c.nombre) order by lower(c.nombre)) from public.categorias c where c.negocio_id = v_neg), '[]'::jsonb);
+end;
+$$;
+
+-- El dueño crea en su negocio productos del catálogo general. p_items: [{ codigo, precio, costo?, categoria_id? | categoria: 'sugerida' }].
 -- Los que ya tiene (por código) se saltean. Devuelve { creados, ya: [nombres], productos: [producto_json] }.
 create or replace function public.agregar_desde_catalogo(p_items jsonb)
 returns jsonb language plpgsql volatile security definer set search_path = '' as $$
@@ -93,6 +121,7 @@ begin
     v_precio := round(public.num(it, 'precio', 'Precio'), 2);
     if v_precio is null or v_precio < 0 then raise exception 'Falta el precio de "%"', g.nombre using errcode = '22023'; end if;
     v_cat := nullif(it ->> 'categoria_id', '')::bigint;
+    if it ->> 'categoria' = 'sugerida' then v_cat := public.categoria_por_nombre(v_neg, g.categoria, true); end if;
     if v_cat is not null and not exists (select 1 from public.categorias where id = v_cat and negocio_id = v_neg) then
       raise exception 'Categoría no encontrada' using errcode = 'P0002';
     end if;
@@ -210,8 +239,9 @@ $$;
 
 
 revoke all on function public.codigo_variantes(text), public.leer_contenido(jsonb), public.catalogo_general_json(public.catalogo_general, uuid),
-  public.catalogo_general_buscar(text, integer), public.agregar_desde_catalogo(jsonb) from public, anon, authenticated;
-grant execute on function public.catalogo_general_buscar(text, integer), public.agregar_desde_catalogo(jsonb) to authenticated;
+  public.catalogo_general_buscar(text, integer), public.agregar_desde_catalogo(jsonb), public.categoria_por_nombre(uuid, text, boolean),
+  public.crear_categorias(jsonb) from public, anon, authenticated;
+grant execute on function public.catalogo_general_buscar(text, integer), public.agregar_desde_catalogo(jsonb), public.crear_categorias(jsonb) to authenticated;
 
 create or replace function public.estado_app()
 returns jsonb language sql stable security invoker set search_path = '' as $$

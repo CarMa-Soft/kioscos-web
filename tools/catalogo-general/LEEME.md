@@ -23,6 +23,7 @@ Quedan afuera los códigos internos de cada cadena y los de balanza (empiezan co
 - **Contenido:** el del nombre (`X 930 CC` → `930 ml`) o, si no, el de la presentación.
 - **Precio de referencia:** la mediana.
 - **Cadenas:** en cuántas aparece.
+- **Categoría sugerida:** deducida del nombre por palabras (`categorias.js`). La que aparece primero en el nombre gana; clasifica más o menos la mitad (casi todo lo de kiosco y almacén), el resto queda sin categoría.
 - Un EAN-8 completado con ceros queda de 8 dígitos.
 
 **sql.js:** genera la migración con los `insert`. Para actualizar una base ya cargada, la migración nueva hace antes `truncate public.catalogo_general;`.

@@ -8,7 +8,7 @@ import { pantallaPromociones } from './promociones.js';
 import { preciosModal } from './precios.js';
 import { porProducto, aQuien } from './entregas.js';
 import { importarProductos } from './importar.js';
-import { UNIDADES, delCatalogoGeneral, pantallaCatalogoGeneral } from './catalogo_general.js';
+import { UNIDADES, CATEGORIAS, idCategoria, delCatalogoGeneral, pantallaCatalogoGeneral } from './catalogo_general.js';
 
 // Lo que se eligió en la lista se mantiene al ir y volver de la sección
 let filtro = '', grupo = 'todos', categoria = '', orden = { col: 'nombre', asc: true };
@@ -241,6 +241,7 @@ export async function pantallaProductos(vista, ctx) {
       if (!f.nombre.value.trim()) f.nombre.value = g.nombre;
       if (!f.marca.value.trim() && g.marca) f.marca.value = g.marca;
       if (!f.contenido.value.trim() && g.contenido) { f.contenido.value = String(+g.contenido).replace('.', ','); f.unidad.value = g.unidad; }
+      if (!f.categoria_id.value && idCategoria(g.categoria)) f.categoria_id.value = idCategoria(g.categoria);   // si ya tiene esa categoría
       const ay = $('#del-general', m.el); ay.hidden = false;
       ay.textContent = `Completado desde el catálogo general${+g.precio_ref ? ` · precio de referencia en las cadenas: ${plata(g.precio_ref)}` : ''}`;
     }); };
@@ -299,6 +300,7 @@ export async function pantallaProductos(vista, ctx) {
 
   function categorias(lista) {
     const m = modal('Categorías', `<div id="cats"></div><form class="fila" id="f-cat"><input class="input crece" name="nombre" placeholder="Nueva categoría" maxlength="60" required><button class="btn primario">Agregar</button></form>
+      <p class="muted chico">¿Recién empezás? <button type="button" class="link" id="cat-sugeridas">Crear las categorías sugeridas</button> (${CATEGORIAS.join(', ')}): son las que usa el catálogo general. Las que ya tengas no se repiten.</p>
       <div class="fila fin"><button class="btn" data-cerrar>Cerrar</button></div>`, { alCerrar: () => ctx.recargar() });
     const pintarCats = () => {
       $('#cats', m.el).innerHTML = lista.length ? `<table class="tabla"><tbody>${lista.map(c => `<tr><td>${esc(c.nombre)}</td><td class="num"><button class="link" data-ren="${c.id}">Renombrar</button> · <button class="link" data-del="${c.id}">Borrar</button></td></tr>`).join('')}</tbody></table>`
@@ -312,6 +314,12 @@ export async function pantallaProductos(vista, ctx) {
         lista.splice(lista.findIndex(x => x.id === +b.dataset.del), 1); pintarCats();
       }));
     };
+    $('#cat-sugeridas', m.el).onclick = () => correr(async () => {
+      const r = await llamar('crear_categorias', { p_nombres: CATEGORIAS });
+      const nuevas = r.length - lista.length; lista.splice(0, lista.length, ...r); pintarCats();
+      aviso(nuevas > 0 ? `Se crearon ${nuevas} categoría${nuevas === 1 ? '' : 's'}` : 'Ya tenías todas', 'ok');
+      cat.actualizar().catch(() => {});
+    });
     $('#f-cat', m.el).onsubmit = ev => {
       ev.preventDefault();
       correr(async () => { const r = await llamar('guardar_categoria', { p_id: null, p_nombre: new FormData(ev.target).get('nombre') }); lista.push(r); ev.target.reset(); pintarCats(); });
