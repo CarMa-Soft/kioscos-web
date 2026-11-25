@@ -523,9 +523,10 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   (agrupado por `promo_nombre`: sigue aunque se borre). Tarjeta "Promociones" en Descuentos y recargos y la tabla "Promociones".
 
 ## Catálogo general de productos (compartido)
-- `catalogo_general`: unos 64.600 productos con código de barras de **Precios Claros (SEPA)**, datos abiertos de la Secretaría de Comercio,
-  unificados por código con `tools/catalogo-general` (ver su LEEME). Los datos van en la migración `…_catalogo_general_datos.sql`, que es generada.
-  Los CSV originales (1,5 GB) no se suben: quedan en `Bases productos/`, excluida en `.git/info/exclude`.
+- `catalogo_general`: unos 68.000 productos con código de barras de **Precios Claros (SEPA)**, datos abiertos de la Secretaría de Comercio
+  (8 cadenas, 10 archivos), unificados por código con `tools/catalogo-general` (ver su LEEME). Los datos van en migraciones generadas: la
+  primera `…_catalogo_general_datos.sql`; las que lo actualizan (`sql.js --reemplazar`) borran y vuelven a cargar (`…_catalogo_general_mas_cadenas.sql`).
+  Los CSV originales (2 GB) no se suben: quedan en `Bases productos/`, excluida en `.git/info/exclude`.
 - Columnas: `codigo`, `nombre`, `marca`, `contenido` + `unidad`, `precio_ref` (mediana de las cadenas, noviembre 2026, solo como guía),
   `cadenas` (para ordenar), `categoria` (sugerida, deducida del nombre por palabras en `tools/catalogo-general/categorias.js`: la que
   aparece primero en el nombre gana; clasifica la mitad, casi todo lo de kiosco y almacén) y `busca` (generada: sin mayúsculas ni acentos).

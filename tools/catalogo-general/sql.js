@@ -1,7 +1,7 @@
 // Del CSV unificado (unificar.js) a la migración con los datos del catálogo general.
 // Uso (ver LEEME.md): node tools/catalogo-general/sql.js "<catalogo-general.csv>" supabase/migrations/<fecha>_catalogo_general_datos.sql
 const fs = require('fs');
-const [, , ENTRADA, SALIDA] = process.argv;
+const [, , ENTRADA, SALIDA, OPCION] = process.argv;   // OPCION --reemplazar: borra lo cargado antes (para actualizar una base que ya lo tiene)
 const lineas = fs.readFileSync(ENTRADA, 'utf8').replace(/^\uFEFF/, '').split(/\r?\n/).filter(Boolean);
 const cab = lineas.shift().split(';');
 // CSV con ; y comillas dobles
@@ -27,6 +27,7 @@ let sql = `-- Datos del catálogo general: ${filas.length} productos de Precios 
 -- unificados por código de barras con tools/catalogo-general (ver LEEME.md). Generado: no editar a mano.
 -- Para actualizarlo: una migración nueva que borra y vuelve a cargar (truncate + insert), generada igual.
 `;
+if (OPCION === '--reemplazar') sql += 'truncate public.catalogo_general;\n';
 for (let i = 0; i < valores.length; i += 1000) {
   sql += `insert into public.catalogo_general (codigo, nombre, marca, contenido, unidad, precio_ref, cadenas, categoria) values\n${valores.slice(i, i + 1000).join(',\n')}\non conflict (codigo) do nothing;\n`;
 }
