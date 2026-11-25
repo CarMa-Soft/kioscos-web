@@ -131,7 +131,8 @@ export function modal(titulo, cuerpo, { ancho = false, alCerrar } = {}) {
   abiertas.push(ventana);
   const tecla = e => { if (e.key === 'Escape') cerrar(); };
   document.addEventListener('keydown', tecla);
-  $$('[data-cerrar]', fondo).forEach(b => b.onclick = cerrar);
+  // cualquier botón con data-cerrar cierra la ventana, también los que se dibujan después (como los pasos de Importar)
+  fondo.addEventListener('click', e => { if (e.target.closest('[data-cerrar]')) cerrar(); });
   setTimeout(() => $('[autofocus], input, select, button.primario', fondo)?.focus(), 30);
   return { el: fondo, cerrar };
 }
