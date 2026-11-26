@@ -29,7 +29,8 @@ const TEMAS = [
   { s: 'Vender', t: 'Accesos rápidos', x: 'Los productos marcados como <b>"Botón rápido en Vender"</b> en su ficha aparecen arriba de la venta; los primeros 9 se agregan con <kbd>Alt</kbd> + número. Sirven para lo que no tiene código (pan, fiambre, cigarrillos sueltos…).' },
   { s: 'Vender', t: 'Atajos de teclado', x: '<kbd>F2</kbd> cobrar · <kbd>F1</kbd> efectivo · <kbd>F3</kbd> fiado · <kbd>Esc</kbd> limpiar el buscador · <kbd>Alt</kbd> + número: acceso rápido.' },
   { s: 'Vender', t: 'Se cortó internet: ¿puedo seguir cobrando?', x: `Sí, si la app ya estaba abierta. Abajo aparece <b>📴 Sin internet</b> y cada venta queda <b>guardada en esta PC</b>, con los precios y promociones de ese momento (el ticket sale sin número). Cuando vuelve internet se suben solas, con la fecha y hora en que se hicieron.
-    <ul><li>Sin internet no se puede fiar, entregar encargos ni dejar productos para entregar después.</li>
+    <ul><li>Un producto que no está cargado se agrega igual (con el código, el nombre y el precio): se crea, <b>a revisar</b>, cuando se sube la venta.</li>
+    <li>Sin internet no se puede fiar, entregar encargos ni dejar productos para entregar después.</li>
     <li>Al <b>cerrar la caja</b>, si quedó alguna sin subir, la app avisa y ofrece subirlas antes, para que entren en ese turno.</li>
     <li>Con <b>Ver</b> se ven las guardadas y, si alguna no se pudo subir, por qué.</li>
     <li>No cierres ni recargues la página sin internet: la app necesita internet para abrirse (las ventas guardadas no se pierden).</li></ul>` },
