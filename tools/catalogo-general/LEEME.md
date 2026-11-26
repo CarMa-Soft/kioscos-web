@@ -31,3 +31,8 @@ Quedan afuera los códigos internos de cada cadena y los de balanza (empiezan co
 **Archivos usados** (un archivo por cadena, `id_comercio`; algunas cadenas están en dos archivos de días distintos, y no se cuentan dos veces):
 `productos.csv` (9), `productos2.csv` (12), `productos3.csv` (15), `productos4.csv` (2), `productos5.csv` (10), `productos6.csv` (11),
 `productos_nuevo 1.csv` (3), `productos_nuevo 2.csv` (13), `productos_nuevo 3.csv` (2), `productos_nuevo 4.csv` (10).
+
+También lee los `productos.csv` de las subcarpetas: los zip de SEPA de un día (uno por cadena, `sepa_…_comercio-sepa-N_….zip`) se
+descomprimen en `Bases productos/sepa_AAAA-MM-DD/N/` (solo `productos.csv` y `comercio.csv`, que dice qué cadena es). Del 25/11/2026: 2, 3, 4
+(Estación Lima), 5 (California), 6 (Comodín), 8 (Mariano Max), 9 (Vea), 10 (Carrefour), 11 (Changomás), 12 (Coto), 13 (Cooperativa
+Obrera), 15 (DIA), 20 (La Agrícola Regional), 21 (Toledo), 23 (Axion), 24 (Simplicity / Farmacity) y 47 (Unicoop). El de la 36 vino vacío.

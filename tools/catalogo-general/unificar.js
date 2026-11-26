@@ -6,12 +6,15 @@ const [, , ENTRADA, SALIDA] = process.argv;
 const datos = JSON.parse(fs.readFileSync(ENTRADA, 'utf8'));
 
 // cadenas (id_comercio) de la que mejor describe a la que peor: 12 y 10 nombre completo con marca y presentación;
-// 2 completo con comas; 11 corto; 9 con agregados ("PAQ-20-gr."); 3 completo (mucho de kiosco); 15 abreviado; 13 corto, sin presentación
-const PREFERENCIA = ['12', '10', '2', '11', '9', '3', '15', '13'];
+// 2 completo con comas; 24 completo con marca; 11 corto; 4, 5, 6 y 8 completos; 9 con agregados ("PAQ-20-gr."); 3 completo (mucho de
+// kiosco); 20, 23 ("DISC:" adelante) y 47 abreviados; 15 abreviado; 21 y 13 cortos, sin presentación
+const PREFERENCIA = ['12', '10', '2', '24', '11', '4', '5', '6', '8', '9', '3', '20', '23', '47', '15', '21', '13'];
 const rango = cadenas => Math.min(...cadenas.map(c => { const i = PREFERENCIA.indexOf(c); return i < 0 ? 99 : i; }));
 
 function limpiar(t) {
   t = t.replace(/\s+[A-Z]{3}-[\d.]+-[a-zA-Z0-9]+\.?$/, '')   // cadena 9: " PAQ-20-gr."
+       .replace(/^(DISC:\s*)+(DISC\s+)?/i, '')                // cadena 23: "DISC:DISC COCA-COLA…"
+       .replace(/^[*\s]+/, '')                                 // "*JARRO MUGG…"
        .replace(/\s*,\s*/g, ' ')                            // cadena 2: "X, MARCA, 20 gr"
        .replace(/\s+/g, ' ').trim();
   if (t === t.toLowerCase()) t = t.toUpperCase();
@@ -36,6 +39,7 @@ function contenido(pres) {
     if (un === 'kg' && c < 1) { c = Math.round(c * 1000); un = 'g'; }
     if (un === 'l' && c < 1) { c = Math.round(c * 1000); un = 'ml'; }
     if (un === 'g' && c < 1) continue;   // "0.27 gr." = 270 g mal escrito: se descarta
+    if ((un === 'g' || un === 'ml') && c === 1) continue;   // cadena 24 carga todo como "1 gr" o "1 ml"
     const k = `${+c.toFixed(3)} ${un}`;
     cuenta.set(k, (cuenta.get(k) || 0) + n);
   }
