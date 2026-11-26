@@ -45,7 +45,8 @@ async function leer(archivo) {
 }
 
 (async () => {
-  const archivos = fs.readdirSync(DIR).filter(f => /\.csv$/i.test(f)).sort();
+  // los productos*.csv de la carpeta y de sus subcarpetas (los zip de SEPA, descomprimidos: una carpeta por cadena con su productos.csv)
+  const archivos = fs.readdirSync(DIR, { recursive: true }).map(String).filter(f => /^productos.*\.csv$/i.test(path.basename(f))).sort();
   for (const f of archivos) { const t0 = Date.now(); await leer(path.join(DIR, f)); console.error(`${f}: ${productos.size} códigos hasta acá (${Math.round((Date.now() - t0) / 1000)} s)`); }
   const out = [];
   for (const [ean, p] of productos) {

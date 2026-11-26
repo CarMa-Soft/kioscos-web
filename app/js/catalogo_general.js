@@ -1,4 +1,4 @@
-// Catálogo general (compartido por todos los negocios): más de 60.000 productos con código de barras de Precios Claros
+// Catálogo general (compartido por todos los negocios): más de 75.000 productos con código de barras de Precios Claros
 // (SEPA), con nombre, marca, contenido y un precio de referencia (la mediana en las cadenas). Está en la base
 // (catalogo_general_buscar); no se baja entero al navegador.
 // - Productos → 📦 Cargar productos (solo dueño): escanear o buscar; los del catálogo general y los que no están, en la misma lista.
@@ -56,7 +56,7 @@ export async function pantallaCatalogoGeneral(vista, ctx, alSalir) {
   const cats = cat.categorias();
   const redondeo = +(ctx.config.redondeo ?? 10);
   vista.innerHTML = `<div class="cabecera"><h2>Cargar productos</h2><div class="acciones"><button class="btn" id="volver">Volver a Productos</button></div></div>
-    <p class="muted">Recorré la góndola y escaneá (o buscá) cada producto. Si está en el catálogo general (más de 60.000 con código de barras,
+    <p class="muted">Recorré la góndola y escaneá (o buscá) cada producto. Si está en el catálogo general (más de 75.000 con código de barras,
       datos públicos de Precios Claros) viene con su nombre, marca y contenido; si no está, lo cargás ahí mismo como producto nuevo.
       Todos van a la misma lista: poné tu precio (y el stock que tenés, si querés) y agregalos juntos. El precio de referencia es el que
       tenían en los supermercados (mediana, noviembre 2026): es solo una guía.</p>
