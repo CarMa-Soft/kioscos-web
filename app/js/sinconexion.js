@@ -4,6 +4,7 @@
 // subir, se avisa y se ofrece subirlas antes (así entran en ese turno).
 // Una barra arriba avisa mientras no hay internet, o mientras quedan ventas por subir.
 import { llamar } from './base.js';
+import * as cat from './catalogo.js';
 import { $, esc, plata, fecha, aviso, modal, confirmar, pedirAutorizacion } from './ui.js';
 
 let negocio = null, yo = null, usuarios = [];
@@ -78,6 +79,29 @@ async function probar() {
 addEventListener('offline', () => marcarSinConexion());
 addEventListener('online', () => { if (sinConexion) probar(); });
 
+// ---------- Productos nuevos ----------
+// Un producto que no estaba cargado, vendido sin internet, va en la venta como renglón { nombre, importe, nuevo: { nombre,
+// codigo, precio, cantidad, ... } }. Antes de registrar la venta se crea (alta_desde_caja: queda "a revisar") y el renglón
+// pasa a ser de ese producto. Si el código ya existe (se creó en un intento anterior, o lo cargó otro), se usa ese producto.
+// alCrear: después de cada uno (para guardar lo ya creado y no crearlo dos veces si se corta en el medio).
+export async function resolverNuevos(args, alCrear) {
+  for (let k = 0; k < args.p_items.length; k++) {
+    const n = args.p_items[k].nuevo;
+    if (!n) continue;
+    const { cantidad, ...datos } = n;
+    let p;
+    try { p = await llamar('alta_desde_caja', { p: datos }); } catch (err) {
+      if (err.codigo !== '23505' || !n.codigo) throw err;
+      await cat.actualizar().catch(() => {});
+      p = cat.porCodigoDeBarras(n.codigo);
+      if (!p) throw err;
+    }
+    args.p_items[k] = { producto_id: p.id, cantidad, precio: n.precio, lista: n.precio };
+    alCrear?.();
+  }
+  return args;
+}
+
 // ---------- Subir ----------
 // De a una, en orden. conPin: si un descuento necesita la autorización del dueño, la pide (si no, la deja para después).
 // Devuelve { subidas, quedan }.
@@ -90,6 +114,7 @@ export function subir({ conPin = false } = {}) {
         const args = { ...v.args };
         for (;;) {
           try {
+            await resolverNuevos(args, () => guardarCola(pendientes().map(x => x.clave === v.clave ? { ...x, args: { ...x.args, p_items: args.p_items } } : x)));
             await llamar('registrar_venta', args);
             hayConexion();
             guardarCola(pendientes().filter(x => x.clave !== v.clave));
@@ -110,6 +135,7 @@ export function subir({ conPin = false } = {}) {
       }
     } finally {
       const quedan = pendientes().length;
+      if (subidas) cat.actualizar().catch(() => {});
       if (subidas) aviso(`Se ${subidas === 1 ? 'subió 1 venta hecha' : `subieron ${subidas} ventas hechas`} sin conexión${quedan ? ` (quedan ${quedan})` : ''}`, 'ok');
       subiendo = null;
       pintarBarra();

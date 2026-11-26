@@ -272,9 +272,26 @@ export async function pantallaVender(vista, ctx) {
       e.preventDefault();
       const precioN = numero(f.elements.precio.value);
       if (!(precioN > 0)) { f.elements.precio.focus(); return aviso('Poné el precio'); }
+      const datos = { nombre: f.elements.nombre.value.trim(), codigo: f.elements.codigo.value.trim(), precio: r2(precioN),
+        ...(general && f.elements.codigo.value.trim() === texto ? datosDelGeneral(general) : {}) };   // si no cambiaron el código
+      // sin internet: va a la venta como producto nuevo y se crea cuando se sube (sinconexion.js)
+      const sinInternet = () => {
+        const ya = datos.codigo && cat.porCodigoDeBarras(datos.codigo);
+        m.cerrar();
+        if (ya) return agregar(ya, n);
+        const cantN = Math.max(1, Math.round(n));
+        venta.items.push(nuevo = { producto_id: null, nombre: datos.nombre || (datos.codigo ? 'Producto ' + datos.codigo : 'Producto sin nombre'), cantidad: 1,
+          importe: r2(cantN * datos.precio), nuevo: { ...datos, cantidad: cantN } });
+        bip(); pintar(); enfocar();
+        aviso('Sin internet: el producto se crea (a revisar) cuando se suba la venta', 'info');
+      };
+      if (sc.estaSinConexion()) return sinInternet();
       correr(async () => {
-        const p = await llamar('alta_desde_caja', { p: { nombre: f.elements.nombre.value.trim(), codigo: f.elements.codigo.value.trim(), precio: precioN,
-          ...(general && f.elements.codigo.value.trim() === texto ? datosDelGeneral(general) : {}) } });   // si no cambiaron el código
+        let p;
+        try { p = await llamar('alta_desde_caja', { p: datos }); } catch (err) {
+          if (err.codigo !== 'red') throw err;
+          sc.marcarSinConexion(); return sinInternet();
+        }
         await cat.actualizar().catch(() => {});
         m.cerrar();
         agregar(cat.producto(p.id) || p, n);
@@ -416,7 +433,7 @@ export async function pantallaVender(vista, ctx) {
         return `<div class="v-fila v-item">
         <div class="v-nom"><b title="${esc(i.nombre)}">${esc(i.nombre)}</b><small>${i.producto_id && !p ? '<span class="mal">ya no está en el catálogo</span>'
           : i.encargo ? `📋 Encargo #${i.encargo.numero} de ${esc(i.encargo.a_nombre)}${+i.encargo.sena ? ` · seña ${plata(i.encargo.sena)}` : ''}`
-          : !i.producto_id ? 'Varios · precio libre' : i.por_peso ? (i.etiqueta != null ? 'Etiqueta de balanza' : 'Por kilo') : esc(p?.codigo || '')}</small>${falta
+          : !i.producto_id ? (i.nuevo ? `Producto nuevo${i.nuevo.cantidad > 1 ? ` · ${i.nuevo.cantidad} x ${plata(i.nuevo.precio)}` : ''} · se crea al subir` : 'Varios · precio libre') : i.por_peso ? (i.etiqueta != null ? 'Etiqueta de balanza' : 'Por kilo') : esc(p?.codigo || '')}</small>${falta
           ? `<span class="v-sin-stock" title="Se lleva más de lo que hay: al cobrar se puede dejar para entregar después">Stock en sistema: ${cant(Math.max(0, +p.stock))}${p.por_peso ? ' kg' : ''}</span>` : ''}${(pr => pr
           ? `<span class="v-promo" title="Promoción aplicada: ${esc(pr.nombre)}"><span>🎁 ${esc(pr.nombre)} −${plata(pr.descuento)}</span><button data-sin-promo="${pr.promocion_id}" title="Quitar la promoción de esta venta" tabindex="-1">×</button></span>` : '')(promoDe(aplicadas, k))}</div>
         ${!i.producto_id ? '<span class="v-der-txt">1</span>' : i.por_peso
@@ -695,7 +712,7 @@ export async function pantallaVender(vista, ctx) {
     const args = {
       p_clave: venta.clave,
       p_items: venta.items.map(i => i.producto_id ? { producto_id: i.producto_id, cantidad: i.cantidad, ...(i.precio != null ? { precio: i.precio } : {}),
-        ...(i.etiqueta != null ? { importe: i.etiqueta } : {}) } : { nombre: i.nombre, importe: i.importe }),
+        ...(i.etiqueta != null ? { importe: i.etiqueta } : {}) } : { nombre: i.nombre, importe: i.importe, ...(i.nuevo ? { nuevo: i.nuevo } : {}) }),
       p_pagos: [...(tt.sena ? [{ forma: 'Seña', base: tt.sena }] : []), ...tt.pagos.filter(p => p.base > 0).map(p => ({ forma: p.forma, base: p.base }))],
       p_encargos: venta.items.filter(i => i.encargo).map(i => ({ id: i.encargo.id, cantidad: i.cantidad })),
       p_paga_con: pc > 0 ? pc : null, p_cliente_id: venta.cliente?.id ?? null, p_forzar_limite: false,
@@ -713,7 +730,7 @@ export async function pantallaVender(vista, ctx) {
         let r;
         for (;;) {
           if (sc.estaSinConexion()) return guardarSinConexion(args, tt, pc, efectivo, eleccion);
-          try { r = await llamar('registrar_venta', args); break; } catch (err) {
+          try { await sc.resolverNuevos(args); r = await llamar('registrar_venta', args); break; } catch (err) {
             if (err.codigo === 'red') { sc.marcarSinConexion(); return guardarSinConexion(args, tt, pc, efectivo, eleccion); }
             if (err.codigo === 'limite') {   // pasaría el límite de fiado: no se registró nada
               if (!await confirmar('Límite de fiado', err.message + '. ¿Fiar igual?', 'Fiar igual')) return;
@@ -750,7 +767,8 @@ export async function pantallaVender(vista, ctx) {
     const ahora = new Date().toISOString();
     const items = args.p_items.map((it, k) => {
       const i = venta.items[k];
-      return it.producto_id ? { ...it, precio: precioDe(i), lista: cat.producto(i.producto_id)?.precio ?? precioDe(i) } : it;
+      // (un producto nuevo ya creado al intentar cobrar viene con su precio y lista)
+      return it.producto_id && i.producto_id ? { ...it, precio: precioDe(i), lista: cat.producto(i.producto_id)?.precio ?? precioDe(i) } : it;
     });
     const promosSc = tt.aplicadas.filter(a => a.descuento > 0).map(a => ({ k: a.k, promocion_id: a.promocion_id, descuento: a.descuento }));
     sc.guardarVenta({

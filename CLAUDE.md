@@ -598,6 +598,9 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
   quien la hizo, con esas promociones y ese precio de lista (sin controlar `p_promos`), y la marca `ventas.sin_conexion`.
   El producto dado de baja después se acepta; el tope de descuento del empleado se controla igual (al subir pide el PIN
   del dueño con "Subir ahora"). Sin fiado, encargos ni entregas para después. La clave de siempre evita duplicarla.
+- Producto no cargado sin internet (alta rápida de Vender): va como renglón { nombre, importe, nuevo: { nombre, codigo, precio, cantidad } };
+  `sc.resolverNuevos` lo crea con alta_desde_caja antes de registrar_venta (al subir, o al cobrar si ya volvió internet) y
+  guarda lo creado en la cola; si el código ya existe usa ese producto.
 - Cerrar turno (caja.js): `sc.antesDeCerrar` ofrece subir las que quedan (o cerrar igual: entran en el próximo turno).
 - La app NO abre sin internet (sw.js no guarda copias): solo sirve si estaba abierta cuando se cortó. Pruebas: tests/44.
 
