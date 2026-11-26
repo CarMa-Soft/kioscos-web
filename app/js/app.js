@@ -18,6 +18,7 @@ import { pantallaRemitos } from './remitos.js';
 import { VERSION } from './version.js';
 import { recorridoPrimeraVez } from './recorrido.js';
 import { atajoDe, textoAtajo, esAtajo } from './teclado.js';
+import * as sc from './sinconexion.js';
 
 const raiz = $('#app');
 let datos = null;            // lo que devuelve datos_inicio()
@@ -459,6 +460,7 @@ async function iniciar() {
   document.title = `Gestión de ventas · ${datos.negocio.nombre}`;
   if (!datos.yo) { guardarToken(null); return pantallaElegir(); }
   armarMarco();
+  sc.iniciar(datos.negocio.id, datos.yo, datos.usuarios);   // ventas hechas sin conexión: la barra de aviso y subir las que quedaron
   const ok = await correr(async () => { await cat.cargar(datos.negocio.id); return true; });
   if (!ok) return quitarBienvenida();
   refresco = setInterval(() => cat.actualizar().catch(() => {}), 60 * 1000);

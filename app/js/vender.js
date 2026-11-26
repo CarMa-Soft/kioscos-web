@@ -10,6 +10,7 @@ import { abrirCaja } from './caja.js';
 import { nuevoEncargo, verEncargos } from './encargos.js';
 import { calcularPromos, sugerencias, textoPromo } from './promos.js';
 import { delCatalogoGeneral, datosDelGeneral, textoContenido } from './catalogo_general.js';
+import * as sc from './sinconexion.js';
 
 // Íconos (trazos SVG, toman el color del texto)
 const svg = d => `<svg viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
@@ -74,12 +75,13 @@ function bip() {
 }
 
 // Venta registrada: un ✓ grande con el número, el total y el vuelto. Se va solo, con un clic o al seguir escaneando.
-function ventaLista(r, vuelto) {
+function ventaLista(r, vuelto, sinConexion = false) {
   document.querySelector('.v-listo')?.remove();
   const el = document.createElement('div');
   el.className = 'v-listo'; el.setAttribute('role', 'status');
   el.innerHTML = `<div class="v-listo-caja"><svg viewBox="0 0 52 52" class="v-listo-tilde" aria-hidden="true"><circle cx="26" cy="26" r="24"/><path d="M15 27l7 7 15-16"/></svg>
-    <div class="v-listo-txt">Venta <b>#${r.numero}</b> · ${plata(r.total)}</div>
+    <div class="v-listo-txt">${sinConexion ? 'Venta guardada <b>sin conexión</b>' : `Venta <b>#${r.numero}</b>`} · ${plata(r.total)}</div>
+    ${sinConexion ? '<div class="v-listo-sc">Se sube sola cuando vuelva internet</div>' : ''}
     ${vuelto > 0.004 ? `<div class="v-listo-vuelto">Vuelto <b>${plata(vuelto)}</b></div>` : ''}</div>`;
   document.body.append(el);
   const cerrar = () => { el.classList.add('saliendo'); setTimeout(() => el.remove(), 200); document.removeEventListener('keydown', cerrar); };
@@ -99,7 +101,16 @@ let venta = vacia();
 cargaSinGuardar(() => venta.items.length);
 
 export async function pantallaVender(vista, ctx) {
-  const [caja, promosHoy] = await Promise.all([llamar('estado_caja'), llamar('promociones_vigentes').catch(() => [])]);
+  // Sin internet, con la caja y las promociones de la última vez (sinconexion.js): se puede seguir cobrando
+  let caja, promosHoy;
+  const guardada = () => { const g = sc.cajaGuardada(); if (!g) throw new Error('Sin conexión a internet: para cobrar sin internet, Vender se tiene que haber abierto antes con internet en esta PC'); sc.marcarSinConexion(); return g; };
+  if (sc.estaSinConexion()) ({ caja, promos: promosHoy } = guardada());
+  else {
+    try {
+      [caja, promosHoy] = await Promise.all([llamar('estado_caja'), llamar('promociones_vigentes').catch(() => sc.cajaGuardada()?.promos || [])]);
+      sc.recordarCaja(caja, promosHoy); sc.hayConexion();
+    } catch (e) { if (e.codigo !== 'red') throw e; ({ caja, promos: promosHoy } = guardada()); }
+  }
   let promos = promosHoy;   // las de hoy (se vuelven a pedir si la base avisa que cambiaron)
   venta.sinPromos ??= [];
   const pct = f => f === 'Efectivo' ? 0 : +(caja.recargos?.[f] || 0);
@@ -701,7 +712,9 @@ export async function pantallaVender(vista, ctx) {
       await correr(async () => {
         let r;
         for (;;) {
+          if (sc.estaSinConexion()) return guardarSinConexion(args, tt, pc, efectivo, eleccion);
           try { r = await llamar('registrar_venta', args); break; } catch (err) {
+            if (err.codigo === 'red') { sc.marcarSinConexion(); return guardarSinConexion(args, tt, pc, efectivo, eleccion); }
             if (err.codigo === 'limite') {   // pasaría el límite de fiado: no se registró nada
               if (!await confirmar('Límite de fiado', err.message + '. ¿Fiar igual?', 'Fiar igual')) return;
               args.p_forzar_limite = true;
@@ -726,6 +739,35 @@ export async function pantallaVender(vista, ctx) {
         cat.actualizar().then(pintar).catch(() => {});
       });
     } finally { cobrando = false; }
+  }
+
+  // Sin internet: la venta queda guardada en esta PC tal como se cobró (precios y promociones de este momento) y se sube
+  // después (sinconexion.js). Fiado, encargos y lo que se entrega después necesitan internet: la venta sigue en pantalla.
+  function guardarSinConexion(args, tt, pc, efectivo, eleccion) {
+    if (tt.pagos.some(p => p.forma === 'Fiado' && p.base > 0) || tt.sena || args.p_encargos.length || args.p_entrega || args.p_items.some(i => i.pendiente)) {
+      return aviso('Sin internet no se puede fiar, entregar encargos ni dejar productos para entregar después. Cobrala con otra forma de pago, o esperá que vuelva internet.');
+    }
+    const ahora = new Date().toISOString();
+    const items = args.p_items.map((it, k) => {
+      const i = venta.items[k];
+      return it.producto_id ? { ...it, precio: precioDe(i), lista: cat.producto(i.producto_id)?.precio ?? precioDe(i) } : it;
+    });
+    const promosSc = tt.aplicadas.filter(a => a.descuento > 0).map(a => ({ k: a.k, promocion_id: a.promocion_id, descuento: a.descuento }));
+    sc.guardarVenta({
+      clave: args.p_clave, fecha: ahora, usuario: ctx.yo.nombre, total: tt.total,
+      resumen: venta.items.map(i => `${cant(i.cantidad)} ${i.nombre}`).join(', ').slice(0, 200),
+      args: { ...args, p_items: items, p_promos: null, p_autorizacion: null, p_encargos: null, p_entrega: null,
+        p_sin_conexion: { fecha: ahora, usuario_id: ctx.yo.id, promos: promosSc } },
+    });
+    // el ticket, armado acá (sin número: lo pone la base al subirla)
+    const ticket = { numero: 'S/C', fecha: ahora, cliente: venta.cliente, subtotal: tt.subtotal, descuento: tt.descuento, total: tt.total,
+      descuento_promos: tt.promo, paga_con: pc > 0 ? pc : null,
+      items: venta.items.map((i, k) => { const pr = promoDe(tt.aplicadas, k); return { nombre: i.nombre, cantidad: i.producto_id ? i.cantidad : 1, por_peso: i.por_peso,
+        precio: i.producto_id ? precioDe(i) : i.importe, importe: r2(importe(i) - (pr?.descuento || 0)), promo: pr?.descuento || 0, promo_nombre: pr?.nombre }; }),
+      pagos: tt.pagos.filter(p => p.base > 0).map(p => ({ forma: p.forma, monto: p.monto, recargo: p.recargo, pct_recargo: pct(p.forma) })) };
+    venta = vacia(); pintar(); enfocar();
+    ventaLista({ total: tt.total }, pc > 0 && efectivo ? pc - efectivo : 0, true);
+    if (eleccion === 'imprimir') imprimir(ticketVenta(ticket, ctx.config));
   }
 
   if ($('#varios')) $('#varios').onclick = () => varios();

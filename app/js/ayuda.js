@@ -28,6 +28,11 @@ const TEMAS = [
   { s: 'Vender', t: 'Apagar el sonido al escanear', x: 'Cada producto que entra a la venta hace un <b>bip</b> y su renglón destella en verde. Para apagar el bip, tocá <b>🔊</b> en la barra de Vender (queda <b>🔇</b>); cada PC lo recuerda. El sonido de “código que no existe” suena siempre. Al cobrar aparece un ✓ grande con el número de venta y el vuelto: se va solo, con un clic o al seguir escaneando.' },
   { s: 'Vender', t: 'Accesos rápidos', x: 'Los productos marcados como <b>"Botón rápido en Vender"</b> en su ficha aparecen arriba de la venta; los primeros 9 se agregan con <kbd>Alt</kbd> + número. Sirven para lo que no tiene código (pan, fiambre, cigarrillos sueltos…).' },
   { s: 'Vender', t: 'Atajos de teclado', x: '<kbd>F2</kbd> cobrar · <kbd>F1</kbd> efectivo · <kbd>F3</kbd> fiado · <kbd>Esc</kbd> limpiar el buscador · <kbd>Alt</kbd> + número: acceso rápido.' },
+  { s: 'Vender', t: 'Se cortó internet: ¿puedo seguir cobrando?', x: `Sí, si la app ya estaba abierta. Abajo aparece <b>📴 Sin internet</b> y cada venta queda <b>guardada en esta PC</b>, con los precios y promociones de ese momento (el ticket sale sin número). Cuando vuelve internet se suben solas, con la fecha y hora en que se hicieron.
+    <ul><li>Sin internet no se puede fiar, entregar encargos ni dejar productos para entregar después.</li>
+    <li>Al <b>cerrar la caja</b>, si quedó alguna sin subir, la app avisa y ofrece subirlas antes, para que entren en ese turno.</li>
+    <li>Con <b>Ver</b> se ven las guardadas y, si alguna no se pudo subir, por qué.</li>
+    <li>No cierres ni recargues la página sin internet: la app necesita internet para abrirse (las ventas guardadas no se pierden).</li></ul>` },
   { s: 'Vender', t: '¿Por qué F5 no recarga la página?', x: 'Lo que se está cargando (la venta, una compra, una factura o una entrada o salida) está solo en esta pantalla y se perdería al recargar. Por eso en Vender, Compras y Entradas y salidas, y en cualquier lado mientras haya algo cargado sin guardar, <kbd>F5</kbd> y <kbd>Ctrl</kbd> + <kbd>R</kbd> no hacen nada. Si igual se recarga con el botón del navegador o se cierra la pestaña, el navegador pregunta antes de salir.' },
 
   // ---------- Fiado, entregas y encargos
