@@ -1,5 +1,6 @@
 // Caja: abrir y cerrar el turno, ingresos y egresos, ventas del turno (ver y anular)
 import { llamar } from './base.js';
+import * as sc from './sinconexion.js';
 import * as cat from './catalogo.js';
 import { $, $$, esc, plata, cant, hora, fecha, numero, aviso, correr, modal, confirmar, pedirAutorizacion } from './ui.js';
 import { imprimir, ticketVenta, ticketDevolucion, ticketCierre } from './impresion.js';
@@ -94,7 +95,9 @@ export async function pantallaCaja(vista, ctx) {
 
   // Cierre: poniendo solo el total que hay, o contando los billetes de cada valor (Ajustes; el total lo suma la pantalla y lo
   // vuelve a calcular la base). Cada PC recuerda la forma elegida; de fábrica, billetes si hay valores cargados.
-  function cerrar() {
+  // si quedaron ventas hechas sin conexión sin subir, primero se ofrece subirlas (para que entren en este turno)
+  async function cerrar() {
+    if (!await sc.antesDeCerrar(() => ctx.recargar())) return;
     const billetes = (e.billetes || []).map(Number);
     let modo = (() => { try { return localStorage.getItem('cierre-modo'); } catch { return null; } })() || (billetes.length ? 'billetes' : 'total');
     if (!billetes.length) modo = 'total';

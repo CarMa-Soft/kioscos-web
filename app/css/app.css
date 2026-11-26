@@ -221,6 +221,12 @@ html { scroll-padding-top: var(--alto-barra, 0px); }
 @media (max-width: 800px) { .dos-columnas { grid-template-columns: 1fr; } .grafico-fila { grid-template-columns: 4rem 1fr 6rem; } }
 
 /* Aviso de versión nueva */
+/* Ventas sin conexión (sinconexion.js): abajo al centro (arriba taparía el buscador de Vender), ámbar sin internet y gris con ventas por subir */
+.sin-conexion { position: fixed; bottom: .8rem; left: 50%; transform: translateX(-50%); z-index: 45; display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .6rem;
+  max-width: calc(100% - 2rem); padding: .5rem .9rem; border-radius: 10px; background: #fff; border: 1px solid var(--borde); box-shadow: 0 6px 24px rgba(0, 0, 0, .12); font-size: .92rem; }
+.sin-conexion.sin-red { background: #fffaeb; border-color: #fedf89; color: #93370d; }
+.sin-conexion[hidden] { display: none; }
+@media (max-width: 800px) { .sin-conexion { left: .6rem; right: .6rem; transform: none; max-width: none; font-size: .85rem; } }
 .version-nueva { position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%); z-index: 60; background: var(--barra); color: #fff;
   padding: .6rem 1rem; border-radius: 10px; box-shadow: 0 6px 24px rgba(0, 0, 0, .2); display: flex; gap: .8rem; align-items: center; }
 

@@ -205,6 +205,7 @@ button.v-campo small.mal { color: var(--mal); }
 .v-listo-tilde circle { fill: #12b76a; }
 .v-listo-tilde path { fill: none; stroke: #fff; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 40; stroke-dashoffset: 40; animation: v-tilde .35s .15s ease-out forwards; }
 .v-listo-txt { font-size: 1.25rem; }
+.v-listo-sc { margin-top: .3rem; font-size: .9rem; color: #93370d; }
 .v-listo-vuelto { margin-top: .6rem; font-size: 1.1rem; color: #067647; }
 .v-listo-vuelto b { display: block; font-size: 2.6rem; line-height: 1.1; }
 @keyframes v-listo-entrar { from { opacity: 0; } to { opacity: 1; } }

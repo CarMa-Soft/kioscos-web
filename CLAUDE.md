@@ -588,6 +588,19 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
 - El descuento arranca en % (`descPct: true` en `vacia()`). Los botones de billetes de "Paga con" están ocultos con CSS
   (`.v-paga .billetes`); el código sigue.
 
+## Ventas sin conexión (app/js/sinconexion.js)
+- Si `registrar_venta` falla por la conexión (código 'red': sin internet o la base tardó), Vender guarda la venta en la PC
+  (localStorage `kioscos.sin-conexion.<negocio>`) y desde ahí guarda sin esperar; cada 20 s prueba `estado_app` y, cuando
+  vuelve, sube las guardadas de a una. Vender abre sin internet con la caja y las promociones de la última vez
+  (`kioscos.caja.<negocio>`, guardadas al abrir Vender con internet). Barra `#sin-conexion` (index.html) abajo al centro.
+- La venta guardada lleva `p_sin_conexion { fecha, usuario_id, promos: [{ k, promocion_id, descuento }] }` y en cada renglón
+  `precio` y `lista` (lo de la PC en ese momento): la base la registra con esa fecha (no más de 7 días atrás), a nombre de
+  quien la hizo, con esas promociones y ese precio de lista (sin controlar `p_promos`), y la marca `ventas.sin_conexion`.
+  El producto dado de baja después se acepta; el tope de descuento del empleado se controla igual (al subir pide el PIN
+  del dueño con "Subir ahora"). Sin fiado, encargos ni entregas para después. La clave de siempre evita duplicarla.
+- Cerrar turno (caja.js): `sc.antesDeCerrar` ofrece subir las que quedan (o cerrar igual: entran en el próximo turno).
+- La app NO abre sin internet (sw.js no guarda copias): solo sirve si estaba abierta cuando se cortó. Pruebas: tests/44.
+
 ## Estilo común de las pantallas
 - Hoy, Caja, Productos, Compras, Reportes, Clientes, Proveedores y Entradas y salidas usan las clases `c-` de `app.css`
   (Productos además las `p-` de `productos.css`). **Una pantalla nueva usa las mismas:**
