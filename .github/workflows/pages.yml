@@ -61,9 +61,10 @@ jobs:
           source "$RUNNER_TEMP/marcar.sh"
           N="$PEDIDO"
           # sin número: el último PR abierto que se actualizó (de este repositorio: ni forks ni Dependabot, que no toca la app)
-          [ -z "$N" ] && N=$(gh pr list --state open --json number,updatedAt,isCrossRepository,author \
+          # solo los PR hacia main: los de ramas largas (factura-electronica) usan otra base y no van a /prueba/
+          [ -z "$N" ] && N=$(gh pr list --state open --base main --json number,updatedAt,isCrossRepository,author \
             -q 'map(select((.isCrossRepository | not) and (.author.login | test("bot") | not))) | sort_by(.updatedAt) | last | .number // empty')
-          ESTADO=$([ -n "$N" ] && gh pr view "$N" --json state,isCrossRepository -q 'if .isCrossRepository then "FORK" else .state end' || true)
+          ESTADO=$([ -n "$N" ] && gh pr view "$N" --json state,isCrossRepository,baseRefName -q 'if .isCrossRepository then "FORK" elif .baseRefName != "main" then "NO_VA_A_MAIN" else .state end' || true)
           if [ "$ESTADO" = "OPEN" ]; then
             git fetch -q origin "pull/$N/head:pr-$N"
             git worktree add -q "$RUNNER_TEMP/pr" "pr-$N"
