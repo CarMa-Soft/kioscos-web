@@ -642,4 +642,6 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
 - **Probar en el navegador:** `node tools/servidor-pruebas.js` → http://localhost:5181, con `.env.pruebas` en la raíz
   (`SUPABASE_URL` y la clave publishable `SUPABASE_KEY` del proyecto de pruebas; está en `.gitignore`). Arma `config.js` y la
   CSP con la base de pruebas y muestra una cinta naranja "BASE DE PRUEBAS". No arranca si apunta a producción.
+- Los PR hacia `factura-electronica` **no** se publican en /prueba/ (`prueba-pr.yml` solo dispara con los PR hacia `main`):
+  /prueba/ usa la base de producción.
 - La CLI de Supabase nunca con `supabase link`: siempre con `--db-url` o `--project-ref` explícitos.
