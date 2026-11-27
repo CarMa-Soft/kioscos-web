@@ -638,7 +638,8 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
 - `pruebas.yml` usa la base de producción **solo** para los PR hacia `main`; cualquier otro destino usa la de pruebas (y
   corta si un PR que no va a `main` trae la cadena de producción). `base.yml` y `funciones.yml` corren solo desde `main`.
 - `base-pruebas.yml` y `funciones-pruebas.yml`: al unir a `factura-electronica`, aplican las migraciones y publican las
-  funciones en el proyecto de pruebas (controlan que no sea el de producción).
+  funciones en el proyecto de pruebas (controlan que no sea el de producción). Las funciones se publican con
+  `SUPABASE_ACCESS_TOKEN_PRUEBAS`: un token limitado a ese proyecto (Edge Functions), que vence: renovarlo.
 - **Probar en el navegador:** `node tools/servidor-pruebas.js` → http://localhost:5181, con `.env.pruebas` en la raíz
   (`SUPABASE_URL` y la clave publishable `SUPABASE_KEY` del proyecto de pruebas; está en `.gitignore`). Arma `config.js` y la
   CSP con la base de pruebas y muestra una cinta naranja "BASE DE PRUEBAS". No arranca si apunta a producción.
