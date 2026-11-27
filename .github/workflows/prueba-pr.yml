@@ -11,8 +11,11 @@ permissions:
 
 jobs:
   publicar-prueba:
-    # solo PRs de este repositorio (no forks ni Dependabot)
-    if: github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]'
+    # solo PRs de este repositorio (no forks ni Dependabot) y hacia main (los de ramas largas, como factura-electronica,
+    # usan otra base y no se publican en /prueba/)
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]' &&
+      github.event.pull_request.base.ref == 'main'
     runs-on: ubuntu-latest
     steps:
       - name: Publicar /prueba/

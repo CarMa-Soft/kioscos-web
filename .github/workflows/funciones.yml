@@ -18,6 +18,8 @@ concurrency:
 
 jobs:
   publicar:
+    # Solo desde main (aunque se lance a mano desde otra rama): las ramas de prueba usan sus propios workflows.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

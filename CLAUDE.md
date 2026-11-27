@@ -629,3 +629,19 @@ cada función y sus decisiones. Se migra por etapas (el plan está en los issues
 - `app.js` (`sinRecargar`): F5, Ctrl + F5 y Ctrl + R no recargan en Vender, Compras y Entradas y salidas
   (`PANTALLAS_DE_CARGA`), ni en ningún lado con algo sin guardar, y avisa por qué. Con algo sin guardar, `beforeunload` hace
   que el navegador pregunte "¿Salir del sitio?" (botón recargar, cerrar la pestaña, "Actualizar").
+
+## Factura electrónica (ARCA): entorno de pruebas
+- Se desarrolla en la rama larga `factura-electronica`; cada etapa va en su rama y su PR **hacia `factura-electronica`**
+  (`gh pr create --base factura-electronica`), nunca hacia `main`. Nada se une a `main` hasta que se decida pasar a producción.
+- **Base de pruebas aparte:** proyecto "Kioscos pruebas FE" (organización "CarMa-Soft pruebas", ref `poysfeiygmujelhbckcj`).
+  Secreto `SUPABASE_DB_URL_PRUEBAS` y variable `SUPABASE_REF_PRUEBAS` en GitHub Actions.
+- `pruebas.yml` usa la base de producción **solo** para los PR hacia `main`; cualquier otro destino usa la de pruebas (y
+  corta si un PR que no va a `main` trae la cadena de producción). `base.yml` y `funciones.yml` corren solo desde `main`.
+- `base-pruebas.yml` y `funciones-pruebas.yml`: al unir a `factura-electronica`, aplican las migraciones y publican las
+  funciones en el proyecto de pruebas (controlan que no sea el de producción).
+- **Probar en el navegador:** `node tools/servidor-pruebas.js` → http://localhost:5181, con `.env.pruebas` en la raíz
+  (`SUPABASE_URL` y la clave publishable `SUPABASE_KEY` del proyecto de pruebas; está en `.gitignore`). Arma `config.js` y la
+  CSP con la base de pruebas y muestra una cinta naranja "BASE DE PRUEBAS". No arranca si apunta a producción.
+- Los PR hacia `factura-electronica` **no** se publican en /prueba/ (`prueba-pr.yml` solo dispara con los PR hacia `main`):
+  /prueba/ usa la base de producción.
+- La CLI de Supabase nunca con `supabase link`: siempre con `--db-url` o `--project-ref` explícitos.

@@ -1,6 +1,8 @@
 # Pruebas de la base en cada PR: aplica las migraciones que todavía no están en la base y corre tests/*.sql,
 # todo dentro de una transacción que se deshace al final. No deja nada en la base.
 # Corre en todos los PR (no solo los que tocan la base): la regla de main la exige para unir.
+# Qué base: la de producción (SUPABASE_DB_URL) SOLO para los PR hacia main; cualquier otro destino (por ejemplo la rama
+# factura-electronica) usa la base de pruebas (SUPABASE_DB_URL_PRUEBAS). Si falta un secreto, se va hacia la de pruebas, nunca a producción.
 name: Pruebas de la base
 
 on:
@@ -22,21 +24,27 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')
+    env:
+      DESTINO: ${{ github.base_ref || github.ref_name }}
+      SUPABASE_DB_URL: ${{ (github.base_ref || github.ref_name) == 'main' && secrets.SUPABASE_DB_URL || secrets.SUPABASE_DB_URL_PRUEBAS }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Revisar que esté el secreto
-        env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
-          if [ -z "$SUPABASE_DB_URL" ]; then echo "::error::Falta el secreto SUPABASE_DB_URL."; exit 1; fi
+          if [ -z "$SUPABASE_DB_URL" ]; then echo "::error::Falta el secreto de la base para $DESTINO."; exit 1; fi
+          PROD=jmktvtbyeifrminlrhpa
+          if [ "$DESTINO" = "main" ]; then
+            case "$SUPABASE_DB_URL" in *"$PROD"*) echo "Base: producción (PR hacia main)";; *) echo "::error::Falta el secreto SUPABASE_DB_URL."; exit 1;; esac
+          else
+            case "$SUPABASE_DB_URL" in *"$PROD"*) echo "::error::Un PR hacia $DESTINO no puede usar la base de producción."; exit 1;; esac
+            echo "Base: pruebas (PR hacia $DESTINO)"
+          fi
 
       - name: Cliente de Postgres
         run: command -v psql || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
 
       - name: Armar el script de prueba
-        env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
           aplicadas=$(psql "$SUPABASE_DB_URL" -Atc "select version from supabase_migrations.schema_migrations" || true)
           {
@@ -59,6 +67,4 @@ jobs:
         run: for f in supabase/functions/*/index.ts; do deno check "$f"; done
 
       - name: Correr las pruebas
-        env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: psql "$SUPABASE_DB_URL" -X -q -v ON_ERROR_STOP=1 -f "$RUNNER_TEMP/pruebas.sql"
