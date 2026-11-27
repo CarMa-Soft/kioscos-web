@@ -1,0 +1,47 @@
+# Aplica las migraciones de la rama factura-electronica a la BASE DE PRUEBAS (proyecto "Kioscos pruebas FE"), nunca a
+# producción. Usa el secreto SUPABASE_DB_URL_PRUEBAS y la variable SUPABASE_REF_PRUEBAS (Settings → Secrets and variables
+# → Actions). Corta si la cadena no es la del proyecto de pruebas o si es la de producción.
+name: Actualizar la base de pruebas
+
+on:
+  push:
+    branches: [factura-electronica]
+    paths: ['supabase/migrations/**', '.github/workflows/base-pruebas.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: base-pruebas
+  cancel-in-progress: false
+
+jobs:
+  migrar:
+    if: github.ref == 'refs/heads/factura-electronica'
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL_PRUEBAS }}
+      REF_PRUEBAS: ${{ vars.SUPABASE_REF_PRUEBAS }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Revisar que sea la base de pruebas
+        run: |
+          PROD=jmktvtbyeifrminlrhpa
+          if [ -z "$SUPABASE_DB_URL" ]; then echo "::error::Falta el secreto SUPABASE_DB_URL_PRUEBAS."; exit 1; fi
+          if [ -z "$REF_PRUEBAS" ]; then echo "::error::Falta la variable SUPABASE_REF_PRUEBAS."; exit 1; fi
+          if [ "$REF_PRUEBAS" = "$PROD" ]; then echo "::error::SUPABASE_REF_PRUEBAS es el proyecto de producción."; exit 1; fi
+          case "$SUPABASE_DB_URL" in *"$PROD"*) echo "::error::SUPABASE_DB_URL_PRUEBAS apunta a producción."; exit 1;; esac
+          case "$SUPABASE_DB_URL" in *"$REF_PRUEBAS"*) ;; *) echo "::error::SUPABASE_DB_URL_PRUEBAS no es del proyecto $REF_PRUEBAS."; exit 1;; esac
+          echo "Base de pruebas: $REF_PRUEBAS"
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.117.0
+
+      - name: Migraciones que se van a aplicar
+        run: supabase db push --db-url "$SUPABASE_DB_URL" --dry-run
+
+      - name: Aplicar
+        run: supabase db push --db-url "$SUPABASE_DB_URL" --yes
